@@ -1,8 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import type { TouchEvent } from "react";
 import Image from "next/image";
 import { RsvpForm } from "./rsvp-form";
+
+const SWIPE_THRESHOLD = 40;
 
 type ExistingRsvp = {
   name: string;
@@ -78,6 +81,7 @@ export function InviteBook({
 
   const [page, setPage] = useState(0);
   const [cardPage, setCardPage] = useState(0);
+  const [hasSwiped, setHasSwiped] = useState(false);
 
   const goPrev = () => setPage((p) => Math.max(0, p - 1));
   const goNext = () => setPage((p) => Math.min(pageCount - 1, p + 1));
@@ -85,10 +89,35 @@ export function InviteBook({
   const cardGoPrev = () => setCardPage((p) => Math.max(0, p - 1));
   const cardGoNext = () => setCardPage((p) => Math.min(DESKTOP_CARD_PAGES.length - 1, p + 1));
 
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+
+  const handleTouchStart = (e: TouchEvent) => {
+    const t = e.touches[0];
+    touchStart.current = { x: t.clientX, y: t.clientY };
+  };
+
+  const handleTouchEnd = (e: TouchEvent) => {
+    if (!touchStart.current) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchStart.current.x;
+    const dy = t.clientY - touchStart.current.y;
+    touchStart.current = null;
+
+    if (Math.abs(dx) > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy)) {
+      setHasSwiped(true);
+      if (dx < 0) goNext();
+      else goPrev();
+    }
+  };
+
   return (
     <>
-      {/* Mobile: page pager (cover -> details -> RSVP, if invited) */}
-      <div className="relative h-dvh w-full overflow-hidden lg:hidden">
+      {/* Mobile: swipeable page pager (cover -> details -> RSVP, if invited) */}
+      <div
+        className="relative h-dvh w-full overflow-hidden lg:hidden"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
         <div
           className="flex h-full transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]"
           style={{
@@ -129,37 +158,30 @@ export function InviteBook({
         </div>
 
         <div
-          className="absolute inset-x-0 z-20 flex items-center justify-center gap-4"
+          className="absolute inset-x-0 z-20 flex flex-col items-center gap-2"
           style={{ bottom: "max(1.5rem, calc(env(safe-area-inset-bottom) + 0.75rem))" }}
         >
-          <button
-            type="button"
-            onClick={goPrev}
-            disabled={page === 0}
-            className="rounded-full bg-gold-dark px-4 py-2 font-display text-xs uppercase tracking-[0.15em] text-white shadow-md transition hover:bg-[#5c3a0c] disabled:opacity-0"
-          >
-            &lsaquo; Prev
-          </button>
+          {!hasSwiped && (
+            <div className="flex items-center gap-2 rounded-full bg-gold-dark px-4 py-2 shadow-md">
+              <span className="font-display text-xs uppercase tracking-[0.15em] text-white">
+                Swipe to explore
+              </span>
+              <span className="animate-[swipe-hint_1.4s_ease-in-out_infinite] text-white">
+                &harr;
+              </span>
+            </div>
+          )}
 
           <div className="flex gap-1.5">
             {Array.from({ length: pageCount }).map((_, i) => (
               <span
                 key={i}
-                className={`h-1.5 w-1.5 rounded-full transition-colors ${
-                  i === page ? "bg-gold-dark" : "bg-gold/30"
+                className={`h-1.5 w-1.5 rounded-full shadow-sm transition-colors ${
+                  i === page ? "bg-gold-dark" : "bg-white/80"
                 }`}
               />
             ))}
           </div>
-
-          <button
-            type="button"
-            onClick={goNext}
-            disabled={page === pageCount - 1}
-            className="rounded-full bg-gold-dark px-4 py-2 font-display text-xs uppercase tracking-[0.15em] text-white shadow-md transition hover:bg-[#5c3a0c] disabled:opacity-0"
-          >
-            Next &rsaquo;
-          </button>
         </div>
       </div>
 
