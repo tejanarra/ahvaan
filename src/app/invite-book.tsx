@@ -128,7 +128,10 @@ export function InviteBook({
           )}
         </div>
 
-        <div className="absolute inset-x-0 bottom-6 flex items-center justify-center gap-4">
+        <div
+          className="absolute inset-x-0 z-20 flex items-center justify-center gap-4"
+          style={{ bottom: "max(1.5rem, calc(env(safe-area-inset-bottom) + 0.75rem))" }}
+        >
           <button
             type="button"
             onClick={goPrev}

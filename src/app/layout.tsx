@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Cinzel, Cormorant_Garamond } from "next/font/google";
 import "./globals.css";
 
@@ -26,6 +26,16 @@ const cormorant = Cormorant_Garamond({
 });
 
 const siteUrl = "https://swathi.tejanarra.space";
+
+// viewportFit: "cover" is required for env(safe-area-inset-*) to resolve to
+// real values instead of 0 — needed so fixed/absolute UI (like the mobile
+// pager's Prev/Next bar) can sit clear of notches and the iOS home-indicator
+// area instead of potentially being covered by them.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
