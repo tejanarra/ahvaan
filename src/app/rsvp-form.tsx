@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { submitRsvp, type RsvpFormState } from "./actions";
 
 const initialState: RsvpFormState = { status: "idle" };
@@ -15,6 +15,14 @@ export function RsvpForm() {
   const [state, formAction, pending] = useActionState(submitRsvp, initialState);
   const [attending, setAttending] = useState<"yes" | "no" | "">("");
   const [guestCount, setGuestCount] = useState(0);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const nameFromLink = new URLSearchParams(window.location.search).get("name");
+    if (nameFromLink && nameInputRef.current) {
+      nameInputRef.current.value = nameFromLink;
+    }
+  }, []);
 
   if (state.status === "success") {
     return (
@@ -36,6 +44,7 @@ export function RsvpForm() {
           Name
         </label>
         <input
+          ref={nameInputRef}
           id="name"
           name="name"
           type="text"

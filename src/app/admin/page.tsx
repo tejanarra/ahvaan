@@ -1,6 +1,7 @@
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { LogoutButton } from "./logout-button";
 import { DeleteRsvpButton } from "./delete-rsvp-button";
+import { ShareInviteButton } from "./share-invite-button";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,10 @@ export default async function AdminPage() {
       <div className="mx-auto max-w-5xl">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-semibold text-gray-900">RSVP Guest List</h1>
-          <LogoutButton />
+          <div className="flex items-center gap-3">
+            <ShareInviteButton />
+            <LogoutButton />
+          </div>
         </div>
 
         <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
