@@ -6,7 +6,7 @@ import Image from "next/image";
 import { RsvpForm } from "./rsvp-form";
 
 const DRAG_LOCK_THRESHOLD = 10;
-const DRAG_COMPLETE_THRESHOLD = 0.3;
+const DRAG_COMPLETE_THRESHOLD = 0.25;
 
 type ExistingRsvp = {
   name: string;
@@ -190,15 +190,23 @@ export function InviteBook({
   // Base rest angle for page i, plus a live drag override for whichever
   // single page is currently being dragged (the transition is switched off
   // for that page only, so it tracks the finger without any easing lag).
+  //
+  // Past 90deg a page is fully backface-hidden — invisible either way. A
+  // "prev" drag starts its page at -180 (fully hidden) and only crosses
+  // into the visible 0..-90 arc once the drag is already halfway done, so
+  // half of every backward drag visibly does nothing. Mapping the whole
+  // drag range onto just the visible arc (0 to -90, not 0 to -180) fixes
+  // that for both directions — every bit of finger movement now produces
+  // a visible change from the very start of the gesture.
   const getPageTransform = (i: number) => {
     let angle = page > i ? -180 : 0;
     let dragging = false;
 
     if (dragDirection === "next" && i === page) {
-      angle = -180 * dragProgress;
+      angle = -90 * dragProgress;
       dragging = true;
     } else if (dragDirection === "prev" && i === page - 1) {
-      angle = -180 * (1 - dragProgress);
+      angle = -90 * (1 - dragProgress);
       dragging = true;
     }
 
