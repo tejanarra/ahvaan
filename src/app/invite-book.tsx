@@ -120,38 +120,28 @@ export function InviteBook() {
       {/* Desktop: card pager (left/right) + persistent RSVP/map column */}
       <div className="hidden h-screen items-stretch gap-6 px-4 py-6 lg:flex">
         <div className="relative flex min-h-0 flex-[3] flex-col items-center justify-center gap-4">
-          <div className="relative min-h-0 w-full flex-1">
-            {DESKTOP_CARD_PAGES.map((card, i) => (
-              <Image
-                key={card.src}
-                src={card.src}
-                alt={card.alt}
-                fill
-                priority
-                sizes="75vw"
-                className={`object-contain transition-opacity duration-500 ${
-                  i === cardPage ? "opacity-100" : "pointer-events-none opacity-0"
-                }`}
-              />
-            ))}
-          </div>
-
-          <div className="flex items-center justify-center gap-4">
+          <div className="relative flex min-h-0 w-full flex-1 items-center">
             <button
               type="button"
               onClick={cardGoPrev}
               disabled={cardPage === 0}
-              className="rounded-full bg-white/80 px-4 py-2 font-display text-xs uppercase tracking-[0.15em] text-gold-dark shadow-md backdrop-blur-sm transition disabled:opacity-0"
+              aria-label="Previous page"
+              className="absolute left-2 z-10 flex h-14 w-14 items-center justify-center rounded-full bg-white text-2xl text-gold-dark shadow-[0_8px_24px_-6px_rgba(138,98,21,0.5)] transition hover:scale-105 hover:bg-gold-dark hover:text-white disabled:pointer-events-none disabled:opacity-0"
             >
-              &lsaquo; Prev
+              &lsaquo;
             </button>
 
-            <div className="flex gap-1.5">
-              {DESKTOP_CARD_PAGES.map((_, i) => (
-                <span
-                  key={i}
-                  className={`h-1.5 w-1.5 rounded-full transition-colors ${
-                    i === cardPage ? "bg-gold-dark" : "bg-gold/30"
+            <div className="relative h-full w-full">
+              {DESKTOP_CARD_PAGES.map((card, i) => (
+                <Image
+                  key={card.src}
+                  src={card.src}
+                  alt={card.alt}
+                  fill
+                  priority
+                  sizes="75vw"
+                  className={`object-contain transition-opacity duration-500 ${
+                    i === cardPage ? "opacity-100" : "pointer-events-none opacity-0"
                   }`}
                 />
               ))}
@@ -161,10 +151,22 @@ export function InviteBook() {
               type="button"
               onClick={cardGoNext}
               disabled={cardPage === DESKTOP_CARD_PAGES.length - 1}
-              className="rounded-full bg-white/80 px-4 py-2 font-display text-xs uppercase tracking-[0.15em] text-gold-dark shadow-md backdrop-blur-sm transition disabled:opacity-0"
+              aria-label="Next page"
+              className="absolute right-2 z-10 flex h-14 w-14 items-center justify-center rounded-full bg-white text-2xl text-gold-dark shadow-[0_8px_24px_-6px_rgba(138,98,21,0.5)] transition hover:scale-105 hover:bg-gold-dark hover:text-white disabled:pointer-events-none disabled:opacity-0"
             >
-              Next &rsaquo;
+              &rsaquo;
             </button>
+          </div>
+
+          <div className="flex gap-1.5">
+            {DESKTOP_CARD_PAGES.map((_, i) => (
+              <span
+                key={i}
+                className={`h-1.5 w-1.5 rounded-full transition-colors ${
+                  i === cardPage ? "bg-gold-dark" : "bg-gold/30"
+                }`}
+              />
+            ))}
           </div>
         </div>
 
