@@ -25,9 +25,24 @@ const cormorant = Cormorant_Garamond({
   style: ["normal", "italic"],
 });
 
+const siteUrl = "https://swathi.tejanarra.space";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: "Swathi & Sai Teja's Wedding RSVP",
   description: "RSVP for the wedding of Swathi Puskoori and Sri Sai Teja Narra",
+  openGraph: {
+    title: "Swathi & Sai Teja's Wedding RSVP",
+    description: "RSVP for the wedding of Swathi Puskoori and Sri Sai Teja Narra",
+    url: siteUrl,
+    siteName: "Swathi & Sai Teja's Wedding",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Swathi & Sai Teja's Wedding RSVP",
+    description: "RSVP for the wedding of Swathi Puskoori and Sri Sai Teja Narra",
+  },
 };
 
 export default function RootLayout({
