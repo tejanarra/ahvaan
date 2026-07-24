@@ -80,6 +80,7 @@ export function InviteBook() {
 
           <div className="flex h-full shrink-0 basis-1/3 flex-col items-center gap-6 overflow-y-auto px-4 pt-10 pb-28">
             <VenueMap />
+            <div className="h-px w-16 bg-gold/30" />
             <RsvpBlock />
           </div>
         </div>
@@ -117,8 +118,8 @@ export function InviteBook() {
       </div>
 
       {/* Desktop: card pager (left/right) + persistent RSVP/map column */}
-      <div className="hidden h-screen items-stretch gap-6 px-6 py-6 lg:flex">
-        <div className="relative flex min-h-0 flex-[2] flex-col items-center justify-center gap-4">
+      <div className="hidden h-screen items-stretch gap-6 px-4 py-6 lg:flex">
+        <div className="relative flex min-h-0 flex-[3] flex-col items-center justify-center gap-4">
           <div className="relative min-h-0 w-full flex-1">
             {DESKTOP_CARD_PAGES.map((card, i) => (
               <Image
@@ -127,8 +128,8 @@ export function InviteBook() {
                 alt={card.alt}
                 fill
                 priority
-                sizes="66vw"
-                className={`rounded-2xl object-contain shadow-[0_20px_60px_-25px_rgba(138,98,21,0.45)] transition-opacity duration-500 ${
+                sizes="75vw"
+                className={`object-contain transition-opacity duration-500 ${
                   i === cardPage ? "opacity-100" : "pointer-events-none opacity-0"
                 }`}
               />
@@ -169,6 +170,7 @@ export function InviteBook() {
 
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 overflow-y-auto py-2">
           <RsvpBlock />
+          <div className="h-px w-16 bg-gold/30" />
           <VenueMap />
         </div>
       </div>
