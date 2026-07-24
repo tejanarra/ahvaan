@@ -32,3 +32,22 @@ alter table public.invites enable row level security;
 
 alter table public.wedding_rsvps
   add column if not exists invite_id uuid references public.invites(id);
+
+-- Fixes for issues found in review:
+--
+-- 1. The invite_id FK had no ON DELETE behavior, so deleting an invite that
+--    already had an RSVP failed with a foreign-key violation. ON DELETE SET
+--    NULL keeps the guest's response (name/attending/plus-ones) but detaches
+--    it from the deleted invite.
+-- 2. A unique constraint on invite_id (nulls excluded automatically by
+--    Postgres) lets submitRsvp use a single atomic upsert instead of a
+--    check-then-insert/update race between concurrent submissions.
+alter table public.wedding_rsvps
+  drop constraint if exists wedding_rsvps_invite_id_fkey;
+
+alter table public.wedding_rsvps
+  add constraint wedding_rsvps_invite_id_fkey
+  foreign key (invite_id) references public.invites(id) on delete set null;
+
+alter table public.wedding_rsvps
+  add constraint wedding_rsvps_invite_id_key unique (invite_id);

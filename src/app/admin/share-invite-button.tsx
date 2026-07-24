@@ -8,6 +8,7 @@ export function ShareInviteButton() {
   const [guestName, setGuestName] = useState("");
   const [link, setLink] = useState("");
   const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
 
@@ -41,9 +42,17 @@ export function ShareInviteButton() {
   };
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(link);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopyFailed(false);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard access denied/unsupported — the link is already visible and
+      // selectable in the field above, so just point that out instead of
+      // failing silently.
+      setCopyFailed(true);
+    }
   };
 
   const handleNativeShare = async () => {
@@ -132,6 +141,13 @@ export function ShareInviteButton() {
                     {copied ? "Copied!" : "Copy"}
                   </button>
                 </div>
+
+                {copyFailed && (
+                  <p className="text-xs text-foreground/60">
+                    Couldn&rsquo;t copy automatically — tap the link above to select
+                    it manually.
+                  </p>
+                )}
 
                 {typeof navigator !== "undefined" &&
                   typeof navigator.share === "function" && (

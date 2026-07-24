@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { submitRsvp, type RsvpFormState } from "./actions";
 import { VenueMap } from "./venue-map";
 
@@ -17,6 +17,12 @@ type SavedRsvp = {
   attending: "yes" | "no";
   guestNames: string[];
 };
+
+type GuestField = { key: number; value: string };
+
+function toGuestFields(names: string[]): GuestField[] {
+  return names.map((value, i) => ({ key: i, value }));
+}
 
 export function RsvpForm({
   inviteId,
@@ -40,7 +46,10 @@ export function RsvpForm({
   );
   const [mode, setMode] = useState<"view" | "edit">(initialRsvp ? "view" : "edit");
   const [attending, setAttending] = useState<"yes" | "no" | "">(saved?.attending ?? "");
-  const [guestCount, setGuestCount] = useState(saved?.guestNames.length ?? 0);
+  const [guestFields, setGuestFields] = useState<GuestField[]>(
+    toGuestFields(saved?.guestNames ?? [])
+  );
+  const nextGuestKey = useRef(guestFields.length);
 
   useEffect(() => {
     if (state.status === "success" && state.data) {
@@ -52,6 +61,20 @@ export function RsvpForm({
       setMode("view");
     }
   }, [state]);
+
+  const addGuest = () => {
+    setGuestFields((fields) => [...fields, { key: nextGuestKey.current++, value: "" }]);
+  };
+
+  const removeGuest = (key: number) => {
+    setGuestFields((fields) => fields.filter((f) => f.key !== key));
+  };
+
+  const updateGuest = (key: number, value: string) => {
+    setGuestFields((fields) =>
+      fields.map((f) => (f.key === key ? { ...f, value } : f))
+    );
+  };
 
   if (mode === "view" && saved) {
     return (
@@ -88,7 +111,8 @@ export function RsvpForm({
             type="button"
             onClick={() => {
               setAttending(saved.attending);
-              setGuestCount(saved.guestNames.length);
+              setGuestFields(toGuestFields(saved.guestNames));
+              nextGuestKey.current = saved.guestNames.length;
               setMode("edit");
             }}
             className="mt-4 rounded-full border border-gold/40 px-5 py-1.5 font-script text-base text-gold-dark transition hover:border-gold-dark"
@@ -157,7 +181,7 @@ export function RsvpForm({
                 checked={attending === "no"}
                 onChange={() => {
                   setAttending("no");
-                  setGuestCount(0);
+                  setGuestFields([]);
                 }}
                 className="sr-only"
               />
@@ -172,25 +196,26 @@ export function RsvpForm({
               <label className={labelClass}>Plus ones</label>
               <button
                 type="button"
-                onClick={() => setGuestCount((c) => c + 1)}
+                onClick={addGuest}
                 className="font-script text-base text-gold-dark hover:text-gold"
               >
                 + Add guest
               </button>
             </div>
             <div className="mt-1 space-y-1">
-              {Array.from({ length: guestCount }).map((_, index) => (
-                <div key={index} className="flex items-center gap-2">
+              {guestFields.map((field, index) => (
+                <div key={field.key} className="flex items-center gap-2">
                   <input
                     type="text"
                     name="guestName"
-                    defaultValue={saved?.guestNames[index] ?? ""}
+                    value={field.value}
+                    onChange={(e) => updateGuest(field.key, e.target.value)}
                     placeholder={`Guest ${index + 1} name`}
                     className={inputClass + " mt-0"}
                   />
                   <button
                     type="button"
-                    onClick={() => setGuestCount((c) => Math.max(0, c - 1))}
+                    onClick={() => removeGuest(field.key)}
                     className="text-foreground/50 hover:text-foreground/80"
                     aria-label="Remove guest"
                   >
@@ -198,7 +223,7 @@ export function RsvpForm({
                   </button>
                 </div>
               ))}
-              {guestCount === 0 && (
+              {guestFields.length === 0 && (
                 <p className="pt-1 font-script text-sm italic text-foreground/60">
                   Coming with someone? Click &ldquo;Add guest&rdquo; to include their name.
                 </p>
