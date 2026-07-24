@@ -41,21 +41,21 @@ export default async function AdminPage() {
 
   return (
     <div
-      className="min-h-screen bg-[#f7ecf7] bg-cover bg-center px-4 py-10"
+      className="min-h-screen bg-[#f7ecf7] bg-cover bg-center px-3 py-8 sm:px-4 sm:py-10"
       style={{ backgroundImage: "url(/4.png)" }}
     >
       <div className="mx-auto max-w-5xl">
-        <div className="flex items-center justify-between">
-          <h1 className="font-display text-2xl uppercase tracking-[0.1em] text-gold-dark">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="font-display text-xl uppercase tracking-[0.1em] text-gold-dark sm:text-2xl">
             RSVP Guest List
           </h1>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <ShareInviteButton />
             <LogoutButton />
           </div>
         </div>
 
-        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="mt-6 grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-4">
           {stats.map((stat) => (
             <div
               key={stat.label}
@@ -75,7 +75,56 @@ export default async function AdminPage() {
           </p>
         )}
 
-        <div className="mt-6 overflow-x-auto rounded-xl border border-gold/25 bg-white/80 shadow-sm backdrop-blur-sm">
+        {/* Mobile: stacked cards */}
+        <div className="mt-6 space-y-3 md:hidden">
+          {rsvps?.map((rsvp) => (
+            <div
+              key={rsvp.id}
+              className="rounded-xl border border-gold/25 bg-white/80 p-4 shadow-sm backdrop-blur-sm"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-foreground">{rsvp.name}</p>
+                  <p className="mt-0.5 text-xs text-foreground/50">
+                    {new Date(rsvp.created_at).toLocaleString()}
+                  </p>
+                </div>
+                <span
+                  className={
+                    rsvp.attending
+                      ? "shrink-0 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800"
+                      : "shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800"
+                  }
+                >
+                  {rsvp.attending ? "Yes" : "No"}
+                </span>
+              </div>
+              {rsvp.additional_guests?.length ? (
+                <div className="mt-3 flex flex-wrap gap-1">
+                  {rsvp.additional_guests.map((guest: string, i: number) => (
+                    <span
+                      key={i}
+                      className="rounded-full bg-lavender/50 px-2 py-0.5 text-xs text-foreground/80"
+                    >
+                      {guest}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+              <div className="mt-3 flex justify-end border-t border-gold/10 pt-3">
+                <DeleteRsvpButton id={rsvp.id} name={rsvp.name} />
+              </div>
+            </div>
+          ))}
+          {rsvps?.length === 0 && (
+            <p className="rounded-xl border border-gold/25 bg-white/80 px-4 py-8 text-center text-sm text-foreground/50 shadow-sm backdrop-blur-sm">
+              No RSVPs yet.
+            </p>
+          )}
+        </div>
+
+        {/* Desktop/tablet: table */}
+        <div className="mt-6 hidden overflow-x-auto rounded-xl border border-gold/25 bg-white/80 shadow-sm backdrop-blur-sm md:block">
           <table className="min-w-full divide-y divide-gold/15 text-sm">
             <thead className="bg-lavender/40">
               <tr>
@@ -151,7 +200,46 @@ export default async function AdminPage() {
           </p>
         )}
 
-        <div className="mt-4 overflow-x-auto rounded-xl border border-gold/25 bg-white/80 shadow-sm backdrop-blur-sm">
+        {/* Mobile: stacked cards */}
+        <div className="mt-4 space-y-3 md:hidden">
+          {invites?.map((invite) => (
+            <div
+              key={invite.id}
+              className="rounded-xl border border-gold/25 bg-white/80 p-4 shadow-sm backdrop-blur-sm"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-foreground">{invite.name}</p>
+                  <p className="mt-0.5 text-xs text-foreground/50">
+                    {new Date(invite.created_at).toLocaleString()}
+                  </p>
+                </div>
+                <span
+                  className={
+                    respondedInviteIds.has(invite.id)
+                      ? "shrink-0 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800"
+                      : "shrink-0 rounded-full bg-lavender/50 px-2 py-0.5 text-xs font-medium text-foreground/70"
+                  }
+                >
+                  {respondedInviteIds.has(invite.id) ? "Responded" : "Waiting"}
+                </span>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center justify-end gap-2 border-t border-gold/10 pt-3">
+                <CopyInviteLinkButton id={invite.id} />
+                <DeleteInviteButton id={invite.id} name={invite.name} />
+              </div>
+            </div>
+          ))}
+          {invites?.length === 0 && (
+            <p className="rounded-xl border border-gold/25 bg-white/80 px-4 py-8 text-center text-sm text-foreground/50 shadow-sm backdrop-blur-sm">
+              No invites sent yet. Use &ldquo;Share invite link&rdquo; above to
+              create one.
+            </p>
+          )}
+        </div>
+
+        {/* Desktop/tablet: table */}
+        <div className="mt-4 hidden overflow-x-auto rounded-xl border border-gold/25 bg-white/80 shadow-sm backdrop-blur-sm md:block">
           <table className="min-w-full divide-y divide-gold/15 text-sm">
             <thead className="bg-lavender/40">
               <tr>

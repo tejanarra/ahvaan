@@ -35,7 +35,7 @@ export function CopyInviteLinkButton({ id }: { id: string }) {
         autoFocus
         onFocus={(e) => e.currentTarget.select()}
         onBlur={() => setFallbackLink(null)}
-        className="w-56 rounded-md border border-gold/30 bg-lavender/20 px-2 py-1 text-xs text-foreground/80 focus:outline-none"
+        className="w-full min-w-0 max-w-56 rounded-md border border-gold/30 bg-lavender/20 px-2 py-1 text-xs text-foreground/80 focus:outline-none"
       />
     );
   }

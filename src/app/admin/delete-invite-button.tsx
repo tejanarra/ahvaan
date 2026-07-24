@@ -22,7 +22,7 @@ export function DeleteInviteButton({ id, name }: { id: string; name: string }) {
   if (confirming) {
     return (
       <div className="flex flex-col items-end gap-1">
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <span className="text-xs text-foreground/60">Delete invite for {name}?</span>
           <button
             type="button"
