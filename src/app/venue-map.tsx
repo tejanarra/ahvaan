@@ -2,7 +2,7 @@ import { wedding } from "@/lib/wedding";
 
 export function VenueMap() {
   return (
-    <div className="w-full max-w-md rounded-[1.75rem] border border-white/60 bg-white/55 p-4 shadow-[0_8px_30px_-15px_rgba(138,98,21,0.25)] backdrop-blur-md sm:p-5">
+    <div className="w-full max-w-md">
       <p className="text-center font-display text-xs font-semibold uppercase tracking-[0.2em] text-gold-dark">
         Venue
       </p>

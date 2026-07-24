@@ -2,86 +2,169 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { RsvpModal } from "./rsvp-modal";
+import { RsvpForm } from "./rsvp-form";
 import { VenueMap } from "./venue-map";
 
+const PAGE_COUNT = 3;
+
+function RsvpBlock() {
+  return (
+    <div className="w-full max-w-md">
+      <h2 className="text-center font-display text-xl uppercase tracking-[0.15em] text-gold-dark">
+        Kindly RSVP
+      </h2>
+      <p className="mx-auto mt-2 max-w-sm text-center font-script text-base italic text-foreground/85">
+        Please let us know who&rsquo;s coming from your side &mdash; you and
+        anyone joining you &mdash; so we can plan seating and catering
+        accordingly.
+      </p>
+      <div className="mt-4">
+        <RsvpForm />
+      </div>
+    </div>
+  );
+}
+
+const CARD_PAGES = [
+  { src: "/leftMobile.png", alt: "Swathi weds Sri Sai Teja — invitation, page one" },
+  { src: "/rightMobile.png", alt: "Wedding details, page two" },
+];
+
 export function InviteBook() {
-  const [opened, setOpened] = useState(false);
+  const [page, setPage] = useState(0);
+  const [cardPage, setCardPage] = useState(0);
+
+  const goPrev = () => setPage((p) => Math.max(0, p - 1));
+  const goNext = () => setPage((p) => Math.min(PAGE_COUNT - 1, p + 1));
+
+  const cardGoPrev = () => setCardPage((p) => Math.max(0, p - 1));
+  const cardGoNext = () => setCardPage((p) => Math.min(CARD_PAGES.length - 1, p + 1));
 
   return (
     <>
-      {/* Mobile: full-screen flip book */}
-      <div className="lg:hidden">
-        <div className="relative h-dvh w-full" style={{ perspective: 2000 }}>
-          <Image
-            src="/right.jpg"
-            alt="Wedding details"
-            fill
-            priority
-            sizes="100vw"
-            className="object-contain"
-          />
-
-          <button
-            type="button"
-            aria-label={opened ? "View invitation front" : "Tap to open invitation"}
-            onClick={() => setOpened((o) => !o)}
-            className="absolute inset-0 h-full w-full cursor-pointer transition-transform duration-[900ms] ease-[cubic-bezier(0.22,1,0.36,1)] [backface-visibility:hidden] [transform-style:preserve-3d]"
-            style={{
-              transformOrigin: "left center",
-              transform: opened ? "rotateY(-140deg)" : "rotateY(0deg)",
-            }}
-          >
+      {/* Mobile: 3-page pager (cover -> details -> RSVP) */}
+      <div className="relative h-dvh w-full overflow-hidden lg:hidden">
+        <div
+          className="flex h-full transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]"
+          style={{
+            width: `${PAGE_COUNT * 100}%`,
+            transform: `translateX(-${page * (100 / PAGE_COUNT)}%)`,
+          }}
+        >
+          <div className="relative h-full shrink-0 basis-1/3">
             <Image
-              src="/left.jpg"
-              alt="Wedding invitation"
+              src="/leftMobile.png"
+              alt="Swathi weds Sri Sai Teja — invitation, page one"
               fill
               priority
               sizes="100vw"
-              className="object-contain shadow-2xl [backface-visibility:hidden]"
+              className="object-contain"
             />
-            {!opened && (
-              <span className="absolute bottom-12 left-1/2 flex -translate-x-1/2 animate-[gentle-bounce_2s_ease-in-out_infinite] flex-col items-center gap-1">
-                <span className="rounded-full bg-white/75 px-5 py-2 font-display text-xs uppercase tracking-[0.2em] text-gold-dark shadow-md backdrop-blur-sm">
-                  Tap to open
-                </span>
-              </span>
-            )}
+          </div>
+
+          <div className="relative h-full shrink-0 basis-1/3">
+            <Image
+              src="/rightMobile.png"
+              alt="Wedding details, page two"
+              fill
+              priority
+              sizes="100vw"
+              className="object-contain"
+            />
+          </div>
+
+          <div className="flex h-full shrink-0 basis-1/3 flex-col items-center gap-6 overflow-y-auto px-4 pt-10 pb-28">
+            <VenueMap />
+            <RsvpBlock />
+          </div>
+        </div>
+
+        <div className="absolute inset-x-0 bottom-6 flex items-center justify-center gap-4">
+          <button
+            type="button"
+            onClick={goPrev}
+            disabled={page === 0}
+            className="rounded-full bg-white/80 px-4 py-2 font-display text-xs uppercase tracking-[0.15em] text-gold-dark shadow-md backdrop-blur-sm transition disabled:opacity-0"
+          >
+            &lsaquo; Prev
+          </button>
+
+          <div className="flex gap-1.5">
+            {Array.from({ length: PAGE_COUNT }).map((_, i) => (
+              <span
+                key={i}
+                className={`h-1.5 w-1.5 rounded-full transition-colors ${
+                  i === page ? "bg-gold-dark" : "bg-gold/30"
+                }`}
+              />
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={goNext}
+            disabled={page === PAGE_COUNT - 1}
+            className="rounded-full bg-white/80 px-4 py-2 font-display text-xs uppercase tracking-[0.15em] text-gold-dark shadow-md backdrop-blur-sm transition disabled:opacity-0"
+          >
+            Next &rsaquo;
           </button>
         </div>
-
-        {opened && (
-          <div className="flex flex-col items-center gap-6 px-4 py-10 [animation:fade-in-up_0.7s_ease-out]">
-            <VenueMap />
-            <RsvpModal />
-          </div>
-        )}
       </div>
 
-      {/* Desktop: side-by-side book */}
-      <div className="hidden flex-col items-center gap-8 px-4 py-10 lg:flex">
-        <div className="flex h-[78vh] items-stretch gap-0">
-          <Image
-            src="/left.jpg"
-            alt="Swathi weds Sri Sai Teja — invitation, page one"
-            width={768}
-            height={1024}
-            priority
-            className="h-full w-auto rounded-l-2xl object-contain shadow-[0_20px_60px_-25px_rgba(138,98,21,0.45)]"
-          />
-          <Image
-            src="/right.jpg"
-            alt="Wedding details, page two"
-            width={763}
-            height={1024}
-            priority
-            className="h-full w-auto rounded-r-2xl border-l border-gold/30 object-contain shadow-[0_20px_60px_-25px_rgba(138,98,21,0.45)]"
-          />
+      {/* Desktop: card pager (left/right) + persistent RSVP/map column */}
+      <div className="hidden h-screen items-stretch gap-6 px-6 py-6 lg:flex">
+        <div className="relative flex min-h-0 flex-[2] flex-col items-center justify-center gap-4">
+          <div className="relative min-h-0 w-full flex-1">
+            {CARD_PAGES.map((card, i) => (
+              <Image
+                key={card.src}
+                src={card.src}
+                alt={card.alt}
+                fill
+                priority
+                sizes="66vw"
+                className={`rounded-2xl object-contain shadow-[0_20px_60px_-25px_rgba(138,98,21,0.45)] transition-opacity duration-500 ${
+                  i === cardPage ? "opacity-100" : "pointer-events-none opacity-0"
+                }`}
+              />
+            ))}
+          </div>
+
+          <div className="flex items-center justify-center gap-4">
+            <button
+              type="button"
+              onClick={cardGoPrev}
+              disabled={cardPage === 0}
+              className="rounded-full bg-white/80 px-4 py-2 font-display text-xs uppercase tracking-[0.15em] text-gold-dark shadow-md backdrop-blur-sm transition disabled:opacity-0"
+            >
+              &lsaquo; Prev
+            </button>
+
+            <div className="flex gap-1.5">
+              {CARD_PAGES.map((_, i) => (
+                <span
+                  key={i}
+                  className={`h-1.5 w-1.5 rounded-full transition-colors ${
+                    i === cardPage ? "bg-gold-dark" : "bg-gold/30"
+                  }`}
+                />
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={cardGoNext}
+              disabled={cardPage === CARD_PAGES.length - 1}
+              className="rounded-full bg-white/80 px-4 py-2 font-display text-xs uppercase tracking-[0.15em] text-gold-dark shadow-md backdrop-blur-sm transition disabled:opacity-0"
+            >
+              Next &rsaquo;
+            </button>
+          </div>
         </div>
 
-        <div className="flex flex-col items-center gap-6 [animation:fade-in-up_0.8s_ease-out]">
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 overflow-y-auto py-2">
+          <RsvpBlock />
           <VenueMap />
-          <RsvpModal />
         </div>
       </div>
     </>
