@@ -11,6 +11,7 @@ export async function submitRsvp(
   _prevState: RsvpFormState,
   formData: FormData
 ): Promise<RsvpFormState> {
+  const inviteId = String(formData.get("inviteId") ?? "").trim();
   const name = String(formData.get("name") ?? "").trim();
   const attendingValue = String(formData.get("attending") ?? "");
 
@@ -30,16 +31,29 @@ export async function submitRsvp(
 
   const supabase = createServiceRoleClient();
 
-  // Resubmitting under the same name updates their existing response instead
-  // of creating a duplicate row (e.g. someone changing their mind, or
-  // reopening their personalized invite link). If more than one existing row
-  // matches (e.g. leftover duplicates), update the most recent one.
-  const { data: existingRows, error: lookupError } = await supabase
+  // The invite id is the actual access control — the UI only shows the RSVP
+  // form when one is present, but this is what makes that real rather than
+  // just cosmetic. No valid invite, no saved RSVP.
+  const { data: invite } = await supabase
+    .from("invites")
+    .select("id")
+    .eq("id", inviteId)
+    .maybeSingle();
+
+  if (!invite) {
+    return {
+      status: "error",
+      message: "This RSVP link is invalid or has expired.",
+    };
+  }
+
+  // Resubmitting through the same invite link updates that guest's existing
+  // response instead of creating a duplicate row.
+  const { data: existing, error: lookupError } = await supabase
     .from("wedding_rsvps")
     .select("id")
-    .ilike("name", name)
-    .order("created_at", { ascending: false })
-    .limit(1);
+    .eq("invite_id", invite.id)
+    .maybeSingle();
 
   if (lookupError) {
     console.error("Failed to look up existing RSVP", lookupError);
@@ -49,12 +63,11 @@ export async function submitRsvp(
     };
   }
 
-  const existing = existingRows?.[0];
-
   const payload = {
     name,
     attending,
     additional_guests: attending ? additionalGuests : [],
+    invite_id: invite.id,
   };
 
   const { error } = existing

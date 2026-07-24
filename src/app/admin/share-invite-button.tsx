@@ -1,22 +1,36 @@
 "use client";
 
 import { useState } from "react";
+import { createInvite } from "./actions";
 
 export function ShareInviteButton() {
   const [open, setOpen] = useState(false);
   const [guestName, setGuestName] = useState("");
   const [copied, setCopied] = useState(false);
-
-  const buildLink = () => {
-    const url = new URL(window.location.origin);
-    if (guestName.trim()) {
-      url.searchParams.set("name", guestName.trim());
-    }
-    return url.toString();
-  };
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
 
   const handleShare = async () => {
-    const link = buildLink();
+    if (!guestName.trim()) {
+      setError("Enter a guest name first.");
+      return;
+    }
+
+    setPending(true);
+    setError("");
+
+    let inviteId: string;
+    try {
+      inviteId = await createInvite(guestName);
+    } catch {
+      setPending(false);
+      setError("Couldn't create the invite. Try again.");
+      return;
+    }
+
+    const url = new URL(window.location.origin);
+    url.searchParams.set("invite", inviteId);
+    const link = url.toString();
 
     if (typeof navigator.share === "function") {
       try {
@@ -25,6 +39,7 @@ export function ShareInviteButton() {
           text: "You're invited! Please RSVP here:",
           url: link,
         });
+        setPending(false);
         setOpen(false);
         return;
       } catch {
@@ -33,6 +48,7 @@ export function ShareInviteButton() {
     }
 
     await navigator.clipboard.writeText(link);
+    setPending(false);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -67,8 +83,9 @@ export function ShareInviteButton() {
 
             <h2 className="text-lg font-semibold text-gray-900">Share Invite</h2>
             <p className="mt-1 text-sm text-gray-600">
-              Enter the guest&rsquo;s name to generate a personalized link —
-              it&rsquo;ll be pre-filled as their name when they open it to RSVP.
+              Enter the guest&rsquo;s name to generate their personal invite
+              link. Only this link will let them RSVP — anyone else just sees
+              the invitation.
             </p>
 
             <input
@@ -79,12 +96,19 @@ export function ShareInviteButton() {
               className="mt-4 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-500 focus:outline-none"
             />
 
+            {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+
             <button
               type="button"
               onClick={handleShare}
-              className="mt-4 w-full rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-800"
+              disabled={pending}
+              className="mt-4 w-full rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-800 disabled:opacity-50"
             >
-              {copied ? "Link copied!" : "Share / Copy Link"}
+              {pending
+                ? "Creating invite..."
+                : copied
+                  ? "Link copied!"
+                  : "Generate & Share Link"}
             </button>
           </div>
         </div>

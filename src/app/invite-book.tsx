@@ -4,9 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { RsvpForm } from "./rsvp-form";
 
-const PAGE_COUNT = 3;
-
-function RsvpBlock() {
+function RsvpBlock({ inviteId, guestName }: { inviteId: string; guestName: string }) {
   return (
     <div className="w-full max-w-md">
       <h2 className="text-center font-display text-xl uppercase tracking-[0.15em] text-gold-dark">
@@ -18,8 +16,22 @@ function RsvpBlock() {
         accordingly.
       </p>
       <div className="mt-4">
-        <RsvpForm />
+        <RsvpForm inviteId={inviteId} guestName={guestName} />
       </div>
+    </div>
+  );
+}
+
+function InviteOnlyNote() {
+  return (
+    <div className="w-full max-w-md text-center">
+      <h2 className="font-display text-xl uppercase tracking-[0.15em] text-gold-dark">
+        By Invitation Only
+      </h2>
+      <p className="mx-auto mt-2 max-w-sm font-script text-base italic text-foreground/85">
+        RSVPs are only accepted through a personal invite link. If you&rsquo;re
+        expecting one, please check with Swathi &amp; Sai Teja.
+      </p>
     </div>
   );
 }
@@ -34,28 +46,37 @@ const DESKTOP_CARD_PAGES = [
   { src: "/rightInviteDesktop.jpg", alt: "Wedding details, page two" },
 ];
 
-export function InviteBook() {
+export function InviteBook({
+  inviteId,
+  guestName,
+}: {
+  inviteId: string | null;
+  guestName: string | null;
+}) {
+  const hasInvite = Boolean(inviteId && guestName);
+  const pageCount = hasInvite ? 3 : 2;
+
   const [page, setPage] = useState(0);
   const [cardPage, setCardPage] = useState(0);
 
   const goPrev = () => setPage((p) => Math.max(0, p - 1));
-  const goNext = () => setPage((p) => Math.min(PAGE_COUNT - 1, p + 1));
+  const goNext = () => setPage((p) => Math.min(pageCount - 1, p + 1));
 
   const cardGoPrev = () => setCardPage((p) => Math.max(0, p - 1));
   const cardGoNext = () => setCardPage((p) => Math.min(DESKTOP_CARD_PAGES.length - 1, p + 1));
 
   return (
     <>
-      {/* Mobile: 3-page pager (cover -> details -> RSVP) */}
+      {/* Mobile: page pager (cover -> details -> RSVP, if invited) */}
       <div className="relative h-dvh w-full overflow-hidden lg:hidden">
         <div
           className="flex h-full transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]"
           style={{
-            width: `${PAGE_COUNT * 100}%`,
-            transform: `translateX(-${page * (100 / PAGE_COUNT)}%)`,
+            width: `${pageCount * 100}%`,
+            transform: `translateX(-${page * (100 / pageCount)}%)`,
           }}
         >
-          <div className="relative h-full shrink-0 basis-1/3">
+          <div className="relative h-full shrink-0" style={{ flexBasis: `${100 / pageCount}%` }}>
             <Image
               src={MOBILE_CARD_PAGES[0].src}
               alt={MOBILE_CARD_PAGES[0].alt}
@@ -66,7 +87,7 @@ export function InviteBook() {
             />
           </div>
 
-          <div className="relative h-full shrink-0 basis-1/3">
+          <div className="relative h-full shrink-0" style={{ flexBasis: `${100 / pageCount}%` }}>
             <Image
               src={MOBILE_CARD_PAGES[1].src}
               alt={MOBILE_CARD_PAGES[1].alt}
@@ -77,9 +98,14 @@ export function InviteBook() {
             />
           </div>
 
-          <div className="flex h-full shrink-0 basis-1/3 flex-col items-center justify-center gap-6 overflow-y-auto px-4 py-10">
-            <RsvpBlock />
-          </div>
+          {hasInvite && (
+            <div
+              className="flex h-full shrink-0 flex-col items-center justify-center gap-6 overflow-y-auto px-4 py-10"
+              style={{ flexBasis: `${100 / pageCount}%` }}
+            >
+              <RsvpBlock inviteId={inviteId!} guestName={guestName!} />
+            </div>
+          )}
         </div>
 
         <div className="absolute inset-x-0 bottom-6 flex items-center justify-center gap-4">
@@ -93,7 +119,7 @@ export function InviteBook() {
           </button>
 
           <div className="flex gap-1.5">
-            {Array.from({ length: PAGE_COUNT }).map((_, i) => (
+            {Array.from({ length: pageCount }).map((_, i) => (
               <span
                 key={i}
                 className={`h-1.5 w-1.5 rounded-full transition-colors ${
@@ -106,7 +132,7 @@ export function InviteBook() {
           <button
             type="button"
             onClick={goNext}
-            disabled={page === PAGE_COUNT - 1}
+            disabled={page === pageCount - 1}
             className="rounded-full bg-white/80 px-4 py-2 font-display text-xs uppercase tracking-[0.15em] text-gold-dark shadow-md backdrop-blur-sm transition disabled:opacity-0"
           >
             Next &rsaquo;
@@ -114,7 +140,7 @@ export function InviteBook() {
         </div>
       </div>
 
-      {/* Desktop: card pager (left/right) + persistent RSVP column */}
+      {/* Desktop: card pager (left/right) + persistent RSVP column (if invited) */}
       <div className="hidden h-screen items-stretch gap-6 px-4 py-6 lg:flex">
         <div className="relative flex min-h-0 flex-[3] flex-col items-center justify-center gap-4">
           <div className="relative flex min-h-0 w-full flex-1 items-center">
@@ -168,7 +194,11 @@ export function InviteBook() {
         </div>
 
         <div className="flex min-h-0 flex-[2] flex-col items-center justify-center overflow-y-auto py-2">
-          <RsvpBlock />
+          {hasInvite ? (
+            <RsvpBlock inviteId={inviteId!} guestName={guestName!} />
+          ) : (
+            <InviteOnlyNote />
+          )}
         </div>
       </div>
     </>

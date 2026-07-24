@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useState } from "react";
 import { submitRsvp, type RsvpFormState } from "./actions";
 
 const initialState: RsvpFormState = { status: "idle" };
@@ -11,18 +11,16 @@ const labelClass =
 const inputClass =
   "mt-1.5 w-full border-0 border-b border-gold/35 bg-transparent px-0.5 py-1.5 font-script text-lg text-foreground placeholder:font-sans placeholder:text-sm placeholder:text-foreground/45 focus:border-gold-dark focus:outline-none";
 
-export function RsvpForm() {
+export function RsvpForm({
+  inviteId,
+  guestName,
+}: {
+  inviteId: string;
+  guestName: string;
+}) {
   const [state, formAction, pending] = useActionState(submitRsvp, initialState);
   const [attending, setAttending] = useState<"yes" | "no" | "">("");
   const [guestCount, setGuestCount] = useState(0);
-  const nameInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const nameFromLink = new URLSearchParams(window.location.search).get("name");
-    if (nameFromLink && nameInputRef.current) {
-      nameInputRef.current.value = nameFromLink;
-    }
-  }, []);
 
   if (state.status === "success") {
     return (
@@ -39,16 +37,18 @@ export function RsvpForm() {
 
   return (
     <form action={formAction} className="space-y-4">
+      <input type="hidden" name="inviteId" value={inviteId} />
+
       <div>
         <label htmlFor="name" className={labelClass}>
           Name
         </label>
         <input
-          ref={nameInputRef}
           id="name"
           name="name"
           type="text"
           required
+          defaultValue={guestName}
           placeholder="Full name"
           className={inputClass}
         />

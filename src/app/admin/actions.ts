@@ -22,3 +22,35 @@ export async function deleteRsvp(id: string) {
 
   revalidatePath("/admin");
 }
+
+export async function createInvite(name: string) {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    throw new Error("Guest name is required.");
+  }
+
+  const supabase = createServiceRoleClient();
+  const { data, error } = await supabase
+    .from("invites")
+    .insert({ name: trimmed })
+    .select("id")
+    .single();
+
+  if (error || !data) {
+    throw new Error(error?.message ?? "Failed to create invite.");
+  }
+
+  revalidatePath("/admin");
+  return data.id as string;
+}
+
+export async function deleteInvite(id: string) {
+  const supabase = createServiceRoleClient();
+  const { error } = await supabase.from("invites").delete().eq("id", id);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/admin");
+}
