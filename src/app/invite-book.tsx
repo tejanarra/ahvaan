@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import type { TouchEvent } from "react";
+import type { PointerEvent, TouchEvent } from "react";
 import Image from "next/image";
 import { RsvpForm } from "./rsvp-form";
 
@@ -108,6 +108,40 @@ export function InviteBook({
     }
   };
 
+  // Dots: tap jumps straight to that page; press-and-hold then drag scrubs
+  // between pages as the finger/pointer moves across the whole dot bar.
+  const dotBarRef = useRef<HTMLDivElement | null>(null);
+  const isDraggingDots = useRef(false);
+
+  const pageFromPointerX = (clientX: number) => {
+    const bar = dotBarRef.current;
+    if (!bar) return page;
+    const rect = bar.getBoundingClientRect();
+    const ratio = (clientX - rect.left) / rect.width;
+    const idx = Math.round(ratio * (pageCount - 1));
+    return Math.min(pageCount - 1, Math.max(0, idx));
+  };
+
+  const handleDotPointerDown = (e: PointerEvent<HTMLButtonElement>, i: number) => {
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // No active pointer session to capture (e.g. simulated events) — the
+      // drag-to-scrub gesture just won't track outside the dot bar bounds.
+    }
+    isDraggingDots.current = true;
+    setPage(i);
+  };
+
+  const handleDotPointerMove = (e: PointerEvent<HTMLButtonElement>) => {
+    if (!isDraggingDots.current) return;
+    setPage(pageFromPointerX(e.clientX));
+  };
+
+  const handleDotPointerUp = () => {
+    isDraggingDots.current = false;
+  };
+
   return (
     <>
       {/* Mobile: swipeable page-flip pager (cover -> details -> RSVP, if invited) */}
@@ -178,14 +212,20 @@ export function InviteBook({
           className="absolute inset-x-0 z-20 flex items-center justify-center"
           style={{ bottom: "max(1.5rem, calc(env(safe-area-inset-bottom) + 0.75rem))" }}
         >
-          <div className="flex gap-3 rounded-full border border-white/40 bg-white/20 px-3 py-2 shadow-lg backdrop-blur-md">
+          <div ref={dotBarRef} className="flex touch-none gap-3 px-2 py-2">
             {Array.from({ length: pageCount }).map((_, i) => (
-              <span
+              <button
                 key={i}
-                className={`h-3 w-3 rounded-full border transition-all ${
+                type="button"
+                aria-label={`Go to page ${i + 1}`}
+                onPointerDown={(e) => handleDotPointerDown(e, i)}
+                onPointerMove={handleDotPointerMove}
+                onPointerUp={handleDotPointerUp}
+                onPointerCancel={handleDotPointerUp}
+                className={`h-2.5 w-2.5 shrink-0 rounded-full border transition-all [filter:drop-shadow(0_1px_3px_rgba(0,0,0,0.55))] ${
                   i === page
-                    ? "scale-110 border-gold-dark bg-gold-dark shadow-[0_0_8px_rgba(116,73,15,0.6)]"
-                    : "border-white/70 bg-white/40 backdrop-blur-sm"
+                    ? "scale-125 border-white/80 bg-gold-dark"
+                    : "border-white/80 bg-gold/60"
                 }`}
               />
             ))}
