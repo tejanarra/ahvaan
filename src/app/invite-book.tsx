@@ -125,7 +125,12 @@ export function InviteBook({
             transform: `translateX(-${page * (100 / pageCount)}%)`,
           }}
         >
-          <div className="relative h-full shrink-0" style={{ flexBasis: `${100 / pageCount}%` }}>
+          <div
+            className={`relative h-full shrink-0 ${
+              !hasSwiped ? "animate-[card-nudge_2.2s_ease-in-out_3]" : ""
+            }`}
+            style={{ flexBasis: `${100 / pageCount}%` }}
+          >
             <Image
               src={MOBILE_CARD_PAGES[0].src}
               alt={MOBILE_CARD_PAGES[0].alt}
@@ -158,20 +163,9 @@ export function InviteBook({
         </div>
 
         <div
-          className="absolute inset-x-0 z-20 flex flex-col items-center gap-2"
+          className="absolute inset-x-0 z-20 flex items-center justify-center"
           style={{ bottom: "max(1.5rem, calc(env(safe-area-inset-bottom) + 0.75rem))" }}
         >
-          {!hasSwiped && (
-            <div className="flex items-center gap-2 rounded-full bg-gold-dark px-4 py-2 shadow-md">
-              <span className="font-display text-xs uppercase tracking-[0.15em] text-white">
-                Swipe to explore
-              </span>
-              <span className="animate-[swipe-hint_1.4s_ease-in-out_infinite] text-white">
-                &harr;
-              </span>
-            </div>
-          )}
-
           <div className="flex gap-1.5">
             {Array.from({ length: pageCount }).map((_, i) => (
               <span

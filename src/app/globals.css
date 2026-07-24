@@ -28,14 +28,22 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-@keyframes swipe-hint {
+/* A "hey, this is swipeable" nudge: mostly still, then a quick bounce to
+   the left (as if peeking at the next card) and back, a few times, then
+   settles. Used on the first card until the visitor swipes once. */
+@keyframes card-nudge {
   0%,
+  70%,
   100% {
     transform: translateX(0);
-    opacity: 0.6;
   }
-  50% {
+  78% {
+    transform: translateX(-18px);
+  }
+  86% {
     transform: translateX(6px);
-    opacity: 1;
+  }
+  93% {
+    transform: translateX(-4px);
   }
 }
