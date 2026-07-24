@@ -81,7 +81,6 @@ export function InviteBook({
 
   const [page, setPage] = useState(0);
   const [cardPage, setCardPage] = useState(0);
-  const [hasSwiped, setHasSwiped] = useState(false);
 
   const goPrev = () => setPage((p) => Math.max(0, p - 1));
   const goNext = () => setPage((p) => Math.min(pageCount - 1, p + 1));
@@ -104,7 +103,6 @@ export function InviteBook({
     touchStart.current = null;
 
     if (Math.abs(dx) > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy)) {
-      setHasSwiped(true);
       if (dx < 0) goNext();
       else goPrev();
     }
@@ -112,66 +110,82 @@ export function InviteBook({
 
   return (
     <>
-      {/* Mobile: swipeable page pager (cover -> details -> RSVP, if invited) */}
+      {/* Mobile: swipeable page-flip pager (cover -> details -> RSVP, if invited) */}
       <div
         className="relative h-dvh w-full overflow-hidden lg:hidden"
+        style={{ perspective: 2000 }}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
         <div
-          className="flex h-full transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]"
+          className="absolute inset-0 bg-[#f7ecf7] bg-cover bg-center transition-transform duration-[1900ms] ease-[cubic-bezier(0.45,0,0.15,1)] [backface-visibility:hidden] [will-change:transform]"
           style={{
-            width: `${pageCount * 100}%`,
-            transform: `translateX(-${page * (100 / pageCount)}%)`,
+            backgroundImage: "url(/4.png)",
+            transformOrigin: "left center",
+            transform: `rotateY(${page > 0 ? -180 : 0}deg)`,
+            zIndex: pageCount,
+            boxShadow:
+              "inset 18px 0 32px -20px rgba(58,32,10,0.45), inset -10px 0 20px -16px rgba(255,255,255,0.5)",
           }}
         >
-          <div
-            className={`relative h-full shrink-0 ${
-              !hasSwiped ? "animate-[card-nudge_2.2s_ease-in-out_3]" : ""
-            }`}
-            style={{ flexBasis: `${100 / pageCount}%` }}
-          >
-            <Image
-              src={MOBILE_CARD_PAGES[0].src}
-              alt={MOBILE_CARD_PAGES[0].alt}
-              fill
-              priority
-              sizes="100vw"
-              className="object-contain"
-            />
-          </div>
-
-          <div className="relative h-full shrink-0" style={{ flexBasis: `${100 / pageCount}%` }}>
-            <Image
-              src={MOBILE_CARD_PAGES[1].src}
-              alt={MOBILE_CARD_PAGES[1].alt}
-              fill
-              priority
-              sizes="100vw"
-              className="object-contain"
-            />
-          </div>
-
-          {hasInvite && (
-            <div
-              className="flex h-full shrink-0 flex-col items-center justify-center gap-6 overflow-y-auto px-4 py-10"
-              style={{ flexBasis: `${100 / pageCount}%` }}
-            >
-              <RsvpBlock inviteId={inviteId!} guestName={guestName!} existingRsvp={existingRsvp} />
-            </div>
-          )}
+          <Image
+            src={MOBILE_CARD_PAGES[0].src}
+            alt={MOBILE_CARD_PAGES[0].alt}
+            fill
+            priority
+            sizes="100vw"
+            className="object-contain"
+          />
         </div>
+
+        <div
+          className="absolute inset-0 bg-[#f7ecf7] bg-cover bg-center transition-transform duration-[1900ms] ease-[cubic-bezier(0.45,0,0.15,1)] [backface-visibility:hidden] [will-change:transform]"
+          style={{
+            backgroundImage: "url(/4.png)",
+            transformOrigin: "left center",
+            transform: `rotateY(${page > 1 ? -180 : 0}deg)`,
+            zIndex: pageCount - 1,
+            boxShadow:
+              "inset 18px 0 32px -20px rgba(58,32,10,0.45), inset -10px 0 20px -16px rgba(255,255,255,0.5)",
+          }}
+        >
+          <Image
+            src={MOBILE_CARD_PAGES[1].src}
+            alt={MOBILE_CARD_PAGES[1].alt}
+            fill
+            priority
+            sizes="100vw"
+            className="object-contain"
+          />
+        </div>
+
+        {hasInvite && (
+          <div
+            className="absolute inset-0 flex flex-col items-center justify-center gap-6 overflow-y-auto bg-[#f7ecf7] bg-cover bg-center px-4 py-10 transition-transform duration-[1900ms] ease-[cubic-bezier(0.45,0,0.15,1)] [backface-visibility:hidden] [will-change:transform]"
+            style={{
+              backgroundImage: "url(/4.png)",
+              transformOrigin: "left center",
+              zIndex: pageCount - 2,
+              boxShadow:
+                "inset 18px 0 32px -20px rgba(58,32,10,0.45), inset -10px 0 20px -16px rgba(255,255,255,0.5)",
+            }}
+          >
+            <RsvpBlock inviteId={inviteId!} guestName={guestName!} existingRsvp={existingRsvp} />
+          </div>
+        )}
 
         <div
           className="absolute inset-x-0 z-20 flex items-center justify-center"
           style={{ bottom: "max(1.5rem, calc(env(safe-area-inset-bottom) + 0.75rem))" }}
         >
-          <div className="flex gap-1.5">
+          <div className="flex gap-3 rounded-full border border-white/40 bg-white/20 px-3 py-2 shadow-lg backdrop-blur-md">
             {Array.from({ length: pageCount }).map((_, i) => (
               <span
                 key={i}
-                className={`h-1.5 w-1.5 rounded-full shadow-sm transition-colors ${
-                  i === page ? "bg-gold-dark" : "bg-white/80"
+                className={`h-3 w-3 rounded-full border transition-all ${
+                  i === page
+                    ? "scale-110 border-gold-dark bg-gold-dark shadow-[0_0_8px_rgba(116,73,15,0.6)]"
+                    : "border-white/70 bg-white/40 backdrop-blur-sm"
                 }`}
               />
             ))}
