@@ -25,9 +25,14 @@ function RsvpBlock() {
   );
 }
 
-const CARD_PAGES = [
+const MOBILE_CARD_PAGES = [
   { src: "/leftMobile.png", alt: "Swathi weds Sri Sai Teja — invitation, page one" },
   { src: "/rightMobile.png", alt: "Wedding details, page two" },
+];
+
+const DESKTOP_CARD_PAGES = [
+  { src: "/leftInviteDesktop.jpg", alt: "Swathi weds Sri Sai Teja — invitation, page one" },
+  { src: "/rightInviteDesktop.jpg", alt: "Wedding details, page two" },
 ];
 
 export function InviteBook() {
@@ -38,7 +43,7 @@ export function InviteBook() {
   const goNext = () => setPage((p) => Math.min(PAGE_COUNT - 1, p + 1));
 
   const cardGoPrev = () => setCardPage((p) => Math.max(0, p - 1));
-  const cardGoNext = () => setCardPage((p) => Math.min(CARD_PAGES.length - 1, p + 1));
+  const cardGoNext = () => setCardPage((p) => Math.min(DESKTOP_CARD_PAGES.length - 1, p + 1));
 
   return (
     <>
@@ -53,8 +58,8 @@ export function InviteBook() {
         >
           <div className="relative h-full shrink-0 basis-1/3">
             <Image
-              src="/leftMobile.png"
-              alt="Swathi weds Sri Sai Teja — invitation, page one"
+              src={MOBILE_CARD_PAGES[0].src}
+              alt={MOBILE_CARD_PAGES[0].alt}
               fill
               priority
               sizes="100vw"
@@ -64,8 +69,8 @@ export function InviteBook() {
 
           <div className="relative h-full shrink-0 basis-1/3">
             <Image
-              src="/rightMobile.png"
-              alt="Wedding details, page two"
+              src={MOBILE_CARD_PAGES[1].src}
+              alt={MOBILE_CARD_PAGES[1].alt}
               fill
               priority
               sizes="100vw"
@@ -115,7 +120,7 @@ export function InviteBook() {
       <div className="hidden h-screen items-stretch gap-6 px-6 py-6 lg:flex">
         <div className="relative flex min-h-0 flex-[2] flex-col items-center justify-center gap-4">
           <div className="relative min-h-0 w-full flex-1">
-            {CARD_PAGES.map((card, i) => (
+            {DESKTOP_CARD_PAGES.map((card, i) => (
               <Image
                 key={card.src}
                 src={card.src}
@@ -141,7 +146,7 @@ export function InviteBook() {
             </button>
 
             <div className="flex gap-1.5">
-              {CARD_PAGES.map((_, i) => (
+              {DESKTOP_CARD_PAGES.map((_, i) => (
                 <span
                   key={i}
                   className={`h-1.5 w-1.5 rounded-full transition-colors ${
@@ -154,7 +159,7 @@ export function InviteBook() {
             <button
               type="button"
               onClick={cardGoNext}
-              disabled={cardPage === CARD_PAGES.length - 1}
+              disabled={cardPage === DESKTOP_CARD_PAGES.length - 1}
               className="rounded-full bg-white/80 px-4 py-2 font-display text-xs uppercase tracking-[0.15em] text-gold-dark shadow-md backdrop-blur-sm transition disabled:opacity-0"
             >
               Next &rsaquo;
