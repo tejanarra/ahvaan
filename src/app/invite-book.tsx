@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Image from "next/image";
 import { RsvpForm } from "./rsvp-form";
-import { VenueMap } from "./venue-map";
 
 const PAGE_COUNT = 3;
 
@@ -78,9 +77,7 @@ export function InviteBook() {
             />
           </div>
 
-          <div className="flex h-full shrink-0 basis-1/3 flex-col items-center gap-6 overflow-y-auto px-4 pt-10 pb-28">
-            <VenueMap />
-            <div className="h-px w-16 bg-gold/30" />
+          <div className="flex h-full shrink-0 basis-1/3 flex-col items-center justify-center gap-6 overflow-y-auto px-4 py-10">
             <RsvpBlock />
           </div>
         </div>
@@ -117,7 +114,7 @@ export function InviteBook() {
         </div>
       </div>
 
-      {/* Desktop: card pager (left/right) + persistent RSVP/map column */}
+      {/* Desktop: card pager (left/right) + persistent RSVP column */}
       <div className="hidden h-screen items-stretch gap-6 px-4 py-6 lg:flex">
         <div className="relative flex min-h-0 flex-[3] flex-col items-center justify-center gap-4">
           <div className="relative flex min-h-0 w-full flex-1 items-center">
@@ -170,10 +167,8 @@ export function InviteBook() {
           </div>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 overflow-y-auto py-2">
+        <div className="flex min-h-0 flex-[2] flex-col items-center justify-center overflow-y-auto py-2">
           <RsvpBlock />
-          <div className="h-px w-16 bg-gold/30" />
-          <VenueMap />
         </div>
       </div>
     </>

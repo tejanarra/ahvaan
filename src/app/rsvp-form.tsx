@@ -64,7 +64,7 @@ export function RsvpForm() {
               onChange={() => setAttending("yes")}
               className="sr-only"
             />
-            Yes, joyfully
+            Yes
           </label>
           <label
             className={`cursor-pointer rounded-full border px-4 py-1.5 font-script text-base transition ${
@@ -84,7 +84,7 @@ export function RsvpForm() {
               }}
               className="sr-only"
             />
-            No, regretfully
+            No
           </label>
         </div>
       </fieldset>
