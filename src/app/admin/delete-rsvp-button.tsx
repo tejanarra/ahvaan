@@ -10,7 +10,7 @@ export function DeleteRsvpButton({ id, name }: { id: string; name: string }) {
   if (confirming) {
     return (
       <div className="flex items-center justify-end gap-2">
-        <span className="text-xs text-gray-500">Delete {name}?</span>
+        <span className="text-xs text-foreground/60">Delete {name}?</span>
         <button
           type="button"
           disabled={isPending}
@@ -23,7 +23,7 @@ export function DeleteRsvpButton({ id, name }: { id: string; name: string }) {
           type="button"
           disabled={isPending}
           onClick={() => setConfirming(false)}
-          className="rounded-md border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-600 transition hover:bg-gray-50"
+          className="rounded-md border border-gold/30 px-2.5 py-1 text-xs font-medium text-foreground/70 transition hover:bg-lavender/30"
         >
           Cancel
         </button>

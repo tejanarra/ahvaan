@@ -10,6 +10,9 @@ export default async function Home({
 
   let inviteId: string | null = null;
   let guestName: string | null = null;
+  let existingRsvp:
+    | { name: string; attending: boolean; additionalGuests: string[] }
+    | null = null;
 
   if (invite) {
     const supabase = createServiceRoleClient();
@@ -24,6 +27,20 @@ export default async function Home({
     if (data) {
       inviteId = data.id;
       guestName = data.name;
+
+      const { data: rsvp } = await supabase
+        .from("wedding_rsvps")
+        .select("name, attending, additional_guests")
+        .eq("invite_id", inviteId)
+        .maybeSingle();
+
+      if (rsvp) {
+        existingRsvp = {
+          name: rsvp.name,
+          attending: rsvp.attending,
+          additionalGuests: rsvp.additional_guests ?? [],
+        };
+      }
     }
   }
 
@@ -32,7 +49,11 @@ export default async function Home({
       className="min-h-dvh bg-[#f7ecf7] bg-cover bg-center"
       style={{ backgroundImage: "url(/4.png)" }}
     >
-      <InviteBook inviteId={inviteId} guestName={guestName} />
+      <InviteBook
+        inviteId={inviteId}
+        guestName={guestName}
+        existingRsvp={existingRsvp}
+      />
     </div>
   );
 }

@@ -40,10 +40,15 @@ export default async function AdminPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 py-10">
+    <div
+      className="min-h-screen bg-[#f7ecf7] bg-cover bg-center px-4 py-10"
+      style={{ backgroundImage: "url(/4.png)" }}
+    >
       <div className="mx-auto max-w-5xl">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold text-gray-900">RSVP Guest List</h1>
+          <h1 className="font-display text-2xl uppercase tracking-[0.1em] text-gold-dark">
+            RSVP Guest List
+          </h1>
           <div className="flex items-center gap-3">
             <ShareInviteButton />
             <LogoutButton />
@@ -54,10 +59,10 @@ export default async function AdminPage() {
           {stats.map((stat) => (
             <div
               key={stat.label}
-              className="rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm"
+              className="rounded-xl border border-gold/25 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-sm"
             >
-              <p className="text-2xl font-semibold text-gray-900">{stat.value}</p>
-              <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+              <p className="font-display text-2xl text-gold-dark">{stat.value}</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-foreground/60">
                 {stat.label}
               </p>
             </div>
@@ -70,23 +75,23 @@ export default async function AdminPage() {
           </p>
         )}
 
-        <div className="mt-6 overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
-          <table className="min-w-full divide-y divide-gray-200 text-sm">
-            <thead className="bg-gray-50">
+        <div className="mt-6 overflow-x-auto rounded-xl border border-gold/25 bg-white/80 shadow-sm backdrop-blur-sm">
+          <table className="min-w-full divide-y divide-gold/15 text-sm">
+            <thead className="bg-lavender/40">
               <tr>
-                <th className="px-4 py-3 text-left font-medium text-gray-700">Name</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-700">Attending</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-700">Plus ones</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-700">Submitted</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-700">
+                <th className="px-4 py-3 text-left font-medium text-gold-dark">Name</th>
+                <th className="px-4 py-3 text-left font-medium text-gold-dark">Attending</th>
+                <th className="px-4 py-3 text-left font-medium text-gold-dark">Plus ones</th>
+                <th className="px-4 py-3 text-left font-medium text-gold-dark">Submitted</th>
+                <th className="px-4 py-3 text-left font-medium text-gold-dark">
                   <span className="sr-only">Actions</span>
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-gold/10">
               {rsvps?.map((rsvp) => (
                 <tr key={rsvp.id}>
-                  <td className="px-4 py-3 font-medium text-gray-900">{rsvp.name}</td>
+                  <td className="px-4 py-3 font-medium text-foreground">{rsvp.name}</td>
                   <td className="px-4 py-3">
                     <span
                       className={
@@ -98,23 +103,23 @@ export default async function AdminPage() {
                       {rsvp.attending ? "Yes" : "No"}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-gray-700">
+                  <td className="px-4 py-3 text-foreground/80">
                     {rsvp.additional_guests?.length ? (
                       <div className="flex flex-wrap gap-1">
                         {rsvp.additional_guests.map((guest: string, i: number) => (
                           <span
                             key={i}
-                            className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700"
+                            className="rounded-full bg-lavender/50 px-2 py-0.5 text-xs text-foreground/80"
                           >
                             {guest}
                           </span>
                         ))}
                       </div>
                     ) : (
-                      <span className="text-gray-400">—</span>
+                      <span className="text-foreground/40">—</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-gray-500">
+                  <td className="px-4 py-3 whitespace-nowrap text-foreground/60">
                     {new Date(rsvp.created_at).toLocaleString()}
                   </td>
                   <td className="px-4 py-3 text-right">
@@ -124,7 +129,7 @@ export default async function AdminPage() {
               ))}
               {rsvps?.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={5} className="px-4 py-8 text-center text-foreground/50">
                     No RSVPs yet.
                   </td>
                 </tr>
@@ -133,8 +138,10 @@ export default async function AdminPage() {
           </table>
         </div>
 
-        <h2 className="mt-10 text-lg font-semibold text-gray-900">Invites Sent</h2>
-        <p className="mt-1 text-sm text-gray-600">
+        <h2 className="mt-10 font-display text-lg uppercase tracking-[0.1em] text-gold-dark">
+          Invites Sent
+        </h2>
+        <p className="mt-1 font-script text-base italic text-foreground/70">
           Only guests with one of these links can access the RSVP form.
         </p>
 
@@ -144,34 +151,34 @@ export default async function AdminPage() {
           </p>
         )}
 
-        <div className="mt-4 overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
-          <table className="min-w-full divide-y divide-gray-200 text-sm">
-            <thead className="bg-gray-50">
+        <div className="mt-4 overflow-x-auto rounded-xl border border-gold/25 bg-white/80 shadow-sm backdrop-blur-sm">
+          <table className="min-w-full divide-y divide-gold/15 text-sm">
+            <thead className="bg-lavender/40">
               <tr>
-                <th className="px-4 py-3 text-left font-medium text-gray-700">Name</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-700">Status</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-700">Created</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-700">
+                <th className="px-4 py-3 text-left font-medium text-gold-dark">Name</th>
+                <th className="px-4 py-3 text-left font-medium text-gold-dark">Status</th>
+                <th className="px-4 py-3 text-left font-medium text-gold-dark">Created</th>
+                <th className="px-4 py-3 text-left font-medium text-gold-dark">
                   <span className="sr-only">Actions</span>
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-gold/10">
               {invites?.map((invite) => (
                 <tr key={invite.id}>
-                  <td className="px-4 py-3 font-medium text-gray-900">{invite.name}</td>
+                  <td className="px-4 py-3 font-medium text-foreground">{invite.name}</td>
                   <td className="px-4 py-3">
                     <span
                       className={
                         respondedInviteIds.has(invite.id)
                           ? "rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800"
-                          : "rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600"
+                          : "rounded-full bg-lavender/50 px-2 py-0.5 text-xs font-medium text-foreground/70"
                       }
                     >
                       {respondedInviteIds.has(invite.id) ? "Responded" : "Waiting"}
                     </span>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-gray-500">
+                  <td className="px-4 py-3 whitespace-nowrap text-foreground/60">
                     {new Date(invite.created_at).toLocaleString()}
                   </td>
                   <td className="px-4 py-3">
@@ -184,7 +191,7 @@ export default async function AdminPage() {
               ))}
               {invites?.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={4} className="px-4 py-8 text-center text-foreground/50">
                     No invites sent yet. Use &ldquo;Share invite link&rdquo; above to
                     create one.
                   </td>

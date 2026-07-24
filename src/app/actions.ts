@@ -5,6 +5,11 @@ import { createServiceRoleClient } from "@/lib/supabase/server";
 export type RsvpFormState = {
   status: "idle" | "success" | "error";
   message?: string;
+  data?: {
+    name: string;
+    attending: boolean;
+    additionalGuests: string[];
+  };
 };
 
 export async function submitRsvp(
@@ -82,5 +87,12 @@ export async function submitRsvp(
     };
   }
 
-  return { status: "success" };
+  return {
+    status: "success",
+    data: {
+      name,
+      attending,
+      additionalGuests: payload.additional_guests,
+    },
+  };
 }

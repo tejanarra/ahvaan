@@ -4,7 +4,21 @@ import { useState } from "react";
 import Image from "next/image";
 import { RsvpForm } from "./rsvp-form";
 
-function RsvpBlock({ inviteId, guestName }: { inviteId: string; guestName: string }) {
+type ExistingRsvp = {
+  name: string;
+  attending: boolean;
+  additionalGuests: string[];
+} | null;
+
+function RsvpBlock({
+  inviteId,
+  guestName,
+  existingRsvp,
+}: {
+  inviteId: string;
+  guestName: string;
+  existingRsvp: ExistingRsvp;
+}) {
   return (
     <div className="w-full max-w-md">
       <h2 className="text-center font-display text-xl uppercase tracking-[0.15em] text-gold-dark">
@@ -16,7 +30,11 @@ function RsvpBlock({ inviteId, guestName }: { inviteId: string; guestName: strin
         accordingly.
       </p>
       <div className="mt-4">
-        <RsvpForm inviteId={inviteId} guestName={guestName} />
+        <RsvpForm
+          inviteId={inviteId}
+          guestName={guestName}
+          initialRsvp={existingRsvp}
+        />
       </div>
     </div>
   );
@@ -49,9 +67,11 @@ const DESKTOP_CARD_PAGES = [
 export function InviteBook({
   inviteId,
   guestName,
+  existingRsvp,
 }: {
   inviteId: string | null;
   guestName: string | null;
+  existingRsvp: ExistingRsvp;
 }) {
   const hasInvite = Boolean(inviteId && guestName);
   const pageCount = hasInvite ? 3 : 2;
@@ -103,7 +123,7 @@ export function InviteBook({
               className="flex h-full shrink-0 flex-col items-center justify-center gap-6 overflow-y-auto px-4 py-10"
               style={{ flexBasis: `${100 / pageCount}%` }}
             >
-              <RsvpBlock inviteId={inviteId!} guestName={guestName!} />
+              <RsvpBlock inviteId={inviteId!} guestName={guestName!} existingRsvp={existingRsvp} />
             </div>
           )}
         </div>
@@ -113,7 +133,7 @@ export function InviteBook({
             type="button"
             onClick={goPrev}
             disabled={page === 0}
-            className="rounded-full bg-white/80 px-4 py-2 font-display text-xs uppercase tracking-[0.15em] text-gold-dark shadow-md backdrop-blur-sm transition disabled:opacity-0"
+            className="rounded-full bg-gold-dark px-4 py-2 font-display text-xs uppercase tracking-[0.15em] text-white shadow-md transition hover:bg-[#5c3a0c] disabled:opacity-0"
           >
             &lsaquo; Prev
           </button>
@@ -133,7 +153,7 @@ export function InviteBook({
             type="button"
             onClick={goNext}
             disabled={page === pageCount - 1}
-            className="rounded-full bg-white/80 px-4 py-2 font-display text-xs uppercase tracking-[0.15em] text-gold-dark shadow-md backdrop-blur-sm transition disabled:opacity-0"
+            className="rounded-full bg-gold-dark px-4 py-2 font-display text-xs uppercase tracking-[0.15em] text-white shadow-md transition hover:bg-[#5c3a0c] disabled:opacity-0"
           >
             Next &rsaquo;
           </button>
@@ -149,7 +169,7 @@ export function InviteBook({
               onClick={cardGoPrev}
               disabled={cardPage === 0}
               aria-label="Previous page"
-              className="absolute left-2 z-10 flex h-14 w-14 items-center justify-center rounded-full bg-white text-2xl text-gold-dark shadow-[0_8px_24px_-6px_rgba(138,98,21,0.5)] transition hover:scale-105 hover:bg-gold-dark hover:text-white disabled:pointer-events-none disabled:opacity-0"
+              className="absolute left-2 z-10 flex h-14 w-14 items-center justify-center rounded-full bg-gold-dark text-2xl text-white shadow-[0_8px_24px_-6px_rgba(138,98,21,0.5)] transition hover:scale-105 hover:bg-[#5c3a0c] disabled:pointer-events-none disabled:opacity-0"
             >
               &lsaquo;
             </button>
@@ -175,7 +195,7 @@ export function InviteBook({
               onClick={cardGoNext}
               disabled={cardPage === DESKTOP_CARD_PAGES.length - 1}
               aria-label="Next page"
-              className="absolute right-2 z-10 flex h-14 w-14 items-center justify-center rounded-full bg-white text-2xl text-gold-dark shadow-[0_8px_24px_-6px_rgba(138,98,21,0.5)] transition hover:scale-105 hover:bg-gold-dark hover:text-white disabled:pointer-events-none disabled:opacity-0"
+              className="absolute right-2 z-10 flex h-14 w-14 items-center justify-center rounded-full bg-gold-dark text-2xl text-white shadow-[0_8px_24px_-6px_rgba(138,98,21,0.5)] transition hover:scale-105 hover:bg-[#5c3a0c] disabled:pointer-events-none disabled:opacity-0"
             >
               &rsaquo;
             </button>
@@ -195,7 +215,7 @@ export function InviteBook({
 
         <div className="flex min-h-0 flex-[2] flex-col items-center justify-center overflow-y-auto py-2">
           {hasInvite ? (
-            <RsvpBlock inviteId={inviteId!} guestName={guestName!} />
+            <RsvpBlock inviteId={inviteId!} guestName={guestName!} existingRsvp={existingRsvp} />
           ) : (
             <InviteOnlyNote />
           )}

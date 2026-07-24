@@ -6,11 +6,20 @@ import { createInvite } from "./actions";
 export function ShareInviteButton() {
   const [open, setOpen] = useState(false);
   const [guestName, setGuestName] = useState("");
+  const [link, setLink] = useState("");
   const [copied, setCopied] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
 
-  const handleShare = async () => {
+  const reset = () => {
+    setOpen(false);
+    setGuestName("");
+    setLink("");
+    setCopied(false);
+    setError("");
+  };
+
+  const handleGenerate = async () => {
     if (!guestName.trim()) {
       setError("Enter a guest name first.");
       return;
@@ -19,38 +28,34 @@ export function ShareInviteButton() {
     setPending(true);
     setError("");
 
-    let inviteId: string;
     try {
-      inviteId = await createInvite(guestName);
+      const inviteId = await createInvite(guestName);
+      const url = new URL(window.location.origin);
+      url.searchParams.set("invite", inviteId);
+      setLink(url.toString());
     } catch {
-      setPending(false);
       setError("Couldn't create the invite. Try again.");
-      return;
+    } finally {
+      setPending(false);
     }
+  };
 
-    const url = new URL(window.location.origin);
-    url.searchParams.set("invite", inviteId);
-    const link = url.toString();
-
-    if (typeof navigator.share === "function") {
-      try {
-        await navigator.share({
-          title: "Swathi & Sai Teja's Wedding",
-          text: "You're invited! Please RSVP here:",
-          url: link,
-        });
-        setPending(false);
-        setOpen(false);
-        return;
-      } catch {
-        // Share was cancelled or unsupported mid-flow — fall back to copy.
-      }
-    }
-
+  const handleCopy = async () => {
     await navigator.clipboard.writeText(link);
-    setPending(false);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleNativeShare = async () => {
+    try {
+      await navigator.share({
+        title: "Swathi & Sai Teja's Wedding",
+        text: "You're invited! Please RSVP here:",
+        url: link,
+      });
+    } catch {
+      // Cancelled — no-op.
+    }
   };
 
   return (
@@ -58,7 +63,7 @@ export function ShareInviteButton() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-800"
+        className="rounded-lg bg-gold-dark px-4 py-2 font-display text-xs uppercase tracking-wider text-white shadow-sm transition hover:bg-[#5c3a0c]"
       >
         Share invite link
       </button>
@@ -66,26 +71,27 @@ export function ShareInviteButton() {
       {open && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-          onClick={() => setOpen(false)}
+          onClick={reset}
         >
           <div
-            className="relative w-full max-w-sm rounded-xl border border-gray-200 bg-white p-6 shadow-xl"
+            className="relative w-full max-w-sm rounded-2xl border border-gold/30 bg-white/95 p-6 shadow-xl backdrop-blur-md"
             onClick={(e) => e.stopPropagation()}
           >
             <button
               type="button"
-              onClick={() => setOpen(false)}
+              onClick={reset}
               aria-label="Close"
-              className="absolute right-4 top-4 text-gray-400 hover:text-gray-700"
+              className="absolute right-4 top-4 text-foreground/50 hover:text-foreground/90"
             >
               ✕
             </button>
 
-            <h2 className="text-lg font-semibold text-gray-900">Share Invite</h2>
-            <p className="mt-1 text-sm text-gray-600">
+            <h2 className="font-display text-lg uppercase tracking-[0.1em] text-gold-dark">
+              Share Invite
+            </h2>
+            <p className="mt-1 font-script text-base italic text-foreground/75">
               Enter the guest&rsquo;s name to generate their personal invite
-              link. Only this link will let them RSVP — anyone else just sees
-              the invitation.
+              link. Only this link will let them RSVP.
             </p>
 
             <input
@@ -93,23 +99,60 @@ export function ShareInviteButton() {
               value={guestName}
               onChange={(e) => setGuestName(e.target.value)}
               placeholder="Guest name"
-              className="mt-4 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-500 focus:outline-none"
+              disabled={Boolean(link)}
+              className="mt-4 w-full border-0 border-b border-gold/35 bg-transparent px-0.5 py-1.5 font-script text-lg text-foreground placeholder:font-sans placeholder:text-sm placeholder:text-foreground/45 focus:border-gold-dark focus:outline-none disabled:opacity-60"
             />
 
-            {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+            {error && <p className="mt-2 text-sm font-medium text-red-600">{error}</p>}
 
-            <button
-              type="button"
-              onClick={handleShare}
-              disabled={pending}
-              className="mt-4 w-full rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-800 disabled:opacity-50"
-            >
-              {pending
-                ? "Creating invite..."
-                : copied
-                  ? "Link copied!"
-                  : "Generate & Share Link"}
-            </button>
+            {!link ? (
+              <button
+                type="button"
+                onClick={handleGenerate}
+                disabled={pending}
+                className="mt-4 w-full rounded-lg bg-gold-dark px-4 py-2.5 font-display text-sm uppercase tracking-widest text-white shadow-sm transition hover:bg-[#5c3a0c] disabled:opacity-50"
+              >
+                {pending ? "Creating invite..." : "Generate Link"}
+              </button>
+            ) : (
+              <div className="mt-4 space-y-3">
+                <div className="flex items-center gap-2 rounded-lg border border-gold/30 bg-lavender/20 px-3 py-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={link}
+                    onFocus={(e) => e.currentTarget.select()}
+                    className="w-full truncate bg-transparent text-sm text-foreground/80 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleCopy}
+                    className="shrink-0 rounded-md bg-gold-dark px-3 py-1.5 text-xs font-medium text-white transition hover:bg-[#5c3a0c]"
+                  >
+                    {copied ? "Copied!" : "Copy"}
+                  </button>
+                </div>
+
+                {typeof navigator !== "undefined" &&
+                  typeof navigator.share === "function" && (
+                    <button
+                      type="button"
+                      onClick={handleNativeShare}
+                      className="w-full rounded-lg border border-gold/40 px-4 py-2 font-display text-sm uppercase tracking-widest text-gold-dark transition hover:border-gold-dark"
+                    >
+                      Share via...
+                    </button>
+                  )}
+
+                <button
+                  type="button"
+                  onClick={reset}
+                  className="w-full text-center text-xs text-foreground/50 hover:text-foreground/80"
+                >
+                  Done
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
