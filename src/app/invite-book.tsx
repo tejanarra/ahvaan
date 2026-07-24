@@ -1,11 +1,12 @@
 "use client";
 
 import { useRef, useState } from "react";
-import type { PointerEvent, TouchEvent } from "react";
+import type { CSSProperties, PointerEvent, TouchEvent } from "react";
 import Image from "next/image";
 import { RsvpForm } from "./rsvp-form";
 
-const SWIPE_THRESHOLD = 40;
+const DRAG_LOCK_THRESHOLD = 10;
+const DRAG_COMPLETE_THRESHOLD = 0.3;
 
 type ExistingRsvp = {
   name: string;
@@ -88,24 +89,135 @@ export function InviteBook({
   const cardGoPrev = () => setCardPage((p) => Math.max(0, p - 1));
   const cardGoNext = () => setCardPage((p) => Math.min(DESKTOP_CARD_PAGES.length - 1, p + 1));
 
+  // Drag-to-turn: the page under the finger follows it 1:1 (like a scroll
+  // gesture, not a blind swipe) and only commits to the next/prev page — or
+  // springs back — once the finger lifts, based on how far it travelled.
+  const pagerRef = useRef<HTMLDivElement | null>(null);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const dragLocked = useRef(false);
+  const dragAxisRef = useRef<"x" | "y">("x");
+  const scrollableAncestor = useRef<HTMLElement | null>(null);
+  const [dragDirection, setDragDirection] = useState<"next" | "prev" | null>(null);
+  const [dragProgress, setDragProgress] = useState(0);
+
+  // If the touch started inside a scrollable region (the RSVP form can
+  // overflow on short screens), a vertical drag should scroll it normally —
+  // the page-turn gesture only takes over once that content is already at
+  // the edge it's being dragged past.
+  const findScrollableAncestor = (node: HTMLElement | null): HTMLElement | null => {
+    let el = node;
+    while (el && el !== pagerRef.current) {
+      if (el.scrollHeight > el.clientHeight + 1) return el;
+      el = el.parentElement;
+    }
+    return null;
+  };
 
   const handleTouchStart = (e: TouchEvent) => {
     const t = e.touches[0];
     touchStart.current = { x: t.clientX, y: t.clientY };
+    dragLocked.current = false;
+    scrollableAncestor.current = findScrollableAncestor(e.target as HTMLElement);
   };
 
-  const handleTouchEnd = (e: TouchEvent) => {
+  const handleTouchMove = (e: TouchEvent) => {
     if (!touchStart.current) return;
-    const t = e.changedTouches[0];
+    const t = e.touches[0];
     const dx = t.clientX - touchStart.current.x;
     const dy = t.clientY - touchStart.current.y;
-    touchStart.current = null;
 
-    if (Math.abs(dx) > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy)) {
-      if (dx < 0) goNext();
-      else goPrev();
+    if (!dragLocked.current) {
+      if (Math.abs(dx) < DRAG_LOCK_THRESHOLD && Math.abs(dy) < DRAG_LOCK_THRESHOLD) return;
+
+      const axis: "x" | "y" = Math.abs(dx) >= Math.abs(dy) ? "x" : "y";
+      const primary = axis === "x" ? dx : dy;
+
+      let canNext = primary < 0 && page < pageCount - 1;
+      let canPrev = primary > 0 && page > 0;
+
+      if (axis === "y") {
+        const sa = scrollableAncestor.current;
+        if (sa) {
+          const atBottom = sa.scrollTop + sa.clientHeight >= sa.scrollHeight - 1;
+          const atTop = sa.scrollTop <= 1;
+          if (canNext && !atBottom) canNext = false;
+          if (canPrev && !atTop) canPrev = false;
+        }
+      }
+
+      if (!canNext && !canPrev) {
+        // No page to turn to in this direction (or, for a vertical drag,
+        // the form still has room to scroll) — let the browser handle it
+        // as a normal scroll instead of hijacking the gesture.
+        touchStart.current = null;
+        return;
+      }
+      dragLocked.current = true;
+      dragAxisRef.current = axis;
     }
+
+    if (e.cancelable) e.preventDefault();
+
+    const axis = dragAxisRef.current;
+    const primary = axis === "x" ? dx : dy;
+    const rect = pagerRef.current?.getBoundingClientRect();
+    const size = (axis === "x" ? rect?.width : rect?.height) ||
+      (axis === "x" ? window.innerWidth : window.innerHeight);
+
+    if (primary < 0 && page < pageCount - 1) {
+      setDragDirection("next");
+      setDragProgress(Math.min(1, -primary / size));
+    } else if (primary > 0 && page > 0) {
+      setDragDirection("prev");
+      setDragProgress(Math.min(1, primary / size));
+    } else {
+      setDragDirection(null);
+      setDragProgress(0);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    touchStart.current = null;
+    if (dragLocked.current) {
+      if (dragDirection === "next" && dragProgress > DRAG_COMPLETE_THRESHOLD) goNext();
+      else if (dragDirection === "prev" && dragProgress > DRAG_COMPLETE_THRESHOLD) goPrev();
+    }
+    dragLocked.current = false;
+    setDragDirection(null);
+    setDragProgress(0);
+  };
+
+  // Base rest angle for page i, plus a live drag override for whichever
+  // single page is currently being dragged (the transition is switched off
+  // for that page only, so it tracks the finger without any easing lag).
+  const getPageTransform = (i: number) => {
+    let angle = page > i ? -180 : 0;
+    let dragging = false;
+
+    if (dragDirection === "next" && i === page) {
+      angle = -180 * dragProgress;
+      dragging = true;
+    } else if (dragDirection === "prev" && i === page - 1) {
+      angle = -180 * (1 - dragProgress);
+      dragging = true;
+    }
+
+    return { angle, dragging };
+  };
+
+  // Full inline style for a page div. The flip itself always looks the
+  // same (rotateY around the left spine) no matter which gesture — a
+  // horizontal swipe or a vertical one — is driving it.
+  const getPageStyle = (i: number): CSSProperties => {
+    const { angle, dragging } = getPageTransform(i);
+    return {
+      backgroundImage: "url(/4.png)",
+      transformOrigin: "left center",
+      transform: `rotateY(${angle}deg)`,
+      transitionDuration: dragging ? "0ms" : undefined,
+      boxShadow:
+        "inset 18px 0 32px -20px rgba(58,32,10,0.45), inset -10px 0 20px -16px rgba(255,255,255,0.5)",
+    };
   };
 
   // Dots: tap jumps straight to that page; press-and-hold then drag scrubs
@@ -146,21 +258,17 @@ export function InviteBook({
     <>
       {/* Mobile: swipeable page-flip pager (cover -> details -> RSVP, if invited) */}
       <div
-        className="relative h-dvh w-full overflow-hidden lg:hidden"
+        ref={pagerRef}
+        className="relative h-dvh w-full overflow-hidden lg:hidden [touch-action:none]"
         style={{ perspective: 2000 }}
         onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
       >
         <div
           className="absolute inset-0 bg-[#f7ecf7] bg-cover bg-center transition-transform duration-[1900ms] ease-[cubic-bezier(0.45,0,0.15,1)] [backface-visibility:hidden] [will-change:transform]"
-          style={{
-            backgroundImage: "url(/4.png)",
-            transformOrigin: "left center",
-            transform: `rotateY(${page > 0 ? -180 : 0}deg)`,
-            zIndex: pageCount,
-            boxShadow:
-              "inset 18px 0 32px -20px rgba(58,32,10,0.45), inset -10px 0 20px -16px rgba(255,255,255,0.5)",
-          }}
+          style={{ ...getPageStyle(0), zIndex: pageCount }}
         >
           <Image
             src={MOBILE_CARD_PAGES[0].src}
@@ -174,14 +282,7 @@ export function InviteBook({
 
         <div
           className="absolute inset-0 bg-[#f7ecf7] bg-cover bg-center transition-transform duration-[1900ms] ease-[cubic-bezier(0.45,0,0.15,1)] [backface-visibility:hidden] [will-change:transform]"
-          style={{
-            backgroundImage: "url(/4.png)",
-            transformOrigin: "left center",
-            transform: `rotateY(${page > 1 ? -180 : 0}deg)`,
-            zIndex: pageCount - 1,
-            boxShadow:
-              "inset 18px 0 32px -20px rgba(58,32,10,0.45), inset -10px 0 20px -16px rgba(255,255,255,0.5)",
-          }}
+          style={{ ...getPageStyle(1), zIndex: pageCount - 1 }}
         >
           <Image
             src={MOBILE_CARD_PAGES[1].src}
@@ -195,14 +296,8 @@ export function InviteBook({
 
         {hasInvite && (
           <div
-            className="absolute inset-0 flex flex-col items-center justify-center gap-6 overflow-y-auto bg-[#f7ecf7] bg-cover bg-center px-4 py-10 transition-transform duration-[1900ms] ease-[cubic-bezier(0.45,0,0.15,1)] [backface-visibility:hidden] [will-change:transform]"
-            style={{
-              backgroundImage: "url(/4.png)",
-              transformOrigin: "left center",
-              zIndex: pageCount - 2,
-              boxShadow:
-                "inset 18px 0 32px -20px rgba(58,32,10,0.45), inset -10px 0 20px -16px rgba(255,255,255,0.5)",
-            }}
+            className="absolute inset-0 flex flex-col items-center justify-center gap-6 overflow-y-auto bg-[#f7ecf7] bg-cover bg-center px-4 py-10 transition-transform duration-[1900ms] ease-[cubic-bezier(0.45,0,0.15,1)] [backface-visibility:hidden] [touch-action:pan-y] [will-change:transform]"
+            style={{ ...getPageStyle(2), zIndex: pageCount - 2 }}
           >
             <RsvpBlock inviteId={inviteId!} guestName={guestName!} existingRsvp={existingRsvp} />
           </div>
