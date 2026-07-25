@@ -1,9 +1,8 @@
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { LogoutButton } from "./logout-button";
-import { DeleteRsvpButton } from "./delete-rsvp-button";
-import { DeleteInviteButton } from "./delete-invite-button";
-import { CopyInviteLinkButton } from "./copy-invite-link-button";
 import { ShareInviteButton } from "./share-invite-button";
+import { GuestDashboard } from "./guest-dashboard";
+import type { PendingInvite, RespondedGuest } from "./guest-card";
 
 export const dynamic = "force-dynamic";
 
@@ -21,23 +20,37 @@ export default async function AdminPage() {
         .order("created_at", { ascending: false }),
     ]);
 
-  const attendingCount = rsvps?.filter((r) => r.attending).length ?? 0;
-  const decliningCount = (rsvps?.length ?? 0) - attendingCount;
-  const totalGuests =
-    rsvps
-      ?.filter((r) => r.attending)
-      .reduce((sum, r) => sum + 1 + (r.additional_guests?.length ?? 0), 0) ?? 0;
-
-  const respondedInviteIds = new Set(
-    rsvps?.map((r) => r.invite_id).filter(Boolean) ?? []
+  const rsvpByInvite = new Map(
+    (rsvps ?? []).filter((r) => r.invite_id).map((r) => [r.invite_id, r])
   );
 
-  const stats = [
-    { label: "Responses", value: rsvps?.length ?? 0 },
-    { label: "Attending", value: attendingCount },
-    { label: "Declined", value: decliningCount },
-    { label: "Total guests", value: totalGuests },
-  ];
+  const pendingInvites: PendingInvite[] = (invites ?? [])
+    .filter((inv) => !rsvpByInvite.has(inv.id))
+    .map((inv) => ({ id: inv.id, name: inv.name, createdAt: inv.created_at }));
+
+  const respondedGuests: RespondedGuest[] = (rsvps ?? []).map((r) => ({
+    id: r.id,
+    inviteId: r.invite_id,
+    name: r.name,
+    attending: r.attending,
+    additionalGuests: r.additional_guests ?? [],
+    createdAt: r.created_at,
+  }));
+
+  const attendingCount = respondedGuests.filter((g) => g.attending).length;
+  const declinedCount = respondedGuests.length - attendingCount;
+  const totalGuests = respondedGuests
+    .filter((g) => g.attending)
+    .reduce((sum, g) => sum + 1 + g.additionalGuests.length, 0);
+
+  const stats = {
+    sent: invites?.length ?? 0,
+    pending: pendingInvites.length,
+    responded: respondedGuests.length,
+    attending: attendingCount,
+    declined: declinedCount,
+    totalGuests,
+  };
 
   return (
     <div
@@ -55,238 +68,18 @@ export default async function AdminPage() {
           </div>
         </div>
 
-        <div className="mt-6 grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-4">
-          {stats.map((stat) => (
-            <div
-              key={stat.label}
-              className="rounded-xl border border-gold/25 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-sm"
-            >
-              <p className="font-display text-2xl text-gold-dark">{stat.value}</p>
-              <p className="text-xs font-medium uppercase tracking-wide text-foreground/60">
-                {stat.label}
-              </p>
-            </div>
-          ))}
-        </div>
-
-        {error && (
+        {(error || invitesError) && (
           <p className="mt-6 text-sm font-medium text-red-600">
-            Failed to load RSVPs: {error.message}
+            Failed to load data: {error?.message ?? invitesError?.message}
           </p>
         )}
 
-        {/* Mobile: stacked cards */}
-        <div className="mt-6 space-y-3 md:hidden">
-          {rsvps?.map((rsvp) => (
-            <div
-              key={rsvp.id}
-              className="rounded-xl border border-gold/25 bg-white/80 p-4 shadow-sm backdrop-blur-sm"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate font-medium text-foreground">{rsvp.name}</p>
-                  <p className="mt-0.5 text-xs text-foreground/50">
-                    {new Date(rsvp.created_at).toLocaleString()}
-                  </p>
-                </div>
-                <span
-                  className={
-                    rsvp.attending
-                      ? "shrink-0 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800"
-                      : "shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800"
-                  }
-                >
-                  {rsvp.attending ? "Yes" : "No"}
-                </span>
-              </div>
-              {rsvp.additional_guests?.length ? (
-                <div className="mt-3 flex flex-wrap gap-1">
-                  {rsvp.additional_guests.map((guest: string, i: number) => (
-                    <span
-                      key={i}
-                      className="rounded-full bg-lavender/50 px-2 py-0.5 text-xs text-foreground/80"
-                    >
-                      {guest}
-                    </span>
-                  ))}
-                </div>
-              ) : null}
-              <div className="mt-3 flex justify-end border-t border-gold/10 pt-3">
-                <DeleteRsvpButton id={rsvp.id} name={rsvp.name} />
-              </div>
-            </div>
-          ))}
-          {rsvps?.length === 0 && (
-            <p className="rounded-xl border border-gold/25 bg-white/80 px-4 py-8 text-center text-sm text-foreground/50 shadow-sm backdrop-blur-sm">
-              No RSVPs yet.
-            </p>
-          )}
-        </div>
-
-        {/* Desktop/tablet: table */}
-        <div className="mt-6 hidden overflow-x-auto rounded-xl border border-gold/25 bg-white/80 shadow-sm backdrop-blur-sm md:block">
-          <table className="min-w-full divide-y divide-gold/15 text-sm">
-            <thead className="bg-lavender/40">
-              <tr>
-                <th className="px-4 py-3 text-left font-medium text-gold-dark">Name</th>
-                <th className="px-4 py-3 text-left font-medium text-gold-dark">Attending</th>
-                <th className="px-4 py-3 text-left font-medium text-gold-dark">Plus ones</th>
-                <th className="px-4 py-3 text-left font-medium text-gold-dark">Submitted</th>
-                <th className="px-4 py-3 text-left font-medium text-gold-dark">
-                  <span className="sr-only">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gold/10">
-              {rsvps?.map((rsvp) => (
-                <tr key={rsvp.id}>
-                  <td className="px-4 py-3 font-medium text-foreground">{rsvp.name}</td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={
-                        rsvp.attending
-                          ? "rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800"
-                          : "rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800"
-                      }
-                    >
-                      {rsvp.attending ? "Yes" : "No"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-foreground/80">
-                    {rsvp.additional_guests?.length ? (
-                      <div className="flex flex-wrap gap-1">
-                        {rsvp.additional_guests.map((guest: string, i: number) => (
-                          <span
-                            key={i}
-                            className="rounded-full bg-lavender/50 px-2 py-0.5 text-xs text-foreground/80"
-                          >
-                            {guest}
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <span className="text-foreground/40">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-foreground/60">
-                    {new Date(rsvp.created_at).toLocaleString()}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <DeleteRsvpButton id={rsvp.id} name={rsvp.name} />
-                  </td>
-                </tr>
-              ))}
-              {rsvps?.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-foreground/50">
-                    No RSVPs yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <h2 className="mt-10 font-display text-lg uppercase tracking-[0.1em] text-gold-dark">
-          Invites Sent
-        </h2>
-        <p className="mt-1 font-script text-base italic text-foreground/70">
-          Only guests with one of these links can access the RSVP form.
-        </p>
-
-        {invitesError && (
-          <p className="mt-4 text-sm font-medium text-red-600">
-            Failed to load invites: {invitesError.message}
-          </p>
-        )}
-
-        {/* Mobile: stacked cards */}
-        <div className="mt-4 space-y-3 md:hidden">
-          {invites?.map((invite) => (
-            <div
-              key={invite.id}
-              className="rounded-xl border border-gold/25 bg-white/80 p-4 shadow-sm backdrop-blur-sm"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate font-medium text-foreground">{invite.name}</p>
-                  <p className="mt-0.5 text-xs text-foreground/50">
-                    {new Date(invite.created_at).toLocaleString()}
-                  </p>
-                </div>
-                <span
-                  className={
-                    respondedInviteIds.has(invite.id)
-                      ? "shrink-0 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800"
-                      : "shrink-0 rounded-full bg-lavender/50 px-2 py-0.5 text-xs font-medium text-foreground/70"
-                  }
-                >
-                  {respondedInviteIds.has(invite.id) ? "Responded" : "Waiting"}
-                </span>
-              </div>
-              <div className="mt-3 flex flex-wrap items-center justify-end gap-2 border-t border-gold/10 pt-3">
-                <CopyInviteLinkButton id={invite.id} />
-                <DeleteInviteButton id={invite.id} name={invite.name} />
-              </div>
-            </div>
-          ))}
-          {invites?.length === 0 && (
-            <p className="rounded-xl border border-gold/25 bg-white/80 px-4 py-8 text-center text-sm text-foreground/50 shadow-sm backdrop-blur-sm">
-              No invites sent yet. Use &ldquo;Share invite link&rdquo; above to
-              create one.
-            </p>
-          )}
-        </div>
-
-        {/* Desktop/tablet: table */}
-        <div className="mt-4 hidden overflow-x-auto rounded-xl border border-gold/25 bg-white/80 shadow-sm backdrop-blur-sm md:block">
-          <table className="min-w-full divide-y divide-gold/15 text-sm">
-            <thead className="bg-lavender/40">
-              <tr>
-                <th className="px-4 py-3 text-left font-medium text-gold-dark">Name</th>
-                <th className="px-4 py-3 text-left font-medium text-gold-dark">Status</th>
-                <th className="px-4 py-3 text-left font-medium text-gold-dark">Created</th>
-                <th className="px-4 py-3 text-left font-medium text-gold-dark">
-                  <span className="sr-only">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gold/10">
-              {invites?.map((invite) => (
-                <tr key={invite.id}>
-                  <td className="px-4 py-3 font-medium text-foreground">{invite.name}</td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={
-                        respondedInviteIds.has(invite.id)
-                          ? "rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800"
-                          : "rounded-full bg-lavender/50 px-2 py-0.5 text-xs font-medium text-foreground/70"
-                      }
-                    >
-                      {respondedInviteIds.has(invite.id) ? "Responded" : "Waiting"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-foreground/60">
-                    {new Date(invite.created_at).toLocaleString()}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-2">
-                      <CopyInviteLinkButton id={invite.id} />
-                      <DeleteInviteButton id={invite.id} name={invite.name} />
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {invites?.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-foreground/50">
-                    No invites sent yet. Use &ldquo;Share invite link&rdquo; above to
-                    create one.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+        <div className="mt-6">
+          <GuestDashboard
+            pendingInvites={pendingInvites}
+            respondedGuests={respondedGuests}
+            stats={stats}
+          />
         </div>
       </div>
     </div>

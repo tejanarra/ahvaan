@@ -1,6 +1,7 @@
 "use server";
 
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { MAX_NAME_LENGTH, MAX_GUESTS } from "@/lib/rsvp-limits";
 
 export type RsvpFormState = {
   status: "idle" | "success" | "error";
@@ -11,9 +12,6 @@ export type RsvpFormState = {
     additionalGuests: string[];
   };
 };
-
-const MAX_NAME_LENGTH = 100;
-const MAX_GUESTS = 15;
 
 export async function submitRsvp(
   _prevState: RsvpFormState,

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createInvite } from "./actions";
+import { buildInviteLink, buildInviteMessage } from "./invite-link";
 
 export function ShareInviteButton() {
   const [open, setOpen] = useState(false);
@@ -31,9 +32,7 @@ export function ShareInviteButton() {
 
     try {
       const inviteId = await createInvite(guestName);
-      const url = new URL(window.location.origin);
-      url.searchParams.set("invite", inviteId);
-      setLink(url.toString());
+      setLink(buildInviteLink(inviteId));
     } catch {
       setError("Couldn't create the invite. Try again.");
     } finally {
@@ -43,7 +42,7 @@ export function ShareInviteButton() {
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(link);
+      await navigator.clipboard.writeText(buildInviteMessage(link));
       setCopyFailed(false);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -129,7 +128,7 @@ export function ShareInviteButton() {
                   <input
                     type="text"
                     readOnly
-                    value={link}
+                    value={buildInviteMessage(link)}
                     onFocus={(e) => e.currentTarget.select()}
                     className="w-full truncate bg-transparent text-sm text-foreground/80 focus:outline-none"
                   />
