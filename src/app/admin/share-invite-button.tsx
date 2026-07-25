@@ -130,7 +130,7 @@ export function ShareInviteButton() {
                     readOnly
                     value={buildInviteMessage(link)}
                     onFocus={(e) => e.currentTarget.select()}
-                    className="w-full truncate bg-transparent text-sm text-foreground/80 focus:outline-none"
+                    className="w-full truncate bg-transparent text-base text-foreground/80 focus:outline-none"
                   />
                   <button
                     type="button"

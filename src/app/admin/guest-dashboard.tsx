@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { SearchIcon } from "./icons";
+import { SearchIcon, SortIcon, ChevronDownIcon } from "./icons";
 import { PendingGuestCard, RespondedGuestCard } from "./guest-card";
 import type { PendingInvite, RespondedGuest } from "./guest-card";
 
@@ -155,25 +155,29 @@ export function GuestDashboard({
 
       <div className="mt-6 flex flex-col gap-2 sm:flex-row">
         <div className="relative flex-1">
-          <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/40" />
+          <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/35" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name..."
-            className="w-full rounded-xl border border-gold/25 bg-white/80 py-2.5 pl-10 pr-3 text-sm text-foreground shadow-sm backdrop-blur-sm placeholder:text-foreground/40 focus:border-gold-dark focus:outline-none"
+            className="h-11 w-full rounded-full border border-gold/25 bg-white/90 pl-9 pr-3 text-base text-foreground shadow-sm transition focus:border-gold-dark focus:outline-none focus:ring-2 focus:ring-gold/20"
           />
         </div>
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as SortBy)}
-          className="rounded-xl border border-gold/25 bg-white/80 px-3 py-2.5 text-sm text-foreground shadow-sm backdrop-blur-sm focus:border-gold-dark focus:outline-none sm:w-52"
-        >
-          <option value="date-desc">Newest first</option>
-          <option value="date-asc">Oldest first</option>
-          <option value="name-asc">Name (A–Z)</option>
-          <option value="name-desc">Name (Z–A)</option>
-        </select>
+        <div className="relative sm:w-52">
+          <SortIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/35" />
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as SortBy)}
+            className="h-11 w-full appearance-none rounded-full border border-gold/25 bg-white/90 pl-9 pr-9 text-base text-foreground shadow-sm transition focus:border-gold-dark focus:outline-none focus:ring-2 focus:ring-gold/20"
+          >
+            <option value="date-desc">Newest first</option>
+            <option value="date-asc">Oldest first</option>
+            <option value="name-asc">Name (A–Z)</option>
+            <option value="name-desc">Name (Z–A)</option>
+          </select>
+          <ChevronDownIcon className="pointer-events-none absolute right-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-foreground/35" />
+        </div>
       </div>
 
       <div className="mt-4 flex gap-2">

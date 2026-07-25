@@ -62,3 +62,23 @@ export function CheckIcon({ className = base }: IconProps) {
     </svg>
   );
 }
+
+export function SortIcon({ className = base }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={className}>
+      <path d="M3 7h11" />
+      <path d="M3 12h7" />
+      <path d="M3 17h4" />
+      <path d="m16 5 4 4" />
+      <path d="M20 9V19" />
+    </svg>
+  );
+}
+
+export function ChevronDownIcon({ className = base }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={className}>
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
