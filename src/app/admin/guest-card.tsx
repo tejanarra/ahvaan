@@ -22,8 +22,19 @@ export type RespondedGuest = {
   createdAt: string;
 };
 
+// Pinned to the venue's timezone rather than the runtime's default: without
+// an explicit zone, a server (often UTC) and the admin's browser (e.g. US
+// Eastern) can render a different calendar date for the same timestamp —
+// especially for anything submitted near midnight — causing a hydration
+// mismatch or just a visibly wrong date.
+const VENUE_TIME_ZONE = "America/New_York";
+
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: VENUE_TIME_ZONE,
+  });
 }
 
 export function PendingGuestCard({ invite }: { invite: PendingInvite }) {

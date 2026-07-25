@@ -74,17 +74,27 @@ export async function updateRsvp(
 
   // Editing an existing row by its own id — works whether or not the
   // invite behind it still exists (an orphaned RSVP has no invite_id).
-  const { error } = await supabase
+  // .select().maybeSingle() is required here, not just to read the row
+  // back, but because without it Supabase reports no error at all when
+  // the id matches zero rows (e.g. the RSVP was deleted in the moment
+  // between opening the edit dialog and saving) — silently "succeeding"
+  // at nothing instead of surfacing that the row is gone.
+  const { data, error } = await supabase
     .from("wedding_rsvps")
     .update({
       name,
       attending: payload.attending,
       additional_guests: payload.attending ? additionalGuests : [],
     })
-    .eq("id", rsvpId);
+    .eq("id", rsvpId)
+    .select("id")
+    .maybeSingle();
 
   if (error) {
     throw new Error(error.message);
+  }
+  if (!data) {
+    throw new Error("This RSVP no longer exists — it may have been deleted.");
   }
 
   revalidatePath("/admin");
