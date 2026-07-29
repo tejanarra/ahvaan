@@ -1,28 +1,48 @@
+import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
-import { ADMIN_COOKIE, isValidAdminSessionToken } from "@/lib/session";
 
 export async function proxy(request: NextRequest) {
-  // Login itself must stay reachable without a session, or an unauthenticated
-  // visitor could never obtain one (matcher below covers /admin/:path* so this
-  // page is included in it — this check carves it back out explicitly rather
-  // than relying on the matcher pattern alone).
-  if (request.nextUrl.pathname === "/admin/login") {
-    return NextResponse.next();
-  }
+  let response = NextResponse.next({ request });
 
-  const token = request.cookies.get(ADMIN_COOKIE)?.value;
+  // The Supabase SSR client needs to be able to refresh the auth cookie on
+  // every request (access tokens expire); the setAll callback both mutates
+  // the outgoing request (so this same middleware invocation sees the
+  // refreshed cookie) and re-creates the response so the refreshed cookie
+  // actually reaches the browser.
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+          response = NextResponse.next({ request });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          );
+        },
+      },
+    }
+  );
 
-  if (!(await isValidAdminSessionToken(token))) {
-    const loginUrl = new URL("/admin/login", request.url);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    const loginUrl = new URL("/login", request.url);
     return NextResponse.redirect(loginUrl);
   }
 
-  return NextResponse.next();
+  return response;
 }
 
 export const config = {
-  // Matches /admin and any nested route under it (e.g. a future /admin/export),
-  // not just the exact /admin path — a plain "/admin" entry would silently
-  // leave new nested admin routes unprotected.
-  matcher: ["/admin", "/admin/:path*"],
+  // Matches /dashboard and any nested route under it (event pages, settings,
+  // etc.) — /login and /signup are outside this matcher entirely, so they
+  // stay reachable without a session.
+  matcher: ["/dashboard", "/dashboard/:path*"],
 };
