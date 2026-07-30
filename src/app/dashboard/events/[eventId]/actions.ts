@@ -10,6 +10,7 @@ import { NotFoundError } from "@/lib/data/errors";
 import { resolveFormSchema, deriveLegacyScalars, enforceRoleLock } from "@/lib/schemas/form-schema";
 import type { FormSchema, Responses } from "@/lib/schemas/form-schema";
 import { sanitizeResponses, validateResponses, assertResponsesWithinSizeBudget } from "@/lib/schemas/responses";
+import { parsePageSchema } from "@/lib/schemas/page-schema";
 import type { PageSchema } from "@/lib/blocks/types";
 
 export async function createInvite(eventId: string, name: string, email?: string) {
@@ -139,5 +140,22 @@ export async function sendReminderEmails(eventId: string) {
 
 export async function updatePageSchema(eventId: string, schema: PageSchema) {
   const host = await requireHost();
-  await updatePageSchemaData(host.id, eventId, schema);
+
+  // The page builder is a client component — the `PageSchema` type only
+  // constrains what TypeScript lets *this app's own UI* send, not what a
+  // Server Action actually receives over the wire. Every other JSONB write
+  // path (updateFormSchema above) re-validates server-side before persisting
+  // rather than trusting the client-typed shape; this one didn't, which is
+  // exactly the "never as-cast" JSONB invariant this data is supposed to
+  // honor. parsePageSchema is the same validator the read path already
+  // trusts (page.tsx, the public /e/[slug] page) — reused here so corrupt
+  // blocks are dropped (or the whole write rejected, if nothing valid
+  // remains) before ever reaching the database, not just after reading it
+  // back.
+  const validated = parsePageSchema(schema);
+  if (!validated) {
+    throw new Error("That page layout isn't valid — nothing was saved.");
+  }
+
+  await updatePageSchemaData(host.id, eventId, validated);
 }

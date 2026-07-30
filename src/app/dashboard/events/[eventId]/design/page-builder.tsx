@@ -503,13 +503,15 @@ export function PageBuilder({
 
       // Dropped directly onto a container's own box (coarse target, works
       // anywhere over its rendered area, not just a specific child) — append
-      // into its children rather than inserting next to it.
+      // into its children rather than inserting next to it. Recursive (via
+      // findContainerBlock), not just a top-level lookup — a `blocks.find`
+      // here previously only matched a *top-level* container's own box, so
+      // dropping onto a nested container's exposed padding silently fell
+      // through to sibling-insertion instead of nesting inside it.
       if (type !== "container") {
-        const overContainer = blocks.find((b) => b.id === overId);
-        if (overContainer && "children" in overContainer) {
-          setBlocks(
-            blocks.map((b) => (b.id === overContainer.id && "children" in b ? ({ ...b, children: [...b.children, newBlock] } as BlockInstance) : b))
-          );
+        const overContainer = findContainerBlock(blocks, overId);
+        if (overContainer) {
+          setBlocks(setBlockList(blocks, overContainer.id, [...getBlockList(blocks, overContainer.id), newBlock]));
           return;
         }
       }
@@ -568,8 +570,12 @@ export function PageBuilder({
     }
 
     if (!movingIsContainer) {
-      const overContainer = blocks.find((b) => b.id === overId && b.id !== activeId);
-      if (overContainer && "children" in overContainer && overContainer.id !== activeList.containerId) {
+      // Same fix as the palette-insert case above: recursive so dropping
+      // onto a nested container's own box (not just a top-level one) also
+      // nests the moved block inside it instead of silently placing it as a
+      // sibling.
+      const overContainer = overId !== activeId ? findContainerBlock(blocks, overId) : null;
+      if (overContainer && overContainer.id !== activeList.containerId) {
         const withoutBlock = setBlockList(
           blocks,
           activeList.containerId,
