@@ -778,3 +778,48 @@ Live-scripted: created a Fiesta event and a Classic Gold event end-to-end
 each renders its own distinct font family with zero page errors, and that
 a pre-existing theme id (Classic Gold) still renders correctly alongside
 the new one (no regression for old events).
+
+## Status: Phase 2 (second slice) — form-builder preview, unsaved-dot (2026-07-30)
+
+Closes the remaining doc07 Phase 2 items that were still open after the
+theme-system slice. The device-width preview toggle was already built in
+an earlier session (confirmed present in `page-builder.tsx`, not new
+work); the Style-panel Blocks/Style-tab reorganization was deliberately
+**not** attempted — `page-builder.tsx` already exposes Theme (top-bar
+picker), Page (Page settings modal), and Block (per-block edit modal) as
+three clearly-scoped surfaces, which satisfies doc04's underlying intent
+("three scopes") even though the presentation is per-scope modals rather
+than one tabbed side panel. Reorganizing a working, intricate dnd-kit
+editor into a different shell for a mostly-cosmetic reshuffle wasn't worth
+the regression risk this late in the session; noted as a real follow-up,
+not silently dropped.
+
+- **Form-builder live preview** (`docs/05`): a new Edit/Preview
+  `ToggleGroup` in the right pane. Preview mode renders the *actual*
+  `RsvpForm` component guests see — not a lookalike — themed on the
+  event's real colors/fonts, fed the live (unsaved) field list. Submitting
+  from preview is harmless by construction: `eventId`/`inviteId` are both
+  the literal string `"preview"`, so `submitRsvp`'s invite lookup finds
+  nothing and returns its existing "invalid or expired" error state — no
+  parallel preview-safety logic needed.
+- **Editor unsaved-dot Save** (`docs/07`): the page builder's Save button
+  now shows a small warning-colored dot when the in-memory schema differs
+  from what was last persisted (compared via a JSON snapshot taken on
+  load and refreshed after every successful save). First real usage of
+  the `--warning` token added during Phase 1's contrast audit.
+  **Bug caught during verification**: the initial snapshot didn't apply
+  the same `customPage` default-object fallback the live state does, so
+  the dot showed as "dirty" on a freshly-loaded, untouched page for any
+  event whose `page_schema` predates the custom-page feature (no
+  `customPage` key at all). Fixed by computing the fallback once and
+  reusing it for both the state initializer and the snapshot.
+
+**Verified**: `npm run build` clean; `npx eslint` shows only the
+pre-existing `mounted`-effect finding (unchanged, not touched this
+slice). Live-scripted: form-builder Edit/Preview toggle renders correctly
+(screenshots taken); dirty-dot absent on fresh load, appears after adding
+a block, clears after Save — confirming the fix, not just the feature.
+
+**Phase 2 is now complete** per `docs/07-build-phases.md`'s item list,
+with the one explicit exception (Style-panel tab reorganization) called
+out above.

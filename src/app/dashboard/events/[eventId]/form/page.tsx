@@ -21,5 +21,5 @@ export default async function EventFormPage({
 
   const schema = resolveFormSchema(event.form_schema);
 
-  return <FormBuilder eventId={event.id} schema={schema} />;
+  return <FormBuilder event={event} schema={schema} />;
 }

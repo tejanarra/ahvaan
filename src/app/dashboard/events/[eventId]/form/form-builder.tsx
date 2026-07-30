@@ -1,9 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type CSSProperties } from "react";
 import { updateFormSchema } from "../actions";
 import { ConfirmIconButton } from "@/components/confirm-icon-button";
 import type { FieldType, FormField, FormSchema } from "@/lib/schemas/form-schema";
+import type { EventRecord } from "@/lib/data/events";
+import { resolveThemeColors } from "@/lib/themes";
+import { resolveThemeFonts } from "@/lib/theme-fonts";
+import { RsvpForm } from "@/app/e/[slug]/rsvp-form";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,6 +15,7 @@ import { Select } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody } from "@/components/ui/card";
+import { ToggleGroup } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/cn";
 
 const FIELD_TYPE_LABELS: Record<FieldType, string> = {
@@ -107,9 +112,53 @@ function FieldEditor({ field, onChange }: { field: FormField; onChange: (next: F
   );
 }
 
-export function FormBuilder({ eventId, schema }: { eventId: string; schema: FormSchema }) {
+// Themed, non-interactive-in-effect preview: reuses the exact component
+// guests see (docs/05 "form-builder live preview") rather than a
+// hand-maintained lookalike. Submitting is harmless here — eventId/inviteId
+// are made up, so submitRsvp's invite lookup finds nothing and returns its
+// existing "invalid or expired" error state; no real data is ever touched.
+function FormPreview({ event, schema }: { event: EventRecord; schema: FormSchema }) {
+  const themeColors = resolveThemeColors(event.theme_id, undefined);
+  const themeFonts = resolveThemeFonts(event.theme_id);
+
+  return (
+    <div
+      className={cn(
+        "rounded-lg border border-border p-6",
+        themeFonts.bodyClassName,
+        themeFonts.displayClassName
+      )}
+      style={
+        {
+          background: themeColors.background,
+          "--t-bg": themeColors.background,
+          "--t-fg": themeColors.foreground,
+          "--t-accent": themeColors.accent,
+          "--t-accent-dark": themeColors.accentDark,
+          "--t-surface": themeColors.surface,
+          "--t-font-display": themeFonts.displayVar,
+          "--t-font-body": themeFonts.bodyVar,
+          fontFamily: "var(--t-font-body)",
+        } as CSSProperties
+      }
+    >
+      <RsvpForm
+        eventId="preview"
+        inviteId="preview"
+        schema={schema}
+        initialResponses={null}
+        guestName="Guest Name"
+        venueName={event.venue_name}
+        venueAddress={event.venue_address}
+      />
+    </div>
+  );
+}
+
+export function FormBuilder({ event, schema }: { event: EventRecord; schema: FormSchema }) {
   const [fields, setFields] = useState<FormField[]>(schema.fields);
   const [editingId, setEditingId] = useState<string | null>(fields[0]?.id ?? null);
+  const [rightPane, setRightPane] = useState<"edit" | "preview">("edit");
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -144,7 +193,7 @@ export function FormBuilder({ eventId, schema }: { eventId: string; schema: Form
     setSaved(false);
     startTransition(async () => {
       try {
-        await updateFormSchema(eventId, { fields });
+        await updateFormSchema(event.id, { fields });
         setSaved(true);
         setTimeout(() => setSaved(false), 2000);
       } catch (err) {
@@ -234,20 +283,36 @@ export function FormBuilder({ eventId, schema }: { eventId: string; schema: Form
           </button>
         </div>
 
-        <Card className="lg:sticky lg:top-6">
-          <CardBody>
-            {editingField ? (
-              <>
-                <p className="mb-4 text-xs font-medium uppercase tracking-wide text-muted">
-                  Editing &ldquo;{editingField.label}&rdquo;
-                </p>
-                <FieldEditor field={editingField} onChange={(next) => updateField(editingField.id, next)} />
-              </>
-            ) : (
-              <p className="text-sm text-muted">Select a question on the left to edit it.</p>
-            )}
-          </CardBody>
-        </Card>
+        <div className="lg:sticky lg:top-6">
+          <ToggleGroup
+            className="mb-3"
+            options={[
+              { value: "edit", label: "Edit" },
+              { value: "preview", label: "Preview" },
+            ]}
+            value={rightPane}
+            onChange={(v) => setRightPane(v as "edit" | "preview")}
+          />
+
+          {rightPane === "edit" ? (
+            <Card>
+              <CardBody>
+                {editingField ? (
+                  <>
+                    <p className="mb-4 text-xs font-medium uppercase tracking-wide text-muted">
+                      Editing &ldquo;{editingField.label}&rdquo;
+                    </p>
+                    <FieldEditor field={editingField} onChange={(next) => updateField(editingField.id, next)} />
+                  </>
+                ) : (
+                  <p className="text-sm text-muted">Select a question on the left to edit it.</p>
+                )}
+              </CardBody>
+            </Card>
+          ) : (
+            <FormPreview event={event} schema={{ fields }} />
+          )}
+        </div>
       </div>
     </div>
   );

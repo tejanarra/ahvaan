@@ -200,13 +200,14 @@ export function PageBuilder({
   formSchema: FormSchema;
   initialSchema: PageSchema;
 }) {
+  const initialCustomPage: CustomPageConfig =
+    initialSchema.customPage ?? { enabled: false, html: "<p>Write your own page here.</p>", css: "", js: "" };
+
   const [blocks, setBlocks] = useState<BlockInstance[]>(initialSchema.blocks);
   const [pageStyle, setPageStyle] = useState(initialSchema.pageStyle ?? "");
   const [themeOverrides, setThemeOverrides] = useState<ThemeColorOverrides>(initialSchema.themeOverrides ?? {});
   const [fontFamily, setFontFamily] = useState(initialSchema.fontFamily ?? "");
-  const [customPage, setCustomPage] = useState<CustomPageConfig>(
-    initialSchema.customPage ?? { enabled: false, html: "<p>Write your own page here.</p>", css: "", js: "" }
-  );
+  const [customPage, setCustomPage] = useState<CustomPageConfig>(initialCustomPage);
   const [liveEvent, setLiveEvent] = useState<EventRecord>(event);
   const [selectedPath, setSelectedPath] = useState<BlockPath | null>(null);
   const [pageSettingsOpen, setPageSettingsOpen] = useState(false);
@@ -218,6 +219,18 @@ export function PageBuilder({
   const [isPending, startTransition] = useTransition();
   const [eventSaveState, setEventSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const eventSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Compared against the current in-memory schema to drive the Save
+  // button's unsaved-dot (docs/07 Phase 2) — updated on load and after
+  // every successful save, not on every keystroke, so it's cheap.
+  const [lastSavedJson, setLastSavedJson] = useState(() =>
+    JSON.stringify({
+      blocks: initialSchema.blocks,
+      pageStyle: initialSchema.pageStyle ?? "",
+      themeOverrides: initialSchema.themeOverrides ?? {},
+      fontFamily: initialSchema.fontFamily ?? "",
+      customPage: initialCustomPage,
+    })
+  );
 
   // @dnd-kit's DndContext assigns its aria-describedby id from a
   // module-level counter that isn't guaranteed to match between the
@@ -276,12 +289,16 @@ export function PageBuilder({
     });
   };
 
+  const currentJson = JSON.stringify({ blocks, pageStyle, themeOverrides, fontFamily, customPage });
+  const isDirty = currentJson !== lastSavedJson;
+
   const handleSave = () => {
     setError("");
     setSaved(false);
     startTransition(async () => {
       try {
         await updatePageSchema(liveEvent.id, { version: 1, blocks, pageStyle, themeOverrides, fontFamily, customPage });
+        setLastSavedJson(currentJson);
         setSaved(true);
         setTimeout(() => setSaved(false), 2000);
       } catch (err) {
@@ -589,7 +606,14 @@ export function PageBuilder({
             {eventSaveState === "saved" && <span className="text-xs text-success">Saved.</span>}
             {saved && <span className="text-sm text-success">Saved.</span>}
             {error && <span className="text-sm font-medium text-destructive">{error}</span>}
-            <Button onClick={handleSave} loading={isPending}>
+            <Button onClick={handleSave} loading={isPending} className="relative">
+              {isDirty && !isPending && (
+                <span
+                  className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-warning"
+                  aria-label="Unsaved changes"
+                  title="Unsaved changes"
+                />
+              )}
               {isPending ? "Saving..." : "Save"}
             </Button>
           </div>
