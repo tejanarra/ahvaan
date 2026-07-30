@@ -50,3 +50,23 @@ body {
   color: var(--foreground);
   font-family: var(--font-hanken), Arial, Helvetica, sans-serif;
 }
+
+/* docs/08 "Reduced-motion verified on builder, modals, marketing reveals" —
+   a global floor rather than auditing every animate-*/transition-* utility
+   one by one: near-zero-duration animations/transitions still run (so
+   onAnimationEnd/onTransitionEnd handlers driving real state, e.g. a toast
+   removing itself, still fire) without any visible motion. Scroll behavior
+   is also forced instant (smooth-scroll CTAs, in-page anchors). The
+   marketing Reveal component already skips its own JS-driven motion via
+   matchMedia — this is the belt-and-suspenders CSS-only backstop for
+   everything else (Modal, Toast, Dropdown, page-builder drag animations). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
