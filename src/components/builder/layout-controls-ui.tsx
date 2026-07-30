@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/lib/cn";
 
 const WIDTH_OPTIONS: { value: BlockWidth; label: string }[] = [
   { value: "small", label: "S" },
@@ -113,10 +114,15 @@ function BreakpointOverrideFields({
   label,
   value,
   onChange,
+  hideDisabled,
 }: {
   label: string;
   value: BreakpointOverride | undefined;
   onChange: (next: BreakpointOverride | undefined) => void;
+  // True once the *other* two devices are already hidden — checking this
+  // one too would leave the block invisible everywhere, which is never a
+  // real intent (docs: "at least one screen size" must show it).
+  hideDisabled: boolean;
 }) {
   const hidden = value?.hidden ?? false;
 
@@ -131,8 +137,18 @@ function BreakpointOverrideFields({
 
   return (
     <div className="space-y-2 rounded-md border border-border p-2.5">
-      <label className="flex items-center gap-2 text-xs font-medium text-foreground">
-        <Checkbox checked={hidden} onChange={(e) => set({ hidden: e.target.checked || undefined })} />
+      <label
+        className={cn(
+          "flex items-center gap-2 text-xs font-medium text-foreground",
+          hideDisabled && !hidden && "opacity-50"
+        )}
+        title={hideDisabled && !hidden ? "Already hidden on the other two — at least one screen size must show it." : undefined}
+      >
+        <Checkbox
+          checked={hidden}
+          disabled={hideDisabled && !hidden}
+          onChange={(e) => set({ hidden: e.target.checked || undefined })}
+        />
         Hide on {label}
       </label>
       {!hidden && (
@@ -189,6 +205,14 @@ export function LayoutControls({
   const [deviceOpen, setDeviceOpen] = useState(
     Boolean(resolved.mobile || resolved.tablet || resolved.hiddenOnDesktop)
   );
+
+  // A block hidden on all three would be permanently invisible to every
+  // guest — never a real intent, so the third "Hide on…" checkbox disables
+  // itself once the other two are already checked.
+  const desktopHidden = Boolean(resolved.hiddenOnDesktop);
+  const mobileHidden = Boolean(resolved.mobile?.hidden);
+  const tabletHidden = Boolean(resolved.tablet?.hidden);
+  const hiddenCount = [desktopHidden, mobileHidden, tabletHidden].filter(Boolean).length;
 
   // The Width preset has no visible effect at all inside a grid container
   // (grid tracks size the block, not this preset) or once a Row-share value
@@ -276,9 +300,20 @@ export function LayoutControls({
             hide it on desktop only, for something you only want mobile/tablet visitors to see. Use the
             Desktop/Tablet/Mobile toggle in the canvas toolbar to preview it.
           </p>
-          <label className="flex items-center gap-2 rounded-md border border-border p-2.5 text-xs font-medium text-foreground">
+          <label
+            className={cn(
+              "flex items-center gap-2 rounded-md border border-border p-2.5 text-xs font-medium text-foreground",
+              hiddenCount >= 2 && !desktopHidden && "opacity-50"
+            )}
+            title={
+              hiddenCount >= 2 && !desktopHidden
+                ? "Already hidden on the other two — at least one screen size must show it."
+                : undefined
+            }
+          >
             <Checkbox
-              checked={resolved.hiddenOnDesktop ?? false}
+              checked={desktopHidden}
+              disabled={hiddenCount >= 2 && !desktopHidden}
               onChange={(e) => onChange({ ...resolved, hiddenOnDesktop: e.target.checked || undefined })}
             />
             Hide on desktop
@@ -287,11 +322,13 @@ export function LayoutControls({
             label="mobile"
             value={resolved.mobile}
             onChange={(mobile) => onChange({ ...resolved, mobile })}
+            hideDisabled={hiddenCount >= 2 && !mobileHidden}
           />
           <BreakpointOverrideFields
             label="tablet"
             value={resolved.tablet}
             onChange={(tablet) => onChange({ ...resolved, tablet })}
+            hideDisabled={hiddenCount >= 2 && !tabletHidden}
           />
         </div>
       )}

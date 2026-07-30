@@ -27,12 +27,6 @@ function descendantContainerIds(block: BlockInstance): string[] {
   return block.children.flatMap((c) => ("children" in c ? [c.id, ...descendantContainerIds(c)] : []));
 }
 
-const DEVICE_LABEL: Record<DeviceWidth, string> = {
-  desktop: "Desktop",
-  tablet: "Tablet",
-  mobile: "Mobile",
-};
-
 // The real guest page enforces mobile/tablet/hiddenOnDesktop overrides via
 // actual `@media` CSS (see blockResponsiveCss) since the server can't know
 // a visitor's viewport ahead of render. The canvas instead already knows
@@ -144,6 +138,11 @@ function EditableBlock({
 
   const { layout: effectiveLayout, hiddenForDevice } = effectiveLayoutForDevice(block.layout, device);
 
+  // Matches the real guest page exactly: not shown at all, not a dimmed
+  // ghost. Reach it to change this setting via the Outline panel (lists
+  // every block regardless of per-device visibility) instead of the canvas.
+  if (hiddenForDevice) return null;
+
   const wrapperStyle = {
     ...layoutWrapperStyle(effectiveLayout, parentLayoutMode),
     transform: CSS.Transform.toString(transform),
@@ -219,21 +218,9 @@ function EditableBlock({
         // was never added at all. `layoutWrapperStyle`'s own minHeightPx,
         // when set, overrides this via the inline style above (more specific).
         "relative min-h-14 rounded-lg",
-        isDragging && "opacity-50",
-        // Never actually hidden in the canvas (unlike the real guest page) —
-        // a fully-hidden block here couldn't be re-selected to undo the
-        // setting. Dimmed + labeled instead.
-        hiddenForDevice && "opacity-40"
+        isDragging && "opacity-50"
       )}
     >
-      {hiddenForDevice && (
-        <div
-          style={{ zIndex: controlsZIndex }}
-          className="absolute -top-3.5 left-1 rounded-md border border-dashed border-border bg-background px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted"
-        >
-          Hidden on {DEVICE_LABEL[device]}
-        </div>
-      )}
       <div
         className={cn(
           "pointer-events-none absolute -inset-1.5 rounded-xl ring-2 transition-all",
