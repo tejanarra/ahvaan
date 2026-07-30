@@ -3,8 +3,6 @@ import Link from "next/link";
 import { BrandLockup } from "@/components/brand";
 import { getTheme } from "@/lib/themes";
 
-const serif = { fontFamily: "var(--font-fraunces), Georgia, serif" };
-
 // Split-screen auth (docs/05): left pane is a Stage vignette — a miniature
 // themed invite on its theme's own background — right pane is the form on
 // Studio paper. The vignette pane disappears below lg; mobile gets a clean
@@ -24,12 +22,12 @@ function StageVignette() {
         <p className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: c.accent }}>
           Wedding
         </p>
-        <p className="mt-3 text-3xl leading-tight" style={serif}>
+        <p className="mt-3 text-3xl leading-tight font-display">
           Maya &amp; Julien
         </p>
         <p className="mt-2 text-xs opacity-80">Saturday, June 12</p>
         <div className="mx-auto mt-5 h-px w-14" style={{ background: c.accent, opacity: 0.6 }} />
-        <p className="mt-5 text-xs italic opacity-80" style={serif}>
+        <p className="mt-5 text-xs italic opacity-80 font-display">
           “Joyfully accept”
         </p>
         <div
@@ -65,7 +63,7 @@ export function AuthLayout({
           <Link href="/" className="inline-flex" aria-label="Gatherie home">
             <BrandLockup />
           </Link>
-          <h1 className="mt-8 text-3xl text-foreground" style={serif}>
+          <h1 className="mt-8 text-3xl text-foreground font-display">
             {title}
           </h1>
           {subtitle && <p className="mt-2 text-sm text-muted">{subtitle}</p>}

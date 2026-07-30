@@ -5,8 +5,6 @@ import { BrandLockup } from "@/components/brand";
 import { ThemeDemo } from "@/components/marketing/theme-demo";
 import { Reveal } from "@/components/marketing/reveal";
 
-const serif = { fontFamily: "var(--font-fraunces), Georgia, serif" };
-
 function Eyebrow({ children }: { children: React.ReactNode }) {
   return (
     <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">{children}</p>
@@ -74,7 +72,7 @@ function TrackVignette() {
           ["9", "Pending"],
         ].map(([n, label]) => (
           <div key={label} className="rounded-lg bg-surface-sunken px-2 py-3">
-            <p className="text-xl tabular-nums text-foreground" style={serif}>
+            <p className="text-xl tabular-nums text-foreground font-display">
               {n}
             </p>
             <p className="mt-0.5 text-[10px] uppercase tracking-[0.08em] text-muted">{label}</p>
@@ -126,10 +124,7 @@ export default function Home() {
         <section className="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-16 pt-14 sm:px-6 sm:pt-20 lg:grid-cols-[1.1fr_1fr] lg:gap-16">
           <div className="text-center lg:text-left">
             <Eyebrow>Free forever · No guest accounts</Eyebrow>
-            <h1
-              className="mt-4 text-4xl leading-[1.08] text-foreground sm:text-5xl lg:text-[3.4rem]"
-              style={serif}
-            >
+            <h1 className="mt-4 text-4xl leading-[1.08] text-foreground sm:text-5xl lg:text-[3.4rem] font-display">
               Design the <em className="text-accent">invitation</em>. Share one link. Watch the RSVPs arrive.
             </h1>
             <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-muted lg:mx-0">
@@ -161,7 +156,7 @@ export default function Home() {
         <section id="how" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-20 sm:px-6">
           <Reveal>
             <Eyebrow>How it works</Eyebrow>
-            <h2 className="mt-3 max-w-lg text-3xl text-foreground sm:text-4xl" style={serif}>
+            <h2 className="mt-3 max-w-lg text-3xl text-foreground sm:text-4xl font-display">
               Three steps to a <em className="text-accent">lovely</em> guest list
             </h2>
           </Reveal>
@@ -174,7 +169,7 @@ export default function Home() {
               ] as const
             ).map(([n, title, body, vignette]) => (
               <Reveal key={n}>
-                <p className="text-3xl text-border-strong" style={serif} aria-hidden="true">
+                <p className="text-3xl text-border-strong font-display" aria-hidden="true">
                   {n}
                 </p>
                 <h3 className="mt-2 text-lg font-semibold text-foreground">{title}</h3>
@@ -212,7 +207,7 @@ export default function Home() {
             <Reveal key={title as string}>
               <div className="grid items-center gap-8 md:grid-cols-2 md:gap-16">
                 <div className={flip ? "md:order-2" : undefined}>
-                  <h3 className="text-2xl text-foreground sm:text-3xl" style={serif}>
+                  <h3 className="text-2xl text-foreground sm:text-3xl font-display">
                     {title}
                   </h3>
                   <p className="mt-4 max-w-md text-base leading-relaxed text-muted">{body}</p>
@@ -228,7 +223,7 @@ export default function Home() {
           <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
             <Reveal>
               <Eyebrow>Themes</Eyebrow>
-              <h2 className="mt-3 text-3xl text-foreground sm:text-4xl" style={serif}>
+              <h2 className="mt-3 text-3xl text-foreground sm:text-4xl font-display">
                 Start from a look you <em className="text-accent">love</em>
               </h2>
             </Reveal>
@@ -240,7 +235,7 @@ export default function Home() {
                       className="flex h-28 flex-col items-center justify-center px-3 text-center"
                       style={{ background: t.colors.background, color: t.colors.foreground }}
                     >
-                      <p className="text-lg" style={serif}>
+                      <p className="text-lg font-display">
                         Maya &amp; Julien
                       </p>
                       <div className="mt-2 h-px w-10" style={{ background: t.colors.accent }} />
@@ -265,7 +260,7 @@ export default function Home() {
         {/* FAQ */}
         <section className="mx-auto max-w-2xl px-4 py-20 sm:px-6">
           <Reveal>
-            <h2 className="text-center text-3xl text-foreground sm:text-4xl" style={serif}>
+            <h2 className="text-center text-3xl text-foreground sm:text-4xl font-display">
               Questions, <em className="text-accent">answered</em>
             </h2>
           </Reveal>
@@ -290,7 +285,7 @@ export default function Home() {
         {/* Final CTA */}
         <section className="border-t border-border bg-surface-sunken">
           <div className="mx-auto max-w-3xl px-4 py-20 text-center sm:px-6">
-            <h2 className="text-3xl leading-tight text-foreground sm:text-4xl" style={serif}>
+            <h2 className="text-3xl leading-tight text-foreground sm:text-4xl font-display">
               Your event deserves better than a <em className="text-accent">group chat</em>.
             </h2>
             <Link href="/signup" className="mt-8 inline-block">

@@ -26,7 +26,6 @@ export function BrandMark({ className }: { className?: string }) {
 }
 
 const wordmarkStyle: CSSProperties = {
-  fontFamily: "var(--font-fraunces), Georgia, serif",
   letterSpacing: "-0.02em",
   fontVariationSettings: '"WONK" 1, "SOFT" 50',
 };
@@ -45,7 +44,7 @@ export function BrandLockup({
       <BrandMark className={markClassName} />
       <span
         style={wordmarkStyle}
-        className={cn("text-lg font-semibold lowercase leading-none", textClassName)}
+        className={cn("text-lg font-semibold lowercase leading-none font-display", textClassName)}
       >
         gatherie
       </span>

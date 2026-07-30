@@ -116,9 +116,7 @@ export function EventDetailsFields({
                 className="flex h-16 flex-col items-center justify-center px-2 text-center"
                 style={{ background: theme.colors.background, color: theme.colors.foreground }}
               >
-                <p className="text-sm" style={{ fontFamily: "var(--font-fraunces), Georgia, serif" }}>
-                  Sample &amp; Names
-                </p>
+                <p className="font-display text-sm">Sample &amp; Names</p>
                 <div className="mt-1.5 h-px w-8" style={{ background: theme.colors.accent }} />
               </div>
               <div

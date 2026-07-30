@@ -11,9 +11,7 @@ export interface EmptyStateProps {
 export function EmptyState({ title, description, action, className }: EmptyStateProps) {
   return (
     <div className={cn("flex flex-col items-center gap-2 rounded-lg border border-dashed border-border px-6 py-14 text-center", className)}>
-      <p className="text-xl text-foreground" style={{ fontFamily: "var(--font-fraunces), Georgia, serif" }}>
-        {title}
-      </p>
+      <p className="font-display text-xl text-foreground">{title}</p>
       {description && <p className="max-w-sm text-sm text-muted">{description}</p>}
       {action && <div className="mt-2">{action}</div>}
     </div>

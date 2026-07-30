@@ -28,12 +28,7 @@ export function ThemeDemo() {
           >
             Wedding
           </p>
-          <p
-            className="mt-3 text-3xl leading-tight"
-            style={{ fontFamily: "var(--font-fraunces), Georgia, serif" }}
-          >
-            Maya &amp; Julien
-          </p>
+          <p className="mt-3 font-display text-3xl leading-tight">Maya &amp; Julien</p>
           <p className="mt-2 text-xs opacity-80">
             Saturday, June 12 · The Orchard House, Sonoma
           </p>
@@ -50,12 +45,7 @@ export function ThemeDemo() {
               ["21", "mins"],
             ].map(([n, label]) => (
               <div key={label}>
-                <p
-                  className="text-xl tabular-nums"
-                  style={{ fontFamily: "var(--font-fraunces), Georgia, serif" }}
-                >
-                  {n}
-                </p>
+                <p className="font-display text-xl tabular-nums">{n}</p>
                 <p className="text-[9px] uppercase tracking-[0.14em] opacity-70">{label}</p>
               </div>
             ))}
