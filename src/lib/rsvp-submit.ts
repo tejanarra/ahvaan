@@ -4,6 +4,9 @@ import { upsertRsvpPublic } from "@/lib/data/rsvps";
 import { resolveFormSchema, findFieldByRole, deriveLegacyScalars } from "@/lib/schemas/form-schema";
 import type { Responses } from "@/lib/schemas/form-schema";
 import { buildResponsesFromFormData, validateResponses, assertResponsesWithinSizeBudget } from "@/lib/schemas/responses";
+import { isThrottled } from "@/lib/rate-limit";
+
+const MIN_MS_BETWEEN_SUBMISSIONS = 2000;
 
 export type RsvpSubmitResult =
   | { status: "success"; responses: Responses }
@@ -36,6 +39,10 @@ export async function submitRsvpFromFormData(formData: FormData): Promise<RsvpSu
 
   if (!invite || !event) {
     return { status: "error", message: "This RSVP link is invalid or has expired." };
+  }
+
+  if (isThrottled(`rsvp:${invite.id}`, MIN_MS_BETWEEN_SUBMISSIONS)) {
+    return { status: "error", message: "Please wait a moment before submitting again." };
   }
 
   if (event.rsvp_deadline && Date.now() > new Date(event.rsvp_deadline).getTime()) {

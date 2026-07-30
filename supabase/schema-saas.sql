@@ -143,3 +143,49 @@ on conflict (id) do update set
   public = excluded.public,
   file_size_limit = excluded.file_size_limit,
   allowed_mime_types = excluded.allowed_mime_types;
+
+-- Phase 5 (docs/08 "RLS policies (defense-in-depth)"): the app never
+-- queries with the anon/authenticated key — every read/write already goes
+-- through the service-role client, scoped by an application-code
+-- `host_id = <server-verified user>` filter (docs/02's primary
+-- authorization model). These policies change nothing about how the app
+-- behaves; they're a second, independent layer so a leaked anon key, a
+-- future accidental client-side query, or a bug that drops the app-code
+-- filter still can't read or write another host's rows — anon keeps zero
+-- access (public reads stay service-role-only), authenticated is scoped
+-- to `auth.uid()`. `drop policy if exists` + `create policy` keeps this
+-- block idempotent like everything else in this file.
+drop policy if exists "host owns their events" on public.events;
+create policy "host owns their events" on public.events
+  for all
+  to authenticated
+  using (host_id = (select auth.uid()))
+  with check (host_id = (select auth.uid()));
+
+drop policy if exists "host owns their invites" on public.invites;
+create policy "host owns their invites" on public.invites
+  for all
+  to authenticated
+  using (host_id = (select auth.uid()))
+  with check (host_id = (select auth.uid()));
+
+drop policy if exists "host owns their rsvps" on public.rsvps;
+create policy "host owns their rsvps" on public.rsvps
+  for all
+  to authenticated
+  using (host_id = (select auth.uid()))
+  with check (host_id = (select auth.uid()));
+
+drop policy if exists "host owns their email_sends" on public.email_sends;
+create policy "host owns their email_sends" on public.email_sends
+  for all
+  to authenticated
+  using (host_id = (select auth.uid()))
+  with check (host_id = (select auth.uid()));
+
+drop policy if exists "host owns their custom_components" on public.custom_components;
+create policy "host owns their custom_components" on public.custom_components
+  for all
+  to authenticated
+  using (host_id = (select auth.uid()))
+  with check (host_id = (select auth.uid()));
