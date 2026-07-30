@@ -5,7 +5,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ImageUploadField } from "@/components/image-upload-field";
 import type { EventRecord } from "@/lib/data/events";
 
 function formatEventDate(event: PageRenderContext["event"] | EventRecord) {
@@ -71,16 +70,6 @@ export function HeroEdit({
         Show event type label
       </label>
       <p className="-mt-3 text-xs text-muted">A small label above the title, e.g. &ldquo;Wedding&rdquo; or &ldquo;Birthday&rdquo;.</p>
-
-      <div className="space-y-1.5 border-t border-border pt-4">
-        <ImageUploadField
-          eventId={event.id}
-          label="Cover image"
-          hint="Shown above the title on the invite. Optional."
-          value={event.cover_image_url ?? ""}
-          onChange={(url) => onEventFieldsChange({ cover_image_url: url || null })}
-        />
-      </div>
 
       <div className="space-y-1.5 border-t border-border pt-4">
         <Field label="Title">
@@ -161,22 +150,6 @@ export function HeroRender({ config, ctx }: { config: HeroConfig; ctx: PageRende
 
   return (
     <div className="w-full">
-      {event.cover_image_url && (
-        // `mx-auto` matters here: the wrapper's alignment preset centers
-        // the *text* nodes around it via `text-align` (layout-controls.tsx),
-        // but text-align has no effect on a block-level box's own
-        // position — without this, the image (capped at max-w-md) sat
-        // flush-left while the title/subtitle text centered around it.
-        <div className="mx-auto mb-6 aspect-[3/2] w-full max-w-md overflow-hidden rounded-lg">
-          {/* Hosts can point this at any external image URL (set outside the
-              page builder, in event settings) — next/image would need that
-              domain allow-listed in next.config ahead of time, which isn't
-              workable for arbitrary host input, so a plain <img> is used
-              here too (same reasoning as the Image block). */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={event.cover_image_url} alt={event.title} className="h-full w-full object-cover" />
-        </div>
-      )}
       {config.showEventType !== false && (
         <p className="text-xs font-semibold uppercase tracking-wide text-[var(--t-accent-dark)]">
           {getEventTypeLabel(event.event_type)}

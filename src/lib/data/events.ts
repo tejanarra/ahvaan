@@ -20,7 +20,6 @@ export type EventRecord = {
   venue_name: string | null;
   venue_address: string | null;
   description: string | null;
-  cover_image_url: string | null;
   form_schema: unknown;
   page_schema: unknown;
   status: EventStatus;
@@ -37,12 +36,12 @@ export type EventSummary = Pick<
 
 const SUMMARY_COLUMNS = "id, slug, title, event_type, event_date, theme_id, status, created_at";
 const FULL_COLUMNS =
-  "id, host_id, slug, event_type, theme_id, title, subtitle, event_date, event_time, venue_name, venue_address, description, cover_image_url, form_schema, page_schema, status, rsvp_deadline, created_at";
+  "id, host_id, slug, event_type, theme_id, title, subtitle, event_date, event_time, venue_name, venue_address, description, form_schema, page_schema, status, rsvp_deadline, created_at";
 // The public page needs `status`/`host_id` only to decide draft visibility
 // (see requireVisiblePublicEvent in src/app/e/[slug]/page.tsx) — never
 // rendered to a guest.
 const PUBLIC_COLUMNS =
-  "id, host_id, slug, event_type, theme_id, title, subtitle, event_date, event_time, venue_name, venue_address, description, cover_image_url, form_schema, page_schema, status, rsvp_deadline";
+  "id, host_id, slug, event_type, theme_id, title, subtitle, event_date, event_time, venue_name, venue_address, description, form_schema, page_schema, status, rsvp_deadline";
 
 function slugify(title: string) {
   return title
@@ -161,7 +160,6 @@ export type CreateEventInput = {
   venueAddress: string | null;
   subtitle: string | null;
   description: string | null;
-  coverImageUrl: string | null;
   pageSchema: unknown;
 };
 
@@ -181,7 +179,6 @@ export async function createEvent(input: CreateEventInput): Promise<string> {
       venue_name: input.venueName,
       venue_address: input.venueAddress,
       description: input.description,
-      cover_image_url: input.coverImageUrl,
       page_schema: input.pageSchema,
       // Every new event starts as a draft (docs/01 "New in v1") — the host
       // designs the page/form privately, then publishes when ready. Existing
@@ -212,7 +209,6 @@ export async function updateEventDetails(hostId: string, eventId: string, input:
       venue_name: input.venueName,
       venue_address: input.venueAddress,
       description: input.description,
-      cover_image_url: input.coverImageUrl,
     })
     .eq("id", eventId)
     .eq("host_id", hostId)

@@ -17,7 +17,6 @@ export const eventInputSchema = z.object({
   venueAddress: z.string().trim().max(200).optional().default(""),
   subtitle: z.string().trim().max(MAX_TITLE_LENGTH).optional().default(""),
   description: z.string().trim().max(MAX_DESCRIPTION_LENGTH).optional().default(""),
-  coverImageUrl: z.string().trim().max(2000).optional().default(""),
 });
 
 export type EventFormInput = z.infer<typeof eventInputSchema>;
@@ -33,7 +32,6 @@ export function readEventFormInput(formData: FormData) {
     venueAddress: String(formData.get("venueAddress") ?? ""),
     subtitle: String(formData.get("subtitle") ?? ""),
     description: String(formData.get("description") ?? ""),
-    coverImageUrl: String(formData.get("coverImageUrl") ?? ""),
   });
 }
 
@@ -50,6 +48,5 @@ export function toEventRow(input: EventFormInput) {
     venueAddress: input.venueAddress || null,
     subtitle: input.subtitle || null,
     description: input.description || null,
-    coverImageUrl: input.coverImageUrl || null,
   };
 }
