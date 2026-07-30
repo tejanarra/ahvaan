@@ -29,14 +29,27 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+const description =
+  "Design a beautiful invitation page for any event, share one link with your guests, and track every RSVP in one place.";
+
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
     default: "Gatherie — Beautiful invitations with effortless RSVPs",
     template: "%s · Gatherie",
   },
-  description:
-    "Design a beautiful invitation page for any event, share one link with your guests, and track every RSVP in one place.",
+  description,
+  openGraph: {
+    type: "website",
+    siteName: "Gatherie",
+    title: "Gatherie — Beautiful invitations with effortless RSVPs",
+    description,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Gatherie — Beautiful invitations with effortless RSVPs",
+    description,
+  },
 };
 
 export default function RootLayout({
