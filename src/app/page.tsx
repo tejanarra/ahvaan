@@ -304,6 +304,12 @@ export default function Home() {
           <BrandLockup markClassName="h-4 w-4" textClassName="text-sm" />
           <p className="text-xs text-muted">© {new Date().getFullYear()} Gatherie</p>
           <nav className="flex items-center gap-4 text-sm">
+            <Link href="/privacy" className="text-muted hover:text-foreground">
+              Privacy
+            </Link>
+            <Link href="/terms" className="text-muted hover:text-foreground">
+              Terms
+            </Link>
             <Link href="/login" className="text-muted hover:text-foreground">
               Sign in
             </Link>
