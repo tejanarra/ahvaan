@@ -38,6 +38,10 @@ export async function submitRsvpFromFormData(formData: FormData): Promise<RsvpSu
     return { status: "error", message: "This RSVP link is invalid or has expired." };
   }
 
+  if (event.rsvp_deadline && Date.now() > new Date(event.rsvp_deadline).getTime()) {
+    return { status: "error", message: "The RSVP deadline for this event has passed." };
+  }
+
   const schema = resolveFormSchema(event.form_schema);
   const responses = buildResponsesFromFormData(schema, formData);
 

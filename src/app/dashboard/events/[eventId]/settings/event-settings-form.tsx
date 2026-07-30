@@ -2,11 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { updateEvent, deleteEvent, setEventStatus } from "../../../actions";
+import { updateEvent, deleteEvent, setEventStatus, setRsvpDeadline } from "../../../actions";
 import { EventDetailsFields, type EventDetailsValue } from "@/components/event-details-form";
 import type { EventRecord } from "@/lib/data/events";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
@@ -25,15 +27,40 @@ function toValue(event: EventRecord): EventDetailsValue {
   };
 }
 
+// `<input type="datetime-local">` reads/writes "YYYY-MM-DDTHH:mm" in the
+// browser's local time zone, with no timezone info of its own — converting
+// through a real Date (both directions) is what maps that local wall-clock
+// value to/from the timestamptz actually stored.
+function toLocalInputValue(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export function EventSettingsForm({ event }: { event: EventRecord }) {
   const router = useRouter();
   const { show } = useToast();
   const [value, setValue] = useState<EventDetailsValue>(toValue(event));
   const [status, setStatus] = useState(event.status);
+  const [deadlineInput, setDeadlineInput] = useState(() => toLocalInputValue(event.rsvp_deadline));
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [isSaving, startSaveTransition] = useTransition();
   const [isDeleting, startDeleteTransition] = useTransition();
   const [isPublishing, startPublishTransition] = useTransition();
+  const [isSavingDeadline, startDeadlineTransition] = useTransition();
+
+  const handleSaveDeadline = () => {
+    startDeadlineTransition(async () => {
+      try {
+        const iso = deadlineInput ? new Date(deadlineInput).toISOString() : null;
+        await setRsvpDeadline(event.id, iso);
+        show(iso ? "RSVP deadline saved." : "RSVP deadline removed.");
+      } catch (err) {
+        show(err instanceof Error ? err.message : "Failed to save deadline.", "error");
+      }
+    });
+  };
 
   const handleTogglePublish = () => {
     const next = status === "published" ? "draft" : "published";
@@ -111,6 +138,41 @@ export function EventSettingsForm({ event }: { event: EventRecord }) {
             <Button onClick={handleSave} loading={isSaving}>
               {isSaving ? "Saving..." : "Save"}
             </Button>
+          </div>
+        </CardBody>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>RSVP deadline</CardTitle>
+        </CardHeader>
+        <CardBody>
+          <Field label="Guests can respond until" hint="Optional — leave blank to accept RSVPs indefinitely.">
+            <Input
+              type="datetime-local"
+              value={deadlineInput}
+              onChange={(e) => setDeadlineInput(e.target.value)}
+              className="max-w-xs"
+            />
+          </Field>
+          <p className="mt-2 text-xs text-muted">
+            After this time, the guest page shows a closed note instead of the RSVP form (guests who already
+            responded can still see their confirmation). You can still edit any RSVP yourself from the Guests tab.
+          </p>
+          <div className="mt-4 flex items-center gap-2">
+            <Button size="sm" onClick={handleSaveDeadline} loading={isSavingDeadline}>
+              {isSavingDeadline ? "Saving..." : "Save"}
+            </Button>
+            {deadlineInput && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setDeadlineInput("")}
+                disabled={isSavingDeadline}
+              >
+                Clear
+              </Button>
+            )}
           </div>
         </CardBody>
       </Card>

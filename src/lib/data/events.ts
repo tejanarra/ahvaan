@@ -239,6 +239,22 @@ export async function updateEventStatus(hostId: string, eventId: string, status:
   revalidatePath("/dashboard");
 }
 
+export async function updateRsvpDeadline(hostId: string, eventId: string, rsvpDeadline: string | null) {
+  const supabase = createServiceRoleClient();
+  const { data, error } = await supabase
+    .from("events")
+    .update({ rsvp_deadline: rsvpDeadline })
+    .eq("id", eventId)
+    .eq("host_id", hostId)
+    .select("id, slug")
+    .maybeSingle();
+
+  if (error) throw new DataError(error.message);
+  if (!data) throw new NotFoundError("Event not found.");
+
+  revalidateEventCache(eventId, data.slug as string);
+}
+
 export async function deleteEvent(hostId: string, eventId: string) {
   const supabase = createServiceRoleClient();
   const { error } = await supabase.from("events").delete().eq("id", eventId).eq("host_id", hostId);

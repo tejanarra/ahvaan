@@ -252,6 +252,7 @@ export function RsvpForm({
   confirmationHtml,
   confirmationCss,
   confirmationHeightPx,
+  readOnly = false,
 }: {
   eventId: string;
   inviteId: string;
@@ -272,6 +273,11 @@ export function RsvpForm({
   confirmationHtml?: string;
   confirmationCss?: string;
   confirmationHeightPx?: number;
+  // Past the event's RSVP deadline: a guest who already responded can
+  // still see their confirmation, but can't reopen it to edit — the
+  // server enforces this too (submitRsvpFromFormData), this just hides an
+  // affordance that would otherwise error on click.
+  readOnly?: boolean;
 }) {
   const [state, formAction, pending] = useActionState(submitRsvp, initialState);
 
@@ -347,16 +353,18 @@ export function RsvpForm({
               </p>
             ))}
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              setValues(saved);
-              setMode("edit");
-            }}
-            className="mt-4 rounded-md border border-[var(--t-accent)]/30 px-4 py-1.5 text-sm text-[var(--t-accent-dark)] transition hover:border-[var(--t-accent-dark)]"
-          >
-            Edit RSVP
-          </button>
+          {!readOnly && (
+            <button
+              type="button"
+              onClick={() => {
+                setValues(saved);
+                setMode("edit");
+              }}
+              className="mt-4 rounded-md border border-[var(--t-accent)]/30 px-4 py-1.5 text-sm text-[var(--t-accent-dark)] transition hover:border-[var(--t-accent-dark)]"
+            >
+              Edit RSVP
+            </button>
+          )}
         </div>
 
         {venueMap}

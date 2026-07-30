@@ -11,6 +11,8 @@ const DEFAULT_NO_INVITE_MESSAGE =
   "RSVPs are only accepted through a personal invite link. If you're expecting one, please check with the host.";
 const DEFAULT_CONFIRMED_YES_HEADING = "You're on the list!";
 const DEFAULT_CONFIRMED_NO_HEADING = "Thanks for letting us know";
+const DEFAULT_DEADLINE_CLOSED_HEADING = "RSVPs are closed";
+const DEFAULT_DEADLINE_CLOSED_MESSAGE = "The RSVP deadline for this event has passed. Please reach out to the host directly if anything's changed.";
 
 export const rsvpFormDefaultConfig: RsvpFormBlockConfig = {
   heading: "Kindly RSVP",
@@ -86,6 +88,28 @@ export function RsvpFormEdit({
           />
           Show the venue map after a guest responds
         </label>
+      </div>
+
+      <div className="space-y-3 border-t border-border pt-3">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted">
+          After the RSVP deadline passes (set in Settings)
+        </p>
+        <Field label="Heading">
+          <Input
+            type="text"
+            value={config.deadlineClosedHeading ?? ""}
+            onChange={(e) => onChange({ ...config, deadlineClosedHeading: e.target.value })}
+            placeholder={DEFAULT_DEADLINE_CLOSED_HEADING}
+          />
+        </Field>
+        <Field label="Message">
+          <Textarea
+            value={config.deadlineClosedMessage ?? ""}
+            onChange={(e) => onChange({ ...config, deadlineClosedMessage: e.target.value })}
+            placeholder={DEFAULT_DEADLINE_CLOSED_MESSAGE}
+            rows={3}
+          />
+        </Field>
 
         <p className="text-xs text-muted">
           For full visual control over the confirmation screen, write your own HTML below
@@ -147,6 +171,19 @@ function InviteOnlyNote({ config }: { config: RsvpFormBlockConfig }) {
   );
 }
 
+function DeadlineClosedNote({ config }: { config: RsvpFormBlockConfig }) {
+  return (
+    <div className="w-full text-center">
+      <h2 className="text-lg font-semibold uppercase tracking-wide text-[var(--t-accent-dark)]">
+        {config.deadlineClosedHeading || DEFAULT_DEADLINE_CLOSED_HEADING}
+      </h2>
+      <p className="mx-auto mt-2 max-w-sm text-sm text-[var(--t-fg)]/75">
+        {config.deadlineClosedMessage || DEFAULT_DEADLINE_CLOSED_MESSAGE}
+      </p>
+    </div>
+  );
+}
+
 export function RsvpFormRender({
   config,
   ctx,
@@ -156,8 +193,13 @@ export function RsvpFormRender({
 }) {
   const { event, inviteId, guestName, schema, initialResponses } = ctx;
   const hasInvite = Boolean(inviteId && guestName);
+  const deadlinePassed = Boolean(event.rsvp_deadline) && new Date() > new Date(event.rsvp_deadline!);
 
   if (!hasInvite) return <InviteOnlyNote config={config} />;
+  // A guest who already responded before the deadline can still see their
+  // confirmation — the deadline only blocks new responses and further
+  // edits, so it doesn't retroactively hide what they already submitted.
+  if (deadlinePassed && !initialResponses) return <DeadlineClosedNote config={config} />;
 
   return (
     <div className="w-full">
@@ -184,6 +226,7 @@ export function RsvpFormRender({
           confirmationHtml={config.confirmationHtml}
           confirmationCss={config.confirmationCss}
           confirmationHeightPx={config.confirmationHeightPx}
+          readOnly={deadlinePassed}
         />
       </div>
     </div>

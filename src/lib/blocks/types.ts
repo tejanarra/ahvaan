@@ -128,6 +128,11 @@ export type RsvpFormBlockConfig = {
   confirmationHtml?: string;
   confirmationCss?: string;
   confirmationHeightPx?: number;
+  // Shown instead of the form once the event's RSVP deadline (Settings)
+  // has passed — same idea as noInviteHeading/Message, just gated on time
+  // instead of on invite validity.
+  deadlineClosedHeading?: string;
+  deadlineClosedMessage?: string;
 };
 
 export type VenueMapBlockConfig = Record<string, never>;

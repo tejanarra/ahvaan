@@ -54,6 +54,14 @@ export async function setEventStatus(eventId: string, status: "draft" | "publish
   await eventsData.updateEventStatus(host.id, eventId, status);
 }
 
+export async function setRsvpDeadline(eventId: string, deadlineIso: string | null) {
+  const host = await requireHost();
+  if (deadlineIso !== null && Number.isNaN(new Date(deadlineIso).getTime())) {
+    throw new Error("Invalid deadline.");
+  }
+  await eventsData.updateRsvpDeadline(host.id, eventId, deadlineIso);
+}
+
 export async function deleteEvent(eventId: string) {
   const host = await requireHost();
   await eventsData.deleteEvent(host.id, eventId);
