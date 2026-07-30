@@ -999,3 +999,89 @@ against Supabase's documented PKCE reset flow instead.
 Phase 4 gate items still outstanding, deliberately deferred to Phase 5/6:
 image resizing/`sizes` (doc 08), and the live regression pass a real
 browser session would give (doc 08's checklist, doc 07 Phase 6).
+
+## Status: Phase 5 — production hardening, code-addressable items (2026-07-30)
+
+Every doc-08 item that's a real code change, each its own commit. Explicitly
+**not** attempted: anything requiring a live browser, a deployed environment,
+or third-party dashboard access (Lighthouse/axe runs, a real Resend domain
+verification + received email, Vercel/Supabase production settings, PITR,
+cross-browser passes) — those are Phase 6 / doc08's "Deployment & operations"
+section, listed as open below, not silently skipped.
+
+**Security**:
+- RLS policies (defense-in-depth) on `events`/`invites`/`rsvps`/
+  `email_sends`/`custom_components`: authenticated scoped to
+  `host_id = auth.uid()`, anon gets nothing. Changes nothing about current
+  behavior (app never queries with anon/authenticated keys) — a second,
+  independent layer in `schema-saas.sql`, not yet run against the live
+  project from here.
+- Per-invite RSVP submit throttle (≥2s between writes, documented
+  per-instance caveat) alongside the size/length limits that already existed.
+- Sandbox re-audit: `allow-same-origin` confirmed absent everywhere (no code
+  change needed); `parseInlineStyle` previously had **no** value filtering at
+  all — now rejects `url(...)`/`expression(...)` values outright.
+- Security headers via `next.config.ts`: CSP, `X-Frame-Options: SAMEORIGIN`,
+  `Referrer-Policy`, `X-Content-Type-Options`. **Bug found and fixed same
+  session**: the first version had no `unsafe-eval` in dev, which broke
+  Next's dev server outright ("eval() is not supported") — now scoped to
+  dev only via `NODE_ENV`, production CSP unchanged.
+
+**Email**: invite/reminder templates re-styled to the real paper/ink/accent
+hex values (docs/04) instead of generic gray/black, Georgia/serif heading
+fallback in place of Fraunces (email clients won't load it), and a
+plain-text alternative added to both sends (previously html-only).
+`email_sends` audit rows were already populated with host_id/event_id/error
+on both success/failure paths — verified, no change needed.
+
+**Error/empty surfaces**: root `error.tsx` (apologetic, `reset()`-backed
+"Try again") and a marketing-voice root `not-found.tsx`, plus the two
+voiced versions doc05 asked for — Studio (`/dashboard`, muted "Back to
+events") and Stage (`/e/[slug]`, neutral paper "This invitation isn't
+available"). `loading.tsx` skeletons for the dashboard event-card grid and
+the per-event workspace tabs, using the `Skeleton` primitive that's existed
+since Phase 1 but was never actually wired to a route. Audited server
+actions for silent catches/raw Postgres messages — existing code was
+already solid, no changes needed.
+
+**SEO**: `robots.ts` (allow `/`, disallow `/dashboard` + `/e/` — guest pages
+are a privacy choice, not just SEO), `sitemap.ts` (marketing page only),
+`/e/[slug]` `generateMetadata` (real title/subtitle for a published event,
+generic for a draft, always `noindex`, never invite/guest data).
+
+**Accessibility**: computed real WCAG contrast ratios (fg/bg, accentDark/bg,
+accentDark/surface) for all 8 themes instead of eyeballing — accentDark is
+real guest-facing text (RSVP labels/headings). Found and fixed 3 real AA
+failures: Playful Pastel, Garden Party, Fiesta — darkened each theme's
+`accentDark` while keeping its hue. Added a global
+`prefers-reduced-motion` CSS floor (near-zero animation/transition
+durations, forced instant scroll) covering Modal/Toast/Dropdown/builder-drag
+in one place rather than auditing every animated component; the marketing
+`Reveal` component already had its own `matchMedia` check. **Bug caught
+mid-session**: the reduced-motion CSS comment contained `animate-*/
+transition-*`, whose `*/` closed the comment early and broke the build —
+fixed immediately, same commit.
+
+**Legal**: real `/privacy` and `/terms` pages grounded in what this app
+actually does (no ad tech/analytics/data-sale anywhere in the codebase,
+free with no billing) — not generic boilerplate — linked from the marketing
+footer. Flagged to the host: still needs real legal review before launch.
+
+**Verified**: `npm run build` + `npx eslint src` clean after every commit
+(only the same pre-existing `set-state-in-effect` findings remain,
+unchanged). Security headers spot-checked server-side (production
+build + start, headers present, home page still serves correctly) — not
+verified in an actual browser.
+
+**Explicitly open** (doc08 items needing live/infra access this session
+doesn't have — carry into Phase 6 or a deploy pass):
+- Resend domain verification + a real sent/received email.
+- Vercel (or equivalent) production env, custom domain/HTTPS, log drains.
+- Supabase: confirm PITR/backups on, indexes present in prod, run the new
+  RLS-policy SQL and the `event-images` bucket SQL against the live project.
+- Lighthouse/axe runs (perf ≥95, a11y ≥95, LCP/CLS budgets), keyboard-only
+  walkthrough, cross-browser pass.
+- Image resizing/`sizes` for uploaded images (doc08 perf item, not attempted).
+- Minor: Playful Pastel/Ink & Blush's `accent` (border/tint only, never
+  text) sits just under the 3:1 non-text-UI threshold — left alone rather
+  than fighting the intentionally soft palette; noted, not fixed.
