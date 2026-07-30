@@ -69,8 +69,18 @@ export type HeroConfig = {
   showDescription?: boolean;
 };
 
+// "heading"/"title" switch to the site's own display serif (font-display) at
+// a real, distinct size/weight — not just a bigger font-size — so a host
+// gets an actual heading, not body text with a knob turned up. `color`, when
+// set, is an inline style (always wins over the variant's own class,
+// regardless of specificity) — unset falls back to the theme's foreground
+// color, same as before this field existed.
+export type TextVariant = "body" | "subheading" | "heading" | "title";
+
 export type TextConfig = {
   body: string;
+  variant?: TextVariant;
+  color?: string;
 };
 
 // Width is controlled by the block's own Layout > Width preset (same
