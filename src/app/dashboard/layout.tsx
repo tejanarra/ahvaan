@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireHost } from "@/lib/supabase/auth-server";
 import { logout } from "@/lib/auth-actions";
+import { LockBodyScroll } from "@/components/lock-body-scroll";
 
 export default async function DashboardLayout({
   children,
@@ -10,21 +11,19 @@ export default async function DashboardLayout({
   const host = await requireHost();
 
   return (
-    <div className="min-h-screen bg-lavender">
-      <header className="border-b border-gold/20 bg-white/80 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4 sm:px-6">
-          <Link
-            href="/dashboard"
-            className="font-display text-lg uppercase tracking-[0.1em] text-gold-dark"
-          >
-            Events
+    <div className="flex h-screen flex-col bg-background">
+      <LockBodyScroll />
+      <header className="shrink-0 border-b border-border">
+        <div className="mx-auto flex max-w-[1600px] items-center justify-between px-4 py-3 sm:px-6 lg:px-10">
+          <Link href="/dashboard" className="text-sm font-semibold text-foreground">
+            Invitely
           </Link>
           <div className="flex items-center gap-3">
-            <span className="hidden text-sm text-foreground/60 sm:inline">{host.email}</span>
+            <span className="hidden text-sm text-muted sm:inline">{host.email}</span>
             <form action={logout}>
               <button
                 type="submit"
-                className="rounded-lg border border-gold/40 px-3 py-1.5 font-display text-xs uppercase tracking-wider text-gold-dark transition hover:border-gold-dark"
+                className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-surface"
               >
                 Sign out
               </button>
@@ -32,7 +31,12 @@ export default async function DashboardLayout({
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">{children}</main>
+      {/* min-h-0 so this flex child shrinks to fit the column above instead
+          of growing past it — its own overflow-y-auto then makes it the
+          single scroll container for every dashboard page, so nested pages
+          (like the page builder) can rely on a well-defined 100%-height box
+          via h-full instead of guessing a vh value. */}
+      <main className="min-h-0 flex-1 overflow-y-auto px-4 py-8 sm:px-6 lg:px-10">{children}</main>
     </div>
   );
 }

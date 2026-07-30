@@ -35,12 +35,12 @@ export function ConfirmIconButton({
     return (
       <div className="flex flex-col items-end gap-1">
         <div className="flex flex-wrap items-center justify-end gap-1.5">
-          <span className="text-xs text-foreground/60">{confirmText}</span>
+          <span className="text-xs text-muted">{confirmText}</span>
           <button
             type="button"
             disabled={isPending}
             onClick={handleConfirm}
-            className="rounded-md bg-red-600 px-2 py-1 text-xs font-medium text-white transition hover:bg-red-700 disabled:opacity-50"
+            className="rounded-md bg-destructive px-2 py-1 text-xs font-medium text-white transition hover:bg-destructive-hover disabled:opacity-50"
           >
             {isPending ? "…" : "Confirm"}
           </button>
@@ -48,12 +48,12 @@ export function ConfirmIconButton({
             type="button"
             disabled={isPending}
             onClick={() => setConfirming(false)}
-            className="rounded-md border border-gold/30 px-2 py-1 text-xs font-medium text-foreground/70 transition hover:bg-lavender/30"
+            className="rounded-md border border-border px-2 py-1 text-xs font-medium text-muted transition hover:bg-surface"
           >
             Cancel
           </button>
         </div>
-        {error && <p className="text-xs text-red-600">{error}</p>}
+        {error && <p className="text-xs text-destructive">{error}</p>}
       </div>
     );
   }
@@ -64,7 +64,7 @@ export function ConfirmIconButton({
       onClick={() => setConfirming(true)}
       aria-label={label}
       title={label}
-      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-red-600/80 transition hover:bg-red-50 hover:text-red-600"
+      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-destructive/80 transition hover:bg-destructive/10 hover:text-destructive"
     >
       {icon ?? <TrashIcon />}
     </button>

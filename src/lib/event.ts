@@ -15,6 +15,8 @@ export type EventRecord = {
   venue_address: string | null;
   description: string | null;
   cover_image_url: string | null;
+  form_schema: unknown;
+  page_schema: unknown;
   created_at: string;
 };
 

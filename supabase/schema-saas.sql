@@ -25,6 +25,10 @@ create table if not exists public.events (
   venue_address text,
   description text,
   cover_image_url text,
+  -- null = use the default 3-field RSVP form / the fixed built-in page
+  -- layout, respectively — existing events keep working unchanged.
+  form_schema jsonb,
+  page_schema jsonb,
   created_at timestamptz not null default now()
 );
 
@@ -50,6 +54,11 @@ create table if not exists public.rsvps (
   name text not null,
   attending boolean not null,
   additional_guests text[] not null default '{}',
+  -- Schema-driven answers, keyed by form field id (see src/lib/form-schema.ts).
+  -- The scalar columns above are kept forever as a fast-path/historical
+  -- fallback, derived from `responses` on every write, not just during a
+  -- migration window.
+  responses jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   unique (invite_id)
 );
@@ -71,3 +80,9 @@ alter table public.events enable row level security;
 alter table public.invites enable row level security;
 alter table public.rsvps enable row level security;
 alter table public.email_sends enable row level security;
+
+-- Additive columns for projects that ran this file before form_schema/
+-- page_schema/responses existed — safe to re-run, no-ops if already present.
+alter table public.events add column if not exists form_schema jsonb;
+alter table public.events add column if not exists page_schema jsonb;
+alter table public.rsvps add column if not exists responses jsonb not null default '{}'::jsonb;

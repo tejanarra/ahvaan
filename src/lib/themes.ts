@@ -17,21 +17,21 @@ export type Theme = {
   };
 };
 
-// v1 themes vary by color palette only — every theme shares the same font
-// pairing and layout. A full per-theme font/layout system (or a drag-and-
-// drop designer) is real scope on its own and is intentionally deferred;
-// this proves out "pick and customize a themed invite" without it.
+// v1 themes vary by color palette only — every theme shares the same clean
+// sans-serif type and layout. A full per-theme font/layout system (or a
+// drag-and-drop designer) is real scope on its own and is intentionally
+// deferred; this proves out "pick and customize a themed invite" without it.
 export const THEMES: Theme[] = [
   {
     id: "classic-gold",
     label: "Classic Gold",
-    description: "Warm gold & lavender with elegant serif type.",
+    description: "Warm amber accent on a soft neutral background.",
     colors: {
       background: "#fdfaf6",
-      foreground: "#3a2c1a",
+      foreground: "#2d2418",
       accent: "#a9791f",
       accentDark: "#74490f",
-      surface: "#f4e9f6",
+      surface: "#f6efe0",
     },
   },
   {
@@ -49,13 +49,13 @@ export const THEMES: Theme[] = [
   {
     id: "playful-pastel",
     label: "Playful Pastel",
-    description: "Soft pink & mint — friendly and fun, great for parties.",
+    description: "Soft rose accent — friendly and light, great for parties.",
     colors: {
-      background: "#fff7fb",
-      foreground: "#3a2c3a",
-      accent: "#e879a8",
-      accentDark: "#be5a86",
-      surface: "#e6f7f0",
+      background: "#fff8fb",
+      foreground: "#33222c",
+      accent: "#e0729d",
+      accentDark: "#b8567d",
+      surface: "#fbe9f1",
     },
   },
   {
@@ -74,4 +74,15 @@ export const THEMES: Theme[] = [
 
 export function getTheme(id: string | null | undefined): Theme {
   return THEMES.find((t) => t.id === id) ?? THEMES[0];
+}
+
+export type ThemeColorOverrides = Partial<Theme["colors"]>;
+
+// A host can nudge individual colors of their chosen theme without leaving
+// the preset system entirely — overrides live on the page schema (see
+// PageSchema.themeOverrides) since they're a "page builder" concern, same
+// as block-level custom CSS, not a new theme_id.
+export function resolveThemeColors(themeId: string | null | undefined, overrides: ThemeColorOverrides | undefined) {
+  const base = getTheme(themeId).colors;
+  return { ...base, ...overrides };
 }

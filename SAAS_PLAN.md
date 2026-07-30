@@ -1,0 +1,575 @@
+# Invitely — SaaS invite platform (plan + progress)
+
+This file is the single source of truth for this branch/worktree. It exists
+so work can resume here — in a new session, or without me — without needing
+to reconstruct context from chat history.
+
+**Where this lives**: this is a separate git worktree
+(`/Users/tejanarra/Developer/RSVP-saas`, branch `saas`), deliberately
+isolated from `/Users/tejanarra/Developer/RSVP` (branch `main`, the original
+single-tenant wedding app). Each folder has its own `node_modules` and its
+own `.env.local` — nothing here touches `main`'s app or its Supabase
+project. See "Worktree notes" at the bottom for how that's wired up.
+
+## What this product is
+
+Turning the original single-event wedding RSVP app into a real multi-tenant
+SaaS: any host signs up, creates an event of any type, picks a theme, sends
+guests personal invite links, tracks RSVPs, and (soon) emails invites and
+reminders. Free, no billing.
+
+## Product decisions already made (don't re-litigate these)
+
+- **Auth**: real per-host accounts (Supabase Auth), not a shared password.
+- **Event scope**: any event type (wedding/birthday/baby shower/party/
+  other), not wedding-specific — a host picks a type + theme per event.
+- **v1 feature set**: themed invite designer (curated theme picker) + RSVP/
+  guest-list management (porting what already existed on `main`) + email
+  sending (invites + manual reminders). **Superseded by Stage 5** (below):
+  the host asked for real page/form customization, so there's now also a
+  drag-and-drop page block editor and a fully editable RSVP form builder.
+- **Explicitly deferred still**: guest comments/well-wishes wall, photo
+  sharing/shared album, automatic scheduled reminders (cron), any
+  billing/paid plans, and host-authored custom HTML/CSS/JS (planned as a
+  future sandboxed-iframe block — see Stage 5's "not built now" section).
+- **Authorization model**: every query goes through the service-role
+  Supabase client server-side (same as `main` always did) — never RLS
+  policies enforcing tenancy. Every table has `host_id` denormalized onto
+  it, and every host-facing query/action filters `.eq("host_id", userId)`
+  in application code, where `userId` comes from a server-verified Supabase
+  Auth session. RLS is enabled on every table with **no policies**, purely
+  as a backstop (anon/authenticated keys have zero access either way).
+  This was a deliberate choice to avoid introducing a second authorization
+  model (RLS policies) in the same change as introducing real accounts —
+  it's a clean, separable hardening step for later, not required for
+  correctness now.
+
+## Data model
+
+Run `supabase/schema-saas.sql` once in your Supabase project's SQL editor —
+it's idempotent (`create table if not exists` / `add column if not exists`)
+and already includes RLS enable statements. Tables: `events`, `invites`,
+`rsvps`, `email_sends`, all with `host_id uuid references auth.users(id)`.
+Since Stage 5, `events` also has `form_schema jsonb` and `page_schema
+jsonb` (both nullable — null means "use the default"), and `rsvps` has
+`responses jsonb not null default '{}'`. **If you already ran this file
+before Stage 5**, re-run it — the new columns are added via idempotent
+`alter table ... add column if not exists` statements at the bottom, so
+re-running is safe and won't touch existing data.
+
+## Setup checklist (what you need to do before this runs)
+
+1. Create a new Supabase project (separate from `main`'s).
+2. Run `supabase/schema-saas.sql` in its SQL editor.
+3. In that project's Auth settings, turn off "Confirm email" — otherwise
+   signup won't establish a session immediately (see `src/lib/auth-actions.ts`
+   for how that's handled either way, but disabling it makes local testing
+   frictionless).
+4. Copy `.env.example` to `.env.local` **in this folder**
+   (`/Users/tejanarra/Developer/RSVP-saas/.env.local` already exists as a
+   blank copy) and fill in:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `RESEND_API_KEY` / `RESEND_FROM_EMAIL` — only needed for Stage 4
+     (email sending); everything else works without them.
+5. `npm install` (already done once, but re-run if `package.json` changes).
+
+Nothing else in this repo needs those values hardcoded anywhere — they're
+only ever read from `process.env`.
+
+## Status: what's built (Stage 1 + 2 — committed, `npm run build` passes)
+
+**Auth** (`@supabase/ssr`-based, replaces the old `ADMIN_PASSWORD` +
+signed-cookie system entirely — that system, `src/lib/session.ts`, and the
+old `/admin` route are deleted, not just unused):
+- `src/lib/supabase/auth-server.ts` — `createAuthServerClient()` (session-
+  aware server client) and `requireHost()` (redirects to `/login` if no
+  session; returns the Supabase `user` object otherwise — this is what
+  every dashboard route/action calls first to get a real `host.id`).
+- `src/lib/auth-actions.ts` — `login`, `signup`, `logout` server actions.
+- `src/proxy.ts` — middleware protecting `/dashboard/:path*`, refreshes the
+  Supabase session cookie on every matched request.
+- `src/app/login/page.tsx`, `src/app/signup/page.tsx` — forms using
+  `useActionState`.
+
+**Dashboard shell**:
+- `src/app/dashboard/layout.tsx` — calls `requireHost()`, renders header +
+  sign-out.
+- `src/app/dashboard/page.tsx` — lists the signed-in host's events
+  (`.eq("host_id", host.id)`), "Create event" CTA, delete-event button per
+  card.
+- `src/app/dashboard/events/new/page.tsx` + `src/app/dashboard/actions.ts`
+  (`createEvent`) — title/subtitle/type/date/time/venue/description +
+  theme picker (visual swatch grid from `src/lib/themes.ts`). On success,
+  redirects to the new event's detail page.
+- `src/app/dashboard/events/[eventId]/page.tsx` +
+  `event-settings-panel.tsx` — view/edit/delete a single event
+  (`updateEvent`/`deleteEvent` in `src/app/dashboard/actions.ts`, both
+  double-checking `host_id = host.id`). Has a placeholder box where the
+  guest dashboard goes next.
+
+**Shared/config**:
+- `src/lib/themes.ts` — 4 curated themes (Classic Gold, Modern Minimal,
+  Playful Pastel, Midnight Elegant), color tokens only (all themes share
+  one font pairing for now — see "Scope notes" below).
+- `src/lib/event-types.ts` — the 5 event-type options + label lookup.
+- `src/lib/event.ts` — `EventRecord` type + `makeEventSlug()` (slugify +
+  random suffix, used on event creation).
+- `src/components/icons.tsx`, `src/components/confirm-icon-button.tsx` —
+  ported from the old `main`-branch admin dashboard, used by both the
+  dashboard shell today and the guest-dashboard components to be ported in
+  next.
+- `src/app/page.tsx` — new marketing landing page (was the hardcoded
+  wedding guest page).
+
+**Verified end-to-end** (real Supabase credentials in `.env.local`, tested
+live in a browser): `npm run build` passes; signup creates a session
+immediately; create event → theme picker → settings edit/delete all work;
+Stage 3 guest dashboard + public RSVP flow (below) verified working;
+second-host tenancy isolation confirmed (`/dashboard` empty for a new host,
+direct `/dashboard/events/<other-host's-id>` 404s via `notFound()`).
+
+## Status: what's built (Stage 3 — committed, `npm run build` passes)
+
+**A. Guest dashboard, ported into `/dashboard/events/[eventId]`**
+
+Ported from `main`'s `src/app/admin/` (guest-dashboard.tsx, guest-card.tsx,
+edit-rsvp-dialog.tsx, copy-share-icons.tsx, invite-link.ts) into
+`src/components/guest-dashboard/`, generalized to `(eventId, event.slug,
+event.title)`-scoped data instead of one global invite/RSVP model:
+- Queries filter `.eq("event_id", eventId).eq("host_id", host.id)` (see
+  `src/app/dashboard/events/[eventId]/page.tsx` and
+  `src/app/dashboard/events/[eventId]/actions.ts` — `createInvite`,
+  `deleteInvite`, `deleteRsvp`, `updateRsvp`, each host_id-checked).
+- `invite-link.ts`'s `buildInviteLink(eventSlug, inviteId)` builds
+  `/e/{slug}?i={inviteId}` links.
+- Wired into `src/app/dashboard/events/[eventId]/page.tsx`, replacing the
+  old placeholder div, alongside a `ShareInviteButton` to generate invites.
+
+**B. Public themed event page + guest RSVP flow**
+
+- `src/app/e/[slug]/page.tsx` — public Server Component, looks up the event
+  by slug, reads `?i=<inviteId>`, resolves an existing RSVP if present, and
+  wraps the page in theme CSS custom properties (`--t-bg`, `--t-fg`,
+  `--t-accent`, `--t-accent-dark`, `--t-surface`) driven by
+  `getTheme(event.theme_id)` from `src/lib/themes.ts`.
+- `src/app/e/[slug]/event-view.tsx` — themed cover (title/subtitle/date/
+  venue/description) + either the RSVP form (valid invite) or a "By
+  Invitation Only" note.
+- `src/app/e/[slug]/rsvp-form.tsx` + `src/app/e/[slug]/actions.ts`
+  (`submitRsvp`) — generalized from the old root `actions.ts`/
+  `rsvp-form.tsx` to the `events`/`invites`/`rsvps` schema, upserting on
+  the `invite_id` unique constraint; `host_id` on the RSVP row comes from
+  the invite row itself, never trusted from the client.
+- `src/components/venue-map.tsx` — generalized Google Maps embed, takes
+  venue name/address as props instead of the hardcoded `wedding.ts`
+  constant (which is now deleted).
+- Deleted the reference-only leftovers once (A) and (B) were verified:
+  `src/app/actions.ts`, `src/app/invite-book.tsx`, `src/app/rsvp-form.tsx`,
+  `src/app/venue-map.tsx`, `src/lib/wedding.ts`.
+
+<details>
+<summary>Stale planning notes from before Stage 3 (kept for history, no longer accurate — see "what's built" above)</summary>
+
+On `main`, `src/app/admin/` had a fully-built, already-polished guest
+management UI (tabs for Invites/Responded, sub-filter, search, sort,
+clickable stats, icon-only card actions, an Edit RSVP dialog). It was
+**deleted** on this branch (not ported) because it depended on the old
+single-tenant schema (`invites`/`wedding_rsvps` tables with no `host_id` or
+`event_id`) and the old admin actions. To resurrect it here:
+
+1. Pull the reference implementation from `main` for the shapes/UX (or
+   `git show main:src/app/admin/guest-dashboard.tsx` etc. from this
+   worktree — `main` is a sibling branch, fully accessible via git even
+   though it's checked out in the other folder):
+   `guest-dashboard.tsx`, `guest-card.tsx`, `edit-rsvp-dialog.tsx`,
+   `copy-share-icons.tsx`, `invite-link.ts`. `icons.tsx` and
+   `confirm-icon-button.tsx` are already ported into `src/components/`.
+2. Move them into `src/components/guest-dashboard/` on this branch.
+3. Generalize every reference from a single global invite/RSVP model to
+   `(eventId, ...)`-scoped data:
+   - `PendingInvite`/`RespondedGuest` types gain nothing new structurally,
+     but the **queries that populate them** must filter
+     `.eq("event_id", eventId).eq("host_id", host.id)` (see
+     `src/app/dashboard/actions.ts` for the `requireHost()` +
+     service-role-client pattern already used elsewhere on this branch).
+   - `invite-link.ts`'s `buildInviteLink` needs the event's `slug`, not a
+     bare origin — the guest link becomes `/e/{slug}?i={inviteId}`, not
+     `/?invite={inviteId}`.
+   - New server actions in `src/app/dashboard/events/[eventId]/actions.ts`:
+     `createInvite(eventId, name)`, `deleteInvite(inviteId)`,
+     `deleteRsvp(rsvpId)`, `updateRsvp(rsvpId, payload)` — same shapes as
+     the old `src/app/admin/actions.ts` (already deleted, but the pattern
+     is documented above and in git history on `main`), each verifying
+     `host_id = host.id` before mutating, matching `updateEvent`/
+     `deleteEvent`'s existing pattern in `src/app/dashboard/actions.ts`.
+4. Wire the result into `src/app/dashboard/events/[eventId]/page.tsx`,
+   replacing the "Guest list... lands here next" placeholder div.
+
+**B. Public themed event page + guest RSVP flow**
+
+1. `src/app/e/[slug]/page.tsx` — Server Component: look up the event by
+   `slug` (public, no auth — this is the guest-facing page), read
+   `?i=<inviteId>` from `searchParams` (same `Promise<{...}>` async pattern
+   used in the old `src/app/page.tsx` on `main`, and still present in this
+   branch's leftover `src/app/actions.ts`/`invite-book.tsx` for reference).
+   Render the event's cover/details themed by `getTheme(event.theme_id)`
+   from `src/lib/themes.ts`, and the RSVP form when a valid invite id
+   resolves to a row in `invites` for that event.
+2. `src/app/e/[slug]/actions.ts` — `submitRsvp(eventId, inviteId, payload)`,
+   generalized from the old root `src/app/actions.ts`'s `submitRsvp`
+   (still present in this branch, unused — good reference for the
+   validation/upsert-on-conflict pattern, but it references the old
+   `invites`/`wedding_rsvps` tables and needs updating to `events`/
+   `invites`/`rsvps` with an `event_id` + `invite_id` unique constraint
+   check).
+3. Reuse the interaction patterns (not necessarily the exact files) from
+   this branch's still-present but currently-unused
+   `src/app/invite-book.tsx` (swipeable/scrollable cover+details+RSVP
+   layout) and `src/app/rsvp-form.tsx` (attending yes/no toggle + dynamic
+   `{key, value}` plus-one fields — this exact pattern was deliberately
+   reused for the admin-side Edit RSVP dialog on `main` too, for the same
+   reason: it already fixed a "removes the wrong plus-one" bug by keying
+   on a stable id instead of array index). Generalize them to take
+   event/theme data as props instead of hardcoded Swathi & Sai Teja copy
+   and gold/lavender colors.
+4. `src/app/venue-map.tsx` + `src/lib/wedding.ts` (both still present,
+   unused) show the Google Maps embed pattern to generalize — venue name/
+   address should come from the `events` row instead of the hardcoded
+   `wedding.ts` constant.
+
+Once (A) and (B) both work, delete the leftover unused files:
+`src/app/actions.ts`, `src/app/invite-book.tsx`, `src/app/rsvp-form.tsx`,
+`src/app/venue-map.tsx`, `src/lib/wedding.ts` — they're intentionally left
+in place right now purely as implementation reference, not because they're
+wired into anything.
+
+</details>
+
+## Status: what's built (Stage 4 — committed, `npm run build` passes)
+
+- `src/lib/email.ts` — Resend client wrapper: `sendInviteEmail(event,
+  invite)`, `sendReminderEmail(event, invite)`. Builds the invite link via
+  `NEXT_PUBLIC_SITE_URL` (new env var — server-side code has no
+  `window.location`, so the origin can't come from the browser the way it
+  does for the dashboard's copy/share buttons).
+- `invites.email` is now populated from the UI: `ShareInviteButton` has an
+  optional email field, threaded through `createInvite(eventId, name,
+  email?)`.
+- `src/app/dashboard/events/[eventId]/actions.ts` — `sendInviteEmail(eventId,
+  inviteId)` and `sendReminderEmails(eventId)` (bulk, skips invites that
+  already have an RSVP or no email on file), both host_id-checked and
+  logging every attempt to `email_sends` (kind: 'invite' | 'reminder',
+  status `sent` or `failed: <message>`) — including failures, not just
+  successes, so the log is a real audit trail.
+- UI: a mail icon on pending invite cards (only shown when the invite has
+  an email) that sends now and shows sent/error state inline, plus an
+  "Email all pending (N)" button above the Invites list showing "Sent X of
+  Y" after a bulk run.
+
+**Verified**: the send path is wired correctly end-to-end (invite created
+with email → mail icon click → server action → Resend API call → result
+written to `email_sends` → UI reflects sent/error state) — confirmed via
+the *error* path in this Resend account: `RESEND_FROM_EMAIL`
+(`notifications@invitely.tejanarra.space`) is on a domain
+(`invitely.tejanarra.space`) that isn't registered/verified in this Resend
+account yet (only `punch.tejanarra.space` is, and its domain status is
+itself `partially_failed`) — Resend's API correctly rejected the send with
+a domain-verification error, and the app correctly surfaced that error in
+`email_sends` and the mail-icon UI (turned red, error in the tooltip)
+instead of silently failing. **Not yet verified**: an actual delivered
+email, since that needs a verified sending domain — add/verify
+`invitely.tejanarra.space` (or point `RESEND_FROM_EMAIL` at the
+already-registered `punch.tejanarra.space` once its own verification is
+fixed) in the Resend dashboard, then retry from a pending invite's mail
+icon.
+
+## Status: what's built (Stage 5 — fully customizable invite pages)
+
+Full plan/design rationale is in the (session-local) plan file this was
+built from; this section is the durable summary.
+
+**Form builder** (any field — including the built-in name/attending/
+plus-ones — can be relabeled, reordered, or deleted, not just appended to):
+- `src/lib/form-schema.ts` — `FormField`/`FormSchema`/`Responses` types, a
+  `role: "name" | "attending" | "plus_ones" | null` tag that lets the app
+  find "the field that means attending" even after a host relabels it,
+  `resolveFormSchema` (null → sensible 3-field default), `getFieldValue`
+  (reads `responses` first, falls back to the legacy scalar columns by
+  role — so pre-Stage-5 RSVPs keep rendering correctly), `deriveLegacyScalars`
+  (keeps `rsvps.name`/`attending`/`additional_guests` populated forever as a
+  fast-path/historical fallback, not just during a migration window).
+- `src/lib/rsvp-validation.ts` — shared required/option-membership
+  validation used by both the guest submit action and the host edit action,
+  so neither path can save data the other would reject.
+- Guest side: `src/app/e/[slug]/rsvp-form.tsx` renders any field generically
+  by `field.type` (text/textarea/select/radio/checkbox/plus_ones);
+  `actions.ts`'s `submitRsvp` validates and derives both `responses` and the
+  legacy scalars in one upsert.
+- Host side: `src/app/dashboard/events/[eventId]/form-builder-panel.tsx` —
+  add/edit/delete/reorder fields; role-tagged fields keep their type/options
+  locked (so "attending" always means a trustworthy yes/no) but can still be
+  relabeled or deleted — deleting one is what makes the dashboard degrade
+  (see below), not a dead end. `updateFormSchema` action added to the
+  event's `actions.ts`.
+- Dashboard degradation: `dashboard/events/[eventId]/page.tsx`'s stats
+  (`attending`/`declined`/`totalGuests`) are `null` when the event has no
+  `role`-tagged field for them, and `guest-dashboard.tsx` hides the
+  corresponding stat tiles/filter buttons instead of showing a meaningless
+  0 — confirmed working for both "field relabeled" (stats keep working) and
+  "field deleted" (stats hide, no crash).
+
+**Drag-and-drop page builder** (visual editor for the guest-facing
+`/e/[slug]` page layout):
+- Added `@dnd-kit/core`/`@dnd-kit/sortable`/`@dnd-kit/utilities`.
+- `src/lib/page-blocks/` — `types.ts` (`PageSchema`/`BlockInstance`
+  discriminated union: hero, text, image, spacer, countdown, rsvp-form,
+  venue-map), `registry.tsx` (`BLOCK_REGISTRY`, the single place a new block
+  type — like the future sandboxed custom-HTML block — plugs in without
+  touching the renderer or builder), `page-renderer.tsx` (maps a schema's
+  blocks through the registry for the public page), `blocks/*.tsx` (one
+  file per built-in type; `rsvp-form.tsx` and `venue-map.tsx` are thin
+  adapters over the existing `RsvpForm`/`VenueMap` components).
+- `src/app/e/[slug]/page.tsx` branches on `event.page_schema`: non-null →
+  `<PageRenderer>`, null → the original fixed `<EventView>` (kept, not
+  deleted — the permanent backward-compat path for events that never open
+  the builder).
+- New events get a seeded default `page_schema` (hero + rsvp-form +
+  venue-map, mirroring the old fixed layout) at creation time
+  (`dashboard/actions.ts`'s `createEvent`); older events still `null` get
+  the same default seeded **in-memory** when a host opens the builder
+  (not persisted until they hit Save), so it never opens on a blank canvas.
+- `src/app/dashboard/events/[eventId]/design/` — `page.tsx` (loads the
+  event, seeds the default schema if needed) + `page-builder.tsx` (dnd-kit
+  sortable block list with per-block inline editors from the registry, a
+  "+ Add block" palette, delete via the existing `ConfirmIconButton`, a live
+  preview pane rendering the same `<PageRenderer>` in the event's real
+  theme, and an explicit Save button — `updatePageSchema` action added to
+  the event's `actions.ts`). Linked from a "Open page builder →" link on
+  the main event page next to `EventSettingsPanel`.
+
+**Custom HTML/CSS/JS block** (originally planned as later phase, built now
+per host request): `src/lib/page-blocks/blocks/custom-html.tsx` —
+`CustomHtmlConfig = { html, css, js, heightPx }`, edited via 3 code
+textareas + a frame-height number input, rendered on the public page as a
+single self-contained `<iframe srcDoc={...}>` combining all three. The
+security property that matters: `sandbox="allow-scripts"` **without**
+`allow-same-origin` — the frame gets scripting ability but a unique opaque
+origin, so host-authored code can run but can never read guest
+cookies/sessions/localStorage, reach the parent page's DOM, or touch any
+other host's data. `referrerPolicy="no-referrer"` as an extra precaution.
+No external `<script src>`/stylesheet loading is exposed by the editor —
+everything is inlined into one `srcDoc`, so there's no way to pull in a
+third-party origin from this block. Registered in `BLOCK_REGISTRY` like
+every other block — confirms the registry design worked as intended (one
+new entry, zero changes to the renderer/builder/public page).
+
+**Per-block size/alignment** (any block — text, image, or any other —
+gets a Width (S/M/L/Full) and Align (left/center/right) control):
+`src/lib/page-blocks/types.ts`'s `BlockLayout = { align, width }`, stored
+as an optional `layout` field on every `BlockInstance`. `layout-controls.tsx`
+has the shared `<LayoutControls>` editor UI (used generically by every
+block card in the builder, no per-block-type wiring needed) and
+`layoutWrapperStyle()`, which `page-renderer.tsx` uses to wrap every
+block's `Render` output in a sizing/alignment `<div>` — individual block
+components never need to know layout exists. Getting this to actually
+take effect required stripping the hardcoded `max-w-xl`/`max-w-md` a few
+blocks (hero, countdown, text, custom-html) had on their own root element
+— nested CSS `max-width`s compose via the *smaller* one winning, so a
+block's own internal cap silently overrode the new wrapper until removed.
+RSVP-form and venue-map deliberately keep their own internal max-width
+(form fields and a fixed-height map don't look right stretched
+edge-to-edge) — their width control still works to shrink, just not to
+exceed their built-in comfortable size.
+
+**Nestable Container block** (host request: "nest elements like HTML
+elements and add CSS to them"): a `"container"` block type
+(`src/lib/page-blocks/blocks/container.tsx`) holds its own `children:
+BlockInstance[]` array — any other block type, including another
+container — plus `background`/`paddingPx`/`customStyle` config.
+`customStyle` is raw text like `border-radius: 16px; box-shadow: ...` —
+deliberately parsed into a React inline-style object
+(`layout-controls.tsx`'s `parseInlineStyle`), **not** injected as a
+`<style>` tag, so a host can only style the one container element, never
+add selectors that reach anything else on the page (unlike the sandboxed
+custom-html block, this isn't iframe-isolated, so keeping it to inline
+styles only — no selectors, no script — is what keeps it safe without a
+sandbox). Recursion without a circular import: `BlockDefinition`'s
+`Edit`/`Render` prop types gained optional `childBlocks`/`renderBlock`/
+`renderChildList` props that only the container's own components read;
+`page-renderer.tsx` recurses through `BLOCK_REGISTRY` for `Render`, and
+`page-builder.tsx` extracted a reusable `<BlockListEditor>` (sortable
+list + add-block palette) used both at the page's top level and, via
+`renderChildList`, inside every container — reordering/adding/removing
+works identically at any nesting depth via its own independent
+`DndContext`.
+
+**Desktop layout pass** (initial): the dashboard was capped at `max-w-5xl`
+(1024px) on every page via a single wrapper in `dashboard/layout.tsx`, so
+the page builder's two-pane editor and the form builder's field list were
+both squeezed into roughly half of an already-narrow column — cramped on
+any real desktop monitor. Fixed by removing that blanket cap and letting
+each page own its width: event list/detail pages now use up to
+`max-w-6xl`/`max-w-[1600px]`; the form builder's field editing changed
+from an inline-accordion-per-row (forced long vertical stacking) to a
+`[380px_1fr]` list+editor split; the guest card grid gained an
+`xl:grid-cols-4` step; `EventSettingsPanel`'s "Open page builder" link was
+merged into its existing header row instead of being its own stacked
+block.
+
+**Page builder UI pass** (follow-up, after the host flagged the first
+pass as still looking bad and pointed out no HTML/CSS nesting existed
+yet): reworked into a fixed-height two-pane editor —
+`h-[75vh] min-h-[480px] max-h-[900px]` "Blocks" panel and "Live preview"
+panel, each independently scrollable (`overflow-y-auto` on the inner
+content, not the whole page), `[420px_1fr]` split at the `xl` breakpoint.
+Block cards collapse to a single row (drag handle, name, expand arrow,
+delete) and expand in place to show layout controls + the block's own
+config — replacing the earlier design's problem of the whole sidebar
+needing scroll just to see one open block's settings.
+
+**Migration note**: this adds 3 new columns (`events.form_schema`,
+`events.page_schema`, `rsvps.responses`) — see "Data model" above for how
+to apply them to an already-provisioned Supabase project.
+
+**Alignment/scroll bug-fix pass** (follow-up, after the host reported a
+hydration warning, a block visibly not centering despite "center" being
+selected, and "if I change the RSVP form size it changes the alignment"):
+
+- SSR hydration mismatch: dnd-kit's `DndContext` assigns its
+  `aria-describedby` id from a module-level counter that can differ
+  between server-render and client-hydrate (order-dependent, worse with
+  nested containers). Fixed by deferring the whole `<DndContext>` tree in
+  `page-builder.tsx`'s `BlockListEditor` to render only after client mount,
+  showing an `animate-pulse` placeholder for one paint first.
+- `align-self` + an explicit `width: 100%` on a flex item resolves against
+  an ambiguous reference size in some browsers, visibly shifting "centered"
+  blocks off-center. Fixed by switching `layout-controls.tsx`'s
+  `layoutWrapperStyle` from `align-self` to `margin: auto`-based
+  positioning (unambiguous, block-level).
+- Blocks that keep their own smaller internal max-width (rsvp-form,
+  venue-map, hero's cover image/description, image with `maxWidthPx`) only
+  had their *wrapper box* repositioned by the margin fix above — the
+  *content inside* still defaulted to flow-left since nothing told it to
+  follow the chosen align. Two different fixes were needed depending on
+  where the narrower content sits:
+  - When the narrower content **is** the wrapper's direct child (rsvp-form,
+    venue-map): added `display: flex; justifyContent: <align>` to the same
+    wrapper style — repositions the content within the box, no-op for
+    `w-full` blocks (hero/text/image/custom-html) since a 100%-width flex
+    child leaves nothing to justify.
+  - When the narrower content is nested **inside** a `w-full` block
+    (hero's cover image and description, both wrapped in a plain `<div
+    className="w-full">`): the wrapper's own `justify-content` can't reach
+    that deep, so instead switched those elements from `mx-auto` (always
+    centers, ignores align) to `inline-block` with no explicit margin —
+    inline-level boxes follow the parent's inherited `text-align`, which
+    `layoutWrapperStyle` already sets correctly per-align.
+  - Image block's `<img>` had a matching hardcoded `mx-auto`, removed for
+    the same reason (only mattered once `maxWidthPx` narrows it below the
+    wrapper).
+- Went block-by-block (host's explicit ask: "check each component one by
+  one ... fix one by one") and found two more duplicate/conflicting
+  alignment controls that fought the generic wrapper instead of trusting
+  it:
+  - Text block had its own legacy `config.align` ("left"/"center" only)
+    hardcoding a Tailwind `text-left`/`text-center` class on the `<p>`,
+    which silently overrode the wrapper's `textAlign` for every text block
+    ever created. Removed the field and the duplicate Left/Center buttons
+    entirely — text now inherits alignment from the shared `LayoutControls`
+    like every other block.
+  - Countdown block's digit row was hardcoded `flex justify-center`, so
+    picking "left"/"right" moved the label above it but left the digits
+    centered. Changed to `inline-flex` (no `justify-center`) so the digit
+    row follows the same inherited `text-align` as the label.
+- Page-builder scroll/dead-space bug (host screenshot: visible gap below
+  the two panels plus a second, redundant page-level scrollbar): the
+  panels used a guessed `h-[75vh] min-h-[480px] max-h-[900px]` that didn't
+  match the *actual* remaining viewport height after the shared dashboard
+  header. Fixed by restructuring `dashboard/layout.tsx` into a real
+  `h-screen flex flex-col` shell (`<main>` = `flex-1 min-h-0
+  overflow-y-auto`, the single scroll container for every dashboard page)
+  and changing `page-builder.tsx`'s panels to `h-full`/`flex-1 min-h-0` +
+  CSS Grid's default stretch instead of any `vh` arithmetic — eliminates
+  the outer scroll entirely since the panels now size against a
+  well-defined height rather than a guess.
+
+Verified live in the browser, block by block, across Width (S/M/L/Full) ×
+Align (left/center/right) combinations: Hero (incl. cover image and
+description once a cover/description was set), RSVP form, Venue map, Text,
+Image, Countdown, Container (including a nested child block's own
+independent alignment), and Custom HTML/CSS/JS (confirmed no bug — it has
+no internal max-width, so the wrapper alone always positions it).
+
+## Verification plan
+
+1. ✅ `npm run build`.
+2. ✅ Sign up a test host, create an event, confirm the theme picker and
+   settings edit/delete all work (Stage 1+2).
+3. ✅ Stage 3: generate an invite, open its link in a separate tab, submit
+   an RSVP (attending + a plus-one), confirm it shows up back in the
+   event's guest dashboard with stats/search/sort/tabs/edit all working,
+   and confirm the public page is themed per the event's chosen theme
+   (tested with Playful Pastel, distinct from the default Classic Gold).
+4. ✅ Signed up a **second** test host and confirmed they cannot see or
+   reach the first host's events (`/dashboard` empty for them; direct
+   `/dashboard/events/<other-host's-id>` 404s via `notFound()`) — the core
+   multi-tenancy check, since the authorization model relies on
+   code-level `host_id` filters rather than RLS policies.
+5. ⏳ Stage 4: send path verified end-to-end except actual delivery, which
+   is blocked on Resend domain verification (see "what's built" above) —
+   re-run once `RESEND_FROM_EMAIL`'s domain is verified, confirm the link
+   in the received email works.
+6. ✅ Stage 5: schema migration applied to the live Supabase project;
+   `npm run build` passes. Verified live (host `spuskoori+desktoptest@stradaji.com`,
+   event "Desktop UI Test"): opened the form builder, deleted the
+   plus-ones field, added a custom "Meal preference" text field — the
+   guest RSVP form correctly rendered the new field set (no plus-ones,
+   custom field present, name prefilled from the invite), submitted
+   successfully, and the dashboard reflected it (Attending: 1, no
+   "Guests" tile since plus-ones was removed, guest card showing "Meal
+   preference: Vegetarian" generically). Opened the page builder, added
+   the new custom-HTML/CSS/JS block with an inline script, confirmed it
+   executes inside the sandboxed iframe (visually, plus confirmed
+   `iframe.contentDocument` is inaccessible from the parent page — proof
+   the origin isolation is real, not cosmetic), saved, and confirmed the
+   block persists and still executes on the public page after a fresh
+   load. Also confirmed the desktop layout fixes: dashboard pages, the
+   page builder's sidebar+preview split, and the form builder's
+   list+editor split all render using the full available width instead
+   of a narrow centered column.
+
+Test data from the Stage 3 pass (host `spuskoori+stage3test@stradaji.com`,
+event "Test Birthday Bash"), the Stage 4 pass (host
+`spuskoori+stage4test@stradaji.com`, event "Stage 4 Email Test"), and the
+Stage 5 pass (host `spuskoori+desktoptest@stradaji.com`, event "Desktop UI
+Test") was deleted afterward; the extra host account
+`spuskoori+stage3host2@stradaji.com` used for the tenancy check was left
+as-is (harmless, has zero events).
+
+## Scope notes / things deliberately simplified for v1
+
+- All 4 themes share one font pairing — only colors differ per theme. A
+  full per-theme font system or visual designer is real scope on its own;
+  explicitly deferred.
+- `makeEventSlug()` appends a random suffix rather than retrying on a
+  unique-constraint collision — collision odds are astronomically low at
+  this scale, so a single insert attempt is fine.
+- No rate limiting on login/signup — Supabase Auth has its own built-in
+  rate limits (unlike the old admin login's hand-rolled in-memory limiter,
+  which doesn't apply here).
+
+## Worktree notes
+
+Two independent folders, same repo:
+- `/Users/tejanarra/Developer/RSVP` — branch `main`, original single-
+  tenant app, its own untouched `.env.local`.
+- `/Users/tejanarra/Developer/RSVP-saas` (this folder) — branch `saas`.
+
+They share git history/objects but have separate working directories,
+`node_modules`, and `.env.local` files — editing/running one never affects
+the other. `git worktree list` (run from either folder) shows both.
+Standard git commands (`git add`, `git commit`, `git push`, `git log`) work
+normally from within this folder against the `saas` branch, same as any
+other checkout.

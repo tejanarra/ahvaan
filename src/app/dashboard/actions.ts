@@ -6,6 +6,7 @@ import { requireHost } from "@/lib/supabase/auth-server";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { makeEventSlug } from "@/lib/event";
 import { MAX_NAME_LENGTH } from "@/lib/rsvp-limits";
+import { defaultPageSchema } from "@/lib/page-blocks/types";
 
 const MAX_TITLE_LENGTH = 120;
 const MAX_DESCRIPTION_LENGTH = 2000;
@@ -66,6 +67,7 @@ export async function createEvent(
       venue_name: input.venueName || null,
       venue_address: input.venueAddress || null,
       description: input.description || null,
+      page_schema: defaultPageSchema(),
     })
     .select("id")
     .single();
