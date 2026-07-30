@@ -162,7 +162,7 @@ export function JsonSchemaEditor({
           <Button type="button" size="sm" onClick={handleApply}>
             Apply
           </Button>
-          <Button type="button" variant="outline" size="sm" onClick={onCancel}>
+          <Button type="button" variant="secondary" size="sm" onClick={onCancel}>
             Back to visual builder
           </Button>
         </div>

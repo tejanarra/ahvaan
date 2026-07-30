@@ -192,7 +192,7 @@ export function EditRsvpDialog({
           <Button onClick={handleSave} loading={isPending} className="flex-1">
             {isPending ? "Saving..." : "Save"}
           </Button>
-          <Button variant="outline" onClick={onClose} disabled={isPending}>
+          <Button variant="secondary" onClick={onClose} disabled={isPending}>
             Cancel
           </Button>
         </div>

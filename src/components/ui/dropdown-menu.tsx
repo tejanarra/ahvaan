@@ -1,0 +1,79 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
+import { cn } from "@/lib/cn";
+
+type MenuItem = {
+  label: string;
+  onSelect: () => void;
+  destructive?: boolean;
+  icon?: ReactNode;
+};
+
+// Small dependency-free dropdown for card overflow actions and the account
+// menu. Closes on outside click and Escape; shadow-pop per docs/04.
+export function DropdownMenu({
+  trigger,
+  items,
+  align = "end",
+}: {
+  trigger: ReactNode;
+  items: MenuItem[];
+  align?: "start" | "end";
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(e: PointerEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative inline-flex">
+      <button type="button" onClick={() => setOpen((v) => !v)} aria-haspopup="menu" aria-expanded={open}>
+        {trigger}
+      </button>
+      {open && (
+        <div
+          role="menu"
+          className={cn(
+            "absolute top-full z-50 mt-1.5 min-w-[10rem] rounded-md border border-border bg-surface py-1 shadow-[0_4px_16px_rgb(33_30_25/0.10)]",
+            align === "end" ? "right-0" : "left-0"
+          )}
+        >
+          {items.map((item) => (
+            <button
+              key={item.label}
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                item.onSelect();
+              }}
+              className={cn(
+                "flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium transition-colors hover:bg-surface-hover",
+                item.destructive ? "text-destructive" : "text-foreground"
+              )}
+            >
+              {item.icon}
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

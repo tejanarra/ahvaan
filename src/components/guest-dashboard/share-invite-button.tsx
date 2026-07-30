@@ -136,7 +136,7 @@ export function ShareInviteButton({
             )}
 
             {typeof navigator !== "undefined" && typeof navigator.share === "function" && (
-              <Button variant="outline" onClick={handleNativeShare} className="w-full">
+              <Button variant="secondary" onClick={handleNativeShare} className="w-full">
                 Share via...
               </Button>
             )}

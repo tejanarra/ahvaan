@@ -647,3 +647,48 @@ from a `"use server"` actions file breaks Turbopack's server-action
 transform (`X is not defined` at runtime) — fixed by having consumers
 import the type directly from its source module instead of re-exporting
 it through the actions file.
+
+## Status: Phase 1 (first slice) — Studio design system (2026-07-30)
+
+Per `docs/07-build-phases.md` Phase 1. Note: the palette/font tokens,
+brand mark/favicon, and split-screen auth pages were already done ahead of
+schedule in the rebrand commit — this slice covers the remaining Phase 1
+items that were still outstanding:
+
+- **New `ui/` primitives** (`docs/04-design-system.md`): `toast.tsx`
+  (`ToastProvider`/`useToast`, bottom-center, 4s auto-dismiss — replaces
+  ad-hoc inline "Saved"/error text), `dropdown-menu.tsx` (dependency-free,
+  closes on outside-click/Escape), `tooltip.tsx`, `skeleton.tsx`.
+- **Button `outline` variant dropped** — every usage migrated to
+  `secondary` (one way to do each thing, per doc04).
+- **Dashboard list re-skin** (`docs/05`): swatch-strip cards (theme
+  accent→accentDark gradient), whole-card click-through to the workspace,
+  overflow `DropdownMenu` → confirm `Modal` → toast for delete (replaces
+  `DeleteEventButton`/`ConfirmIconButton` inline-confirm on this page —
+  `delete-event-button.tsx` deleted). `EmptyState` title now renders in
+  the display serif.
+- **Account menu**: dashboard header's bare email + sign-out button →
+  `AccountMenu` (`DropdownMenu` with Sign out).
+- **Shared `EventDetailsForm`** (`components/event-details-form.tsx`,
+  deferred from Phase 0 per plan): `events/new` and `settings` now share
+  one `EventDetailsFields` component and one theme picker with live
+  mini-preview cards (real theme colors + Fraunces sample text) instead of
+  events/new's plain swatch-only picker and settings having no theme
+  control at all (a pre-existing gap — settings previously couldn't change
+  an event's theme). Settings' save/delete now use toast + a confirm
+  Modal (matching the dashboard card's pattern) instead of inline
+  "Saved."  text and a separate `ConfirmIconButton`.
+
+**Not done in this slice** (remaining Phase 1 scope, next slice): guests
+tab StatTile/Badge/send-state re-skin onto Toast, icon stroke-width audit
+(currently a consistent 2px across all icons — doc04 specifies 1.5px;
+left as-is, a cosmetic-only mismatch, not worth a blanket edit risk right
+now), contrast-ratio script, full keyboard-path pass, 390px mobile pass
+of every Studio screen.
+
+**Verified**: `npm run build` + `npx eslint` clean on all new/changed
+files; live-scripted browser session — signup → create event (theme
+picker selection confirmed via the resulting swatch-strip color) →
+dashboard shows the swatch-strip card → overflow menu → confirm modal →
+delete → toast confirmation → Fraunces empty state, zero page errors
+throughout.

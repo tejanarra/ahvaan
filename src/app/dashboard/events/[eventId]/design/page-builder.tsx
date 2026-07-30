@@ -566,11 +566,11 @@ export function PageBuilder({
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={openPageSettings}>
+            <Button type="button" variant="secondary" size="sm" onClick={openPageSettings}>
               Page settings
             </Button>
             <ThemePicker themeId={liveEvent.theme_id} onSelect={(themeId) => handleEventFieldsChange({ theme_id: themeId })} />
-            <Button type="button" variant="outline" size="sm" onClick={() => setCodeMode((v) => !v)}>
+            <Button type="button" variant="secondary" size="sm" onClick={() => setCodeMode((v) => !v)}>
               <CodeBracketsIcon className="h-4 w-4" />
               {codeMode ? "Visual builder" : "Code"}
             </Button>

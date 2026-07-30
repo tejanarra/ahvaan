@@ -2,13 +2,15 @@ import { forwardRef } from "react";
 import type { ButtonHTMLAttributes } from "react";
 import { cn } from "@/lib/cn";
 
-export type ButtonVariant = "primary" | "secondary" | "outline" | "ghost" | "destructive";
+// "outline" was dropped (docs/04-design-system.md: one way to do each
+// thing) — it was visually redundant with "secondary"; every usage was
+// migrated there.
+export type ButtonVariant = "primary" | "secondary" | "ghost" | "destructive";
 export type ButtonSize = "sm" | "md" | "lg";
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   primary: "bg-accent text-accent-foreground hover:bg-accent-hover",
   secondary: "bg-surface text-foreground border border-border hover:bg-surface-hover",
-  outline: "border border-border bg-background text-foreground hover:bg-surface",
   ghost: "text-foreground hover:bg-surface",
   destructive: "bg-destructive text-white hover:bg-destructive-hover",
 };

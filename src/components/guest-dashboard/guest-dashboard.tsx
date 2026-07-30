@@ -220,7 +220,7 @@ export function GuestDashboard({
 
       {tab === "invites" && pendingWithEmail.length > 0 && (
         <div className="mt-3 flex items-center gap-2">
-          <Button size="sm" variant="outline" onClick={handleSendReminders} loading={isSendingReminders}>
+          <Button size="sm" variant="secondary" onClick={handleSendReminders} loading={isSendingReminders}>
             <MailIcon className="h-3.5 w-3.5" />
             {isSendingReminders ? "Sending..." : `Email all pending (${pendingWithEmail.length})`}
           </Button>
