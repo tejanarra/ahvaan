@@ -7,13 +7,19 @@ import type { NextConfig } from "next";
 // either is a live-verified follow-up, not attempted blind here. frame-src
 // covers both the sandboxed srcdoc iframes (RSVP confirmation, custom-html
 // blocks — same-origin, inherit this policy) and the Google Maps embed.
+// Dev-only: Next's dev server (Fast Refresh/Turbopack) uses eval() for
+// stack-mapping and hot-reload — 'unsafe-eval' is never needed (or
+// included) in production, matching React's own "will never use eval() in
+// production" guarantee.
+const isDev = process.env.NODE_ENV !== "production";
+
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'",
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: https:",
   "font-src 'self' data:",
-  "connect-src 'self' https://*.supabase.co",
+  `connect-src 'self' https://*.supabase.co${isDev ? " ws:" : ""}`,
   "frame-src 'self' https://www.google.com",
   "frame-ancestors 'self'",
   "base-uri 'self'",
