@@ -35,6 +35,10 @@ export default function LoginPage() {
           <Input id="password" name="password" type="password" required autoComplete="current-password" />
         </Field>
 
+        <Link href="/forgot-password" className="block text-right text-xs text-muted hover:text-foreground">
+          Forgot password?
+        </Link>
+
         {state.status === "error" && <p className="text-sm font-medium text-destructive">{state.message}</p>}
 
         <Button type="submit" loading={pending} className="w-full">

@@ -74,3 +74,48 @@ export async function logout() {
   await supabase.auth.signOut();
   redirect("/login");
 }
+
+export async function requestPasswordReset(
+  _prevState: AuthState,
+  formData: FormData
+): Promise<AuthState> {
+  const email = String(formData.get("email") ?? "").trim();
+  if (!email) {
+    return { status: "error", message: "Enter your email." };
+  }
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const supabase = await createAuthServerClient();
+  await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${siteUrl}/reset-password`,
+  });
+
+  // Always the same message regardless of whether the email is on file —
+  // confirming/denying an account's existence here would let anyone probe
+  // which emails have signed up.
+  return {
+    status: "info",
+    message: "If that email has an account, a reset link is on its way.",
+  };
+}
+
+export async function updatePassword(
+  _prevState: AuthState,
+  formData: FormData
+): Promise<AuthState> {
+  const password = String(formData.get("password") ?? "");
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return {
+      status: "error",
+      message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`,
+    };
+  }
+
+  const supabase = await createAuthServerClient();
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) {
+    return { status: "error", message: error.message };
+  }
+
+  redirect("/dashboard");
+}
