@@ -16,7 +16,7 @@ export default function SignupPage() {
   return (
     <AuthLayout
       title="Create your account"
-      subtitle="Free — create and manage your own events."
+      subtitle="Free forever — design your first invitation in minutes."
       footer={
         <>
           Already have an account?{" "}

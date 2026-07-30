@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireHost } from "@/lib/supabase/auth-server";
 import { logout } from "@/lib/auth-actions";
 import { LockBodyScroll } from "@/components/lock-body-scroll";
+import { BrandLockup } from "@/components/brand";
 
 export default async function DashboardLayout({
   children,
@@ -15,8 +16,8 @@ export default async function DashboardLayout({
       <LockBodyScroll />
       <header className="shrink-0 border-b border-border">
         <div className="mx-auto flex max-w-[1600px] items-center justify-between px-4 py-3 sm:px-6 lg:px-10">
-          <Link href="/dashboard" className="text-sm font-semibold text-foreground">
-            Invitely
+          <Link href="/dashboard">
+            <BrandLockup markClassName="h-4 w-4" textClassName="text-base" />
           </Link>
           <div className="flex items-center gap-3">
             <span className="hidden text-sm text-muted sm:inline">{host.email}</span>

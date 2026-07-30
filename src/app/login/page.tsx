@@ -15,7 +15,8 @@ export default function LoginPage() {
 
   return (
     <AuthLayout
-      title="Sign in"
+      title="Welcome back"
+      subtitle="Sign in to manage your events and RSVPs."
       footer={
         <>
           New here?{" "}

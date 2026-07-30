@@ -1,9 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Hanken_Grotesk, Geist_Mono, Fraunces } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// UI face — warm humanist grotesk (see docs/04-design-system.md "Typography").
+const hanken = Hanken_Grotesk({
+  variable: "--font-hanken",
   subsets: ["latin"],
 });
 
@@ -12,7 +13,15 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const siteUrl = "https://swathi.tejanarra.space";
+// Brand display serif — wordmark and display headings only (see
+// docs/04-design-system.md "Typography").
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
+  subsets: ["latin"],
+  axes: ["opsz", "SOFT", "WONK"],
+});
+
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -22,20 +31,12 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: "Swathi & Sai Teja's Wedding RSVP",
-  description: "RSVP for the wedding of Swathi Puskoori and Sri Sai Teja Narra",
-  openGraph: {
-    title: "Swathi & Sai Teja's Wedding RSVP",
-    description: "RSVP for the wedding of Swathi Puskoori and Sri Sai Teja Narra",
-    url: siteUrl,
-    siteName: "Swathi & Sai Teja's Wedding",
-    type: "website",
+  title: {
+    default: "Gatherie — Beautiful invitations with effortless RSVPs",
+    template: "%s · Gatherie",
   },
-  twitter: {
-    card: "summary_large_image",
-    title: "Swathi & Sai Teja's Wedding RSVP",
-    description: "RSVP for the wedding of Swathi Puskoori and Sri Sai Teja Narra",
-  },
+  description:
+    "Design a beautiful invitation page for any event, share one link with your guests, and track every RSVP in one place.",
 };
 
 export default function RootLayout({
@@ -44,7 +45,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+    <html
+      lang="en"
+      className={`${hanken.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
+    >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );
