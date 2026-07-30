@@ -104,17 +104,15 @@ export type SpacerConfig = {
   heightPx: number;
 };
 
-export type CarouselImage = { url: string; alt?: string };
-
-// Fixed aspect ratios (not a freeform maxHeight like the Image block) — a
-// carousel's slides all need to share one frame size so it doesn't jump as
-// it advances, so the choice is deliberately narrower than the single-image
-// block's controls.
-export type CarouselAspectRatio = "1/1" | "4/3" | "3/2" | "16/9";
+// Same per-image sizing controls as the Image block (ImageFit/maxHeightPx)
+// — each slide keeps its own natural aspect ratio by default (no forced
+// crop into a shared shape); a host can cap an individual slide's height
+// if one photo is a very different shape from the rest, exactly like the
+// single-image block's own "Max height" control.
+export type CarouselImage = { url: string; alt?: string; maxHeightPx?: number; fit?: ImageFit };
 
 export type CarouselConfig = {
   images: CarouselImage[];
-  aspectRatio?: CarouselAspectRatio;
   autoplay?: boolean;
   intervalMs?: number;
   showArrows?: boolean;
