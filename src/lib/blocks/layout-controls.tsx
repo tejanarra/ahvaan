@@ -24,6 +24,15 @@ const ALIGN_TO_TEXT: Record<BlockAlign, CSSProperties["textAlign"]> = {
 // deliberately not a full CSS parser (no selectors, no nesting, no at-rules)
 // so a host's "Custom CSS" field can only style the one element it's
 // attached to, never anything else on the page.
+// Host-authored CSS values, not selectors — this can only ever style the
+// one wrapper box it's attached to (docs/02, docs/08 "sandbox invariants").
+// `url(...)` (external resource loads — tracking pixels, and historically
+// a vector for `url(javascript:...)`) and `expression(...)` (old IE's
+// arbitrary-JS-in-CSS mechanism) are rejected outright rather than
+// sanitized — a value that needs either isn't a legitimate layout tweak,
+// so the whole declaration is dropped instead of guessing at a safe subset.
+const UNSAFE_VALUE_PATTERN = /url\s*\(|expression\s*\(/i;
+
 export function parseInlineStyle(text: string | undefined): CSSProperties {
   if (!text) return {};
   const style: Record<string, string> = {};
@@ -33,6 +42,7 @@ export function parseInlineStyle(text: string | undefined): CSSProperties {
     const prop = rule.slice(0, idx).trim();
     const value = rule.slice(idx + 1).trim();
     if (!prop || !value) continue;
+    if (UNSAFE_VALUE_PATTERN.test(value)) continue;
     const camel = prop.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
     style[camel] = value;
   }
