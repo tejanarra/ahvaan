@@ -137,32 +137,23 @@ function EditableBlock({
       ? [
           <SortableContext key="children" items={block.children.map((c) => c.id)} strategy={verticalListSortingStrategy}>
             {block.children.map((child) => (
-              // Editor-only minimum spacing around every nested child,
-              // independent of this container's own configured gap/padding
-              // (which still applies exactly as set on the real guest
-              // page) — with those set to 0, children rendered flush
-              // against the container's edges and each other, leaving no
-              // physical room to hover/click one specifically without
-              // grabbing its neighbor (host feedback: "always show some
-              // gap between nested components for easier access").
-              <div key={child.id} className="p-1">
-                <EditableBlock
-                  block={child}
-                  containerId={block.id}
-                  parentLayoutMode={block.config.layoutMode ?? "column"}
-                  ctx={ctx}
-                  selectedPath={selectedPath}
-                  onSelect={onSelect}
-                  onRemove={onRemove}
-                  onMoveOut={onMoveOut}
-                  onMoveTo={onMoveTo}
-                  containerOptions={containerOptions}
-                  depth={depth + 1}
-                  hoveredPath={hoveredPath}
-                  onHover={onHover}
-                  onHoverEnd={onHoverEnd}
-                />
-              </div>
+              <EditableBlock
+                key={child.id}
+                block={child}
+                containerId={block.id}
+                parentLayoutMode={block.config.layoutMode ?? "column"}
+                ctx={ctx}
+                selectedPath={selectedPath}
+                onSelect={onSelect}
+                onRemove={onRemove}
+                onMoveOut={onMoveOut}
+                onMoveTo={onMoveTo}
+                containerOptions={containerOptions}
+                depth={depth + 1}
+                hoveredPath={hoveredPath}
+                onHover={onHover}
+                onHoverEnd={onHoverEnd}
+              />
             ))}
           </SortableContext>,
           <EndOfListDropZone key="end" containerId={block.id} />,
