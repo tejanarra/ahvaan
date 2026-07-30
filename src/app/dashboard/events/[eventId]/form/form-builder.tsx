@@ -3,8 +3,8 @@
 import { useState, useTransition, type CSSProperties } from "react";
 import { updateFormSchema } from "../actions";
 import { ConfirmIconButton } from "@/components/confirm-icon-button";
-import { resolveFormSchema } from "@/lib/schemas/form-schema";
-import type { FieldType, FormField, FormSchema } from "@/lib/schemas/form-schema";
+import { resolveFormSchema, DEFAULT_FORM_SCHEMA } from "@/lib/schemas/form-schema";
+import type { FieldRole, FieldType, FormField, FormSchema } from "@/lib/schemas/form-schema";
 import type { EventRecord } from "@/lib/data/events";
 import { resolveThemeColors } from "@/lib/themes";
 import { resolveThemeFonts } from "@/lib/theme-fonts";
@@ -33,6 +33,16 @@ const ROLE_LABELS: Record<Exclude<FormField["role"], null>, string> = {
   attending: "attendance",
   plus_ones: "plus-ones list",
 };
+
+// Order they appear in the default form, and the order re-add buttons show
+// up in — matters for readability, not correctness (role is never inferred
+// from position).
+const BUILT_IN_ROLES: Exclude<FieldRole, null>[] = ["name", "attending", "plus_ones"];
+
+function builtInFieldDefaults(role: Exclude<FieldRole, null>): FormField {
+  const template = DEFAULT_FORM_SCHEMA.fields.find((f) => f.role === role)!;
+  return { ...template, id: makeFieldId() };
+}
 
 function makeFieldId() {
   return crypto.randomUUID().slice(0, 8);
@@ -180,6 +190,16 @@ export function FormBuilder({ event, schema }: { event: EventRecord; schema: For
     setEditingId(id);
   };
 
+  const addBuiltInField = (role: Exclude<FieldRole, null>) => {
+    const field = builtInFieldDefaults(role);
+    setFields((f) => [...f, field]);
+    setEditingId(field.id);
+  };
+
+  const missingBuiltInRoles = BUILT_IN_ROLES.filter(
+    (role) => !fields.some((f) => f.role === role)
+  );
+
   const removeField = (id: string) => {
     setFields((f) => f.filter((field) => field.id !== id));
     if (editingId === id) setEditingId(null);
@@ -282,6 +302,24 @@ export function FormBuilder({ event, schema }: { event: EventRecord; schema: For
               </div>
             </div>
           ))}
+
+          {missingBuiltInRoles.length > 0 && (
+            <div className="rounded-lg border border-border p-3">
+              <p className="text-xs font-medium text-muted">Add back a built-in question</p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {missingBuiltInRoles.map((role) => (
+                  <button
+                    key={role}
+                    type="button"
+                    onClick={() => addBuiltInField(role)}
+                    className="rounded-full border border-border px-3 py-1 text-xs font-medium text-foreground transition hover:border-border-strong hover:bg-surface"
+                  >
+                    + {DEFAULT_FORM_SCHEMA.fields.find((f) => f.role === role)!.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           <button
             type="button"
