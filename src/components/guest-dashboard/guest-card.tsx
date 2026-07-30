@@ -14,6 +14,8 @@ import type { FormSchema, Responses } from "@/lib/schemas/form-schema";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { IconButton } from "@/components/ui/icon-button";
+import { Tooltip } from "@/components/ui/tooltip";
+import { useToast } from "@/components/ui/toast";
 
 export type PendingInvite = {
   id: string;
@@ -23,6 +25,7 @@ export type PendingInvite = {
 };
 
 function SendInviteEmailButton({ eventId, invite }: { eventId: string; invite: PendingInvite }) {
+  const { show } = useToast();
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -35,23 +38,27 @@ function SendInviteEmailButton({ eventId, invite }: { eventId: string; invite: P
       try {
         await sendInviteEmailAction(eventId, invite.id);
         setSent(true);
+        show(`Invite emailed to ${invite.name}.`);
         setTimeout(() => setSent(false), 2000);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to send.");
+        const message = err instanceof Error ? err.message : "Failed to send.";
+        setError(message);
+        show(message, "error");
       }
     });
   };
 
   return (
-    <IconButton
-      onClick={handleSend}
-      disabled={isPending}
-      aria-label={sent ? "Sent" : "Email invite"}
-      title={error || (sent ? "Sent" : "Email invite")}
-      className={sent ? "text-success" : error ? "text-destructive" : undefined}
-    >
-      {sent ? <CheckIcon /> : <MailIcon />}
-    </IconButton>
+    <Tooltip content={error || (sent ? "Sent" : "Email invite")}>
+      <IconButton
+        onClick={handleSend}
+        disabled={isPending}
+        aria-label={sent ? "Sent" : "Email invite"}
+        className={sent ? "text-success" : error ? "text-destructive" : undefined}
+      >
+        {sent ? <CheckIcon /> : <MailIcon />}
+      </IconButton>
+    </Tooltip>
   );
 }
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import { IconButton } from "./icon-button";
@@ -28,6 +29,15 @@ export interface ModalProps {
 }
 
 export function Modal({ open, onClose, title, children, className, size = "sm" }: ModalProps) {
+  useEffect(() => {
+    if (!open) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [open, onClose]);
+
   if (!open) return null;
 
   return (

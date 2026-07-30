@@ -21,8 +21,13 @@ export function StatTile({ label, value, active, onClick, className }: StatTileP
         className
       )}
     >
-      <p className="text-xl font-semibold text-foreground">{value}</p>
-      <p className="text-xs uppercase tracking-wide text-muted">{label}</p>
+      <p
+        className="text-xl tabular-nums text-foreground"
+        style={{ fontFamily: "var(--font-fraunces), Georgia, serif" }}
+      >
+        {value}
+      </p>
+      <p className="text-xs font-medium uppercase tracking-[0.08em] text-muted">{label}</p>
     </Component>
   );
 }

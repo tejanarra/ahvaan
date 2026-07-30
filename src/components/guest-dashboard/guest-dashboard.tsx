@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { ToggleGroup } from "@/components/ui/toggle-group";
 import { StatTile } from "@/components/ui/stat-tile";
 import { EmptyState } from "@/components/ui/empty-state";
+import { useToast } from "@/components/ui/toast";
 
 type Tab = "invites" | "responded";
 type RespondedFilter = "all" | "attending" | "declined";
@@ -81,23 +82,25 @@ export function GuestDashboard({
 }) {
   const eventContext = { eventId, eventSlug, eventTitle, schema };
   const hasAttendingData = stats.attending !== null;
+  const { show } = useToast();
   const [tab, setTab] = useState<Tab>("invites");
   const [respondedFilter, setRespondedFilter] = useState<RespondedFilter>("all");
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<SortBy>("date-desc");
-  const [reminderResult, setReminderResult] = useState("");
   const [isSendingReminders, startReminderTransition] = useTransition();
 
   const pendingWithEmail = pendingInvites.filter((inv) => inv.email);
 
   const handleSendReminders = () => {
-    setReminderResult("");
     startReminderTransition(async () => {
       try {
         const { sent, total } = await sendReminderEmails(eventId);
-        setReminderResult(`Sent ${sent} of ${total}.`);
+        show(
+          sent < total ? `Sent ${sent} of ${total} — some failed.` : `Sent ${sent} of ${total}.`,
+          sent < total ? "error" : "default"
+        );
       } catch (err) {
-        setReminderResult(err instanceof Error ? err.message : "Failed to send.");
+        show(err instanceof Error ? err.message : "Failed to send.", "error");
       }
     });
   };
@@ -224,7 +227,6 @@ export function GuestDashboard({
             <MailIcon className="h-3.5 w-3.5" />
             {isSendingReminders ? "Sending..." : `Email all pending (${pendingWithEmail.length})`}
           </Button>
-          {reminderResult && <span className="text-xs text-muted">{reminderResult}</span>}
         </div>
       )}
 

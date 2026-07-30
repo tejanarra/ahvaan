@@ -101,7 +101,7 @@ Warm-neutral “paper & ink” scale plus a single signature accent.
   --accent-foreground:#FFFFFF;
   /* semantic */
   --destructive:     #B3452F;  --destructive-hover: #983A27;
-  --success:         #2F6B4F;  --warning: #9A6B1F;
+  --success:         #2F6B4F;  --warning: #8F631A;
 }
 ```
 

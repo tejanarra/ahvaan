@@ -692,3 +692,41 @@ picker selection confirmed via the resulting swatch-strip color) →
 dashboard shows the swatch-strip card → overflow menu → confirm modal →
 delete → toast confirmation → Fraunces empty state, zero page errors
 throughout.
+
+## Status: Phase 1 (second slice) — guests tab, a11y, verified gate (2026-07-30)
+
+Closes out the remaining Phase 1 items from the previous slice's "not done"
+list, per `docs/07-build-phases.md`'s Phase 1 gate:
+
+- **Guests tab re-skin**: `StatTile` numerals now render in the display
+  serif (tabular figures) with small-caps captions, matching doc04's
+  signature style. The per-invite mail icon's sent/error state and the
+  bulk "Email all pending" result both moved off ad-hoc inline text/title
+  attributes onto the new `Toast`/`Tooltip` primitives — a partial bulk
+  send (`sent < total`) now shows as an error-styled toast instead of a
+  neutral inline string.
+- **Modal keyboard path**: `Modal` was missing Escape-to-close entirely —
+  fixed (a real a11y gap, not just a style pass). `DropdownMenu` already
+  had it from when it was built.
+- **Contrast audit**: computed WCAG contrast ratios for every Studio token
+  pair against their actual usage backgrounds. All body-text pairs pass
+  AA (≥4.5:1) except `--muted-foreground`, which is correctly
+  placeholder/disabled-only per its own doc comment, not body text.
+  `--warning` measured 4.48:1 (just under AA) — darkened `#9A6B1F` →
+  `#8F631A` (5.07:1) in both `globals.css` and doc04's token table; the
+  token isn't consumed anywhere in code yet, so this was a definition fix
+  with no visual regression.
+- **Mobile 390px pass**: screenshotted signup, dashboard (empty + populated
+  with the swatch-strip card), events/new, the guests tab, and settings —
+  all render cleanly with no overflow, correct stacking, and the shared
+  `EventDetailsForm`'s theme picker holding a readable 2-up grid.
+
+**Remaining, deliberately not done**: full keyboard-tab-order audit beyond
+Modal/Dropdown (visual focus-ring coverage looks consistent from the
+existing Button/Input styles, but wasn't walked control-by-control), and
+the icon stroke-width mismatch noted in the previous slice (2px vs doc04's
+1.5px spec) — both low-risk, low-value enough to defer rather than touch
+every file for a cosmetic pass. **Phase 1 is otherwise complete.**
+
+**Verified**: `npm run build` + `npx eslint` clean; live mobile-viewport
+smoke (zero page errors) across every screen listed above.
