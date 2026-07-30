@@ -2,7 +2,11 @@ export type ThemeId =
   | "classic-gold"
   | "modern-minimal"
   | "playful-pastel"
-  | "midnight-elegant";
+  | "midnight-elegant"
+  | "garden-party"
+  | "ocean-air"
+  | "fiesta"
+  | "ink-and-blush";
 
 export type Theme = {
   id: ThemeId;
@@ -17,10 +21,12 @@ export type Theme = {
   };
 };
 
-// v1 themes vary by color palette only — every theme shares the same clean
-// sans-serif type and layout. A full per-theme font/layout system (or a
-// drag-and-drop designer) is real scope on its own and is intentionally
-// deferred; this proves out "pick and customize a themed invite" without it.
+// Phase 2 (docs/04-design-system.md "Stage system"): 8 presets, colors +
+// typography. Font pairs live in src/lib/theme-fonts.ts (next/font/google
+// instances can't be constructed dynamically, so the pairing table has to
+// live in its own module) — resolveThemeFonts(theme.id) looks up the pair
+// for whichever theme is active. Existing events referencing the original
+// 4 ids are unaffected: same colors, they simply gain their theme's fonts.
 export const THEMES: Theme[] = [
   {
     id: "classic-gold",
@@ -68,6 +74,54 @@ export const THEMES: Theme[] = [
       accent: "#c9d4e3",
       accentDark: "#8fa3bf",
       surface: "#1b2436",
+    },
+  },
+  {
+    id: "garden-party",
+    label: "Garden Party",
+    description: "Sage & terracotta on cream — outdoor, brunch, alive.",
+    colors: {
+      background: "#faf7ee",
+      foreground: "#2c3324",
+      accent: "#7c8c5e",
+      accentDark: "#c1633b",
+      surface: "#eef0e1",
+    },
+  },
+  {
+    id: "ocean-air",
+    label: "Ocean Air",
+    description: "Dusty blue on off-white — coastal and calm.",
+    colors: {
+      background: "#f6f8f9",
+      foreground: "#22333d",
+      accent: "#5b8299",
+      accentDark: "#365a6b",
+      surface: "#e7eef1",
+    },
+  },
+  {
+    id: "fiesta",
+    label: "Fiesta",
+    description: "Saturated coral & marigold on warm white — loud parties.",
+    colors: {
+      background: "#fffaf2",
+      foreground: "#2c1810",
+      accent: "#e8552f",
+      accentDark: "#c23e1e",
+      surface: "#ffe9d6",
+    },
+  },
+  {
+    id: "ink-and-blush",
+    label: "Ink & Blush",
+    description: "Charcoal with a blush accent on white — editorial, chic.",
+    colors: {
+      background: "#ffffff",
+      foreground: "#1c1917",
+      accent: "#c98a95",
+      accentDark: "#9c5c68",
+      surface: "#f7f2f2",
     },
   },
 ];

@@ -730,3 +730,51 @@ every file for a cosmetic pass. **Phase 1 is otherwise complete.**
 
 **Verified**: `npm run build` + `npx eslint` clean; live mobile-viewport
 smoke (zero page errors) across every screen listed above.
+
+## Status: Phase 2 (first slice) — Stage theme system v2 (2026-07-30)
+
+Per `docs/07-build-phases.md` Phase 2. This slice covers the theme/font
+system and guest-page block polish; the builder's Style-panel
+reorganization (Blocks/Style tabs, custom-code scope switch) is deferred
+to a follow-up slice — the device-width preview toggle it also calls for
+turned out to already exist in `page-builder.tsx` from earlier work, so
+that item is already satisfied.
+
+- **4 new theme presets** (`lib/themes.ts`): Garden Party, Ocean Air,
+  Fiesta, Ink & Blush — `THEMES` grows from 4 to 8; `ThemeId` widened to
+  match. No consumer needed a code change beyond the type — every
+  `THEMES.map(...)` call site (landing page gallery, theme-demo hero,
+  event-details theme picker) picks up all 8 automatically.
+- **Font pairs** (`lib/theme-fonts.ts`, new): one `next/font/google`
+  instance per font family (14 distinct families across the 8 themes,
+  Inter shared by two), `resolveThemeFonts(themeId)` returns each theme's
+  `{displayClassName, bodyClassName, displayVar, bodyVar}`. Applied via
+  `--t-font-display`/`--t-font-body` CSS custom properties on the guest
+  page root (`e/[slug]/page.tsx`) and the builder's live-preview pane
+  (`page-builder.tsx`) — the two font classNames are present in the
+  render tree purely to make Next emit that theme's stylesheet; the
+  actual applied font comes from the CSS vars via inline `style`, so
+  there's no ambiguity between the two mechanisms. Confirmed live: a
+  Fiesta event's `<h1>` computes to Bricolage Grotesque, a Classic Gold
+  event's to Cormorant Garamond — same page, same component, different
+  theme.
+- **Guest-page block polish**: hero title now fluid (`clamp()`) and set in
+  the theme's display font instead of a fixed Studio-style size; countdown
+  digits tabular + display font; RSVP confirmation heading in display
+  font; venue map corner radius bumped to a more premium mask
+  (`rounded-lg` → `rounded-2xl`). RSVP form inputs/buttons were already
+  themed on `--t-*` tokens from earlier work, so no change needed there.
+- **Footer line**: every guest page now ends with a discreet "Made with
+  Gatherie" line linking home, themed to the event's own colors (per
+  docs/05's nav rule: guest pages carry no Studio chrome except this one
+  line).
+
+**Verified**: `npm run build` + `npx eslint` clean (one real lint fix — a
+raw `<a href="/">` in the new footer swapped for `next/link`; the other
+4 eslint errors reported are pre-existing `set-state-in-effect` findings
+in files this session didn't touch the effect logic of, not new).
+Live-scripted: created a Fiesta event and a Classic Gold event end-to-end
+(signup → theme picker → settings → invite link → guest page), confirmed
+each renders its own distinct font family with zero page errors, and that
+a pre-existing theme id (Classic Gold) still renders correctly alongside
+the new one (no regression for old events).

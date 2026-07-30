@@ -15,7 +15,7 @@ export function VenueMap({
       <p className="mt-1 text-center text-base font-medium text-[var(--t-fg)]">{venueName}</p>
       <p className="text-center text-sm text-[var(--t-fg)]/70">{venueAddress}</p>
 
-      <div className="mt-3 overflow-hidden rounded-lg border border-[var(--t-accent)]/25">
+      <div className="mt-3 overflow-hidden rounded-2xl border border-[var(--t-accent)]/25">
         <iframe
           src={embedUrl}
           title="Venue location map"

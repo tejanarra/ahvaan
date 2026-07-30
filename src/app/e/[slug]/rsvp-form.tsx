@@ -287,7 +287,12 @@ export function RsvpForm({
     return (
       <div className="w-full space-y-6">
         <div className="rounded-lg border border-[var(--t-accent)]/25 bg-[var(--t-surface)] p-5 text-center sm:p-6">
-          <p className="text-base font-medium uppercase tracking-wide text-[var(--t-accent-dark)]">{heading}</p>
+          <p
+            className="text-xl text-[var(--t-accent-dark)]"
+            style={{ fontFamily: "var(--t-font-display)" }}
+          >
+            {heading}
+          </p>
           <div className="mt-4 space-y-1.5 text-sm text-[var(--t-fg)]/90">
             {schema.fields.map((field) => (
               <p key={field.id}>

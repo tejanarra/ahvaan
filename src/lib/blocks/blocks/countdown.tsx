@@ -74,7 +74,12 @@ export function CountdownRender({
         <div className="mt-2 inline-flex gap-4 text-[var(--t-fg)]">
           {(["days", "hours", "minutes", "seconds"] as const).map((unit) => (
             <div key={unit}>
-              <p className="text-2xl font-semibold">{remaining[unit]}</p>
+              <p
+                className="text-2xl tabular-nums"
+                style={{ fontFamily: "var(--t-font-display)" }}
+              >
+                {remaining[unit]}
+              </p>
               <p className="text-[10px] uppercase tracking-wide text-[var(--t-fg)]/60">{unit}</p>
             </div>
           ))}

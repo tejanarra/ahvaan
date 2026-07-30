@@ -167,7 +167,12 @@ export function HeroRender({ config, ctx }: { config: HeroConfig; ctx: PageRende
         </p>
       )}
       {config.showTitle !== false && event.title && (
-        <h1 className="mt-2 text-2xl font-semibold text-[var(--t-fg)] sm:text-3xl">{event.title}</h1>
+        <h1
+          className="mt-2 leading-[1.1] text-[var(--t-fg)]"
+          style={{ fontFamily: "var(--t-font-display)", fontSize: "clamp(1.75rem, 4vw + 1rem, 3rem)" }}
+        >
+          {event.title}
+        </h1>
       )}
       {config.showSubtitle !== false && event.subtitle && (
         <p className="mt-2 text-base text-[var(--t-fg)]/75">{event.subtitle}</p>

@@ -22,6 +22,7 @@ import type { FormSchema } from "@/lib/schemas/form-schema";
 import type { BlockInstance, BlockType, PageSchema } from "@/lib/blocks/types";
 import { BLOCK_REGISTRY, makeBlockInstance } from "@/lib/blocks/registry";
 import { getTheme, resolveThemeColors, THEMES, type ThemeId, type ThemeColorOverrides } from "@/lib/themes";
+import { resolveThemeFonts } from "@/lib/theme-fonts";
 import { CustomPageFrame } from "@/lib/blocks/custom-page-frame";
 import { PropertiesPanel, PageSettings, type CustomPageConfig } from "./properties-panel";
 import { ComponentPalette, PALETTE_DRAG_PREFIX } from "./component-palette";
@@ -290,6 +291,7 @@ export function PageBuilder({
   };
 
   const themeColors = resolveThemeColors(liveEvent.theme_id, themeOverrides);
+  const themeFonts = resolveThemeFonts(liveEvent.theme_id);
   const selectedBlock = findBlock(blocks, selectedPath);
 
   const openBlock = (path: BlockPath) => {
@@ -506,7 +508,11 @@ export function PageBuilder({
             </div>
           </div>
           <div
-            className="min-h-0 flex-1 overflow-auto bg-[var(--t-bg)] px-6 py-4"
+            className={cn(
+              "min-h-0 flex-1 overflow-auto bg-[var(--t-bg)] px-6 py-4",
+              themeFonts.bodyClassName,
+              themeFonts.displayClassName
+            )}
             style={
               {
                 "--t-bg": themeColors.background,
@@ -514,6 +520,9 @@ export function PageBuilder({
                 "--t-accent": themeColors.accent,
                 "--t-accent-dark": themeColors.accentDark,
                 "--t-surface": themeColors.surface,
+                "--t-font-display": themeFonts.displayVar,
+                "--t-font-body": themeFonts.bodyVar,
+                fontFamily: "var(--t-font-body)",
               } as CSSProperties
             }
           >
