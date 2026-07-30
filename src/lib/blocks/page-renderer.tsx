@@ -1,7 +1,21 @@
 import type { BlockInstance, ContainerLayoutMode, PageSchema } from "./types";
 import type { PageRenderContext } from "./context";
 import { BLOCK_REGISTRY } from "./registry";
-import { layoutWrapperStyle, parseInlineStyle } from "./layout-controls";
+import { blockResponsiveCss, layoutWrapperStyle, parseInlineStyle } from "./layout-controls";
+
+// Every block's own per-device `@media` rules (see blockResponsiveCss),
+// walked recursively into container children — collected once and emitted
+// as a single <style> tag rather than one per block, so a deeply nested
+// page doesn't end up with dozens of near-empty style elements.
+function collectResponsiveCss(blocks: BlockInstance[]): string {
+  return blocks
+    .flatMap((block) => {
+      const own = blockResponsiveCss(block.id, block.layout);
+      const nested = "children" in block ? collectResponsiveCss(block.children) : "";
+      return [own, nested].filter(Boolean);
+    })
+    .join("\n");
+}
 
 function RenderBlock({
   block,
@@ -26,18 +40,24 @@ function RenderBlock({
   ));
 
   return (
-    <div style={layoutWrapperStyle(block.layout, parentLayoutMode)}>
+    <div data-block-id={block.id} style={layoutWrapperStyle(block.layout, parentLayoutMode)}>
       <Render config={block.config} ctx={ctx} renderedChildren={renderedChildren} />
     </div>
   );
 }
 
 export function PageRenderer({ schema, ctx }: { schema: PageSchema; ctx: PageRenderContext }) {
+  const responsiveCss = collectResponsiveCss(schema.blocks);
+
   return (
     <div
       className="flex min-h-dvh flex-col gap-10 px-4 py-12 sm:py-16"
       style={{ fontFamily: schema.fontFamily || undefined, ...parseInlineStyle(schema.pageStyle) }}
     >
+      {/* Values are validated enums / generated block ids only — never
+          host-authored text — see blockResponsiveCss for the trust
+          argument that makes this safe unlike a host-controlled string. */}
+      {responsiveCss && <style dangerouslySetInnerHTML={{ __html: responsiveCss }} />}
       {schema.blocks.map((block) => (
         <RenderBlock key={block.id} block={block} ctx={ctx} />
       ))}

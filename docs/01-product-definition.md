@@ -93,8 +93,10 @@ place in the UI. Where two mechanisms overlap today, they are consolidated
 - Supabase Auth accounts; host-scoped multi-tenancy
 - Event CRUD + slug-addressed public pages
 - Block page builder (hero, text, image, image carousel, spacer, countdown,
-  rsvp-form, venue-map, container, custom-html) + layout controls + live
-  preview
+  rsvp-form, venue-map, container, custom-html) + layout controls
+  (per-block width/align/spacing, plus optional per-device mobile/tablet
+  overrides — hide, resize, or realign a block without touching desktop)
+  + live preview
 - Form builder with role-tagged fields + graceful stat degradation
 - Guest dashboard (tabs/search/sort/stats/edit) + invite links
 - Email invites + manual bulk reminders with `email_sends` audit log

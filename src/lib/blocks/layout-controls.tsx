@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
-import type { BlockAlign, BlockLayout } from "./types";
-import { BLOCK_WIDTH_PX, resolveBlockLayout } from "./types";
+import type { BlockAlign, BlockLayout, BreakpointOverride } from "./types";
+import { BLOCK_WIDTH_PX, MOBILE_MAX_PX, TABLET_MAX_PX, resolveBlockLayout } from "./types";
 
 const ALIGN_TO_MARGIN: Record<BlockAlign, Pick<CSSProperties, "marginLeft" | "marginRight">> = {
   left: { marginLeft: 0, marginRight: "auto" },
@@ -114,4 +114,76 @@ export function layoutWrapperStyle(
     ...(resolved.textColorOverride ? { "--t-fg": resolved.textColorOverride } : {}),
     ...parseInlineStyle(resolved.customCss),
   } as CSSProperties;
+}
+
+// `!important` on every declaration is load-bearing, not decoration: the
+// same wrapper div also carries an inline `style={layoutWrapperStyle(...)}`
+// (page-renderer.tsx) with its own max-width/margin/justify-content/
+// text-align always set — an inline `style` attribute beats any stylesheet
+// rule regardless of selector specificity *except* `!important`, so without
+// it every one of these media-query rules would be silently overridden and
+// do nothing.
+const ALIGN_TO_MARGIN_CSS: Record<BlockAlign, string> = {
+  left: "margin-left: 0 !important; margin-right: auto !important;",
+  center: "margin-left: auto !important; margin-right: auto !important;",
+  right: "margin-left: auto !important; margin-right: 0 !important;",
+};
+
+const ALIGN_TO_JUSTIFY_CSS: Record<BlockAlign, string> = {
+  left: "flex-start",
+  center: "center",
+  right: "flex-end",
+};
+
+function breakpointDeclarations(override: BreakpointOverride): string {
+  if (override.hidden) return "display: none !important;";
+  const decls: string[] = [];
+  if (override.width) {
+    const maxWidth = override.width === "full" ? "none" : `${BLOCK_WIDTH_PX[override.width]}px`;
+    decls.push(`max-width: ${maxWidth} !important;`);
+  }
+  if (override.align) {
+    decls.push(ALIGN_TO_MARGIN_CSS[override.align]);
+    decls.push(`text-align: ${override.align} !important;`);
+    // justify-content positions a block's own *content* within its box
+    // (layoutWrapperStyle's job 2 — matters for blocks like rsvp-form/
+    // venue-map that keep a smaller internal max-width regardless of the
+    // wrapper's width preset), so an align override needs to move this too,
+    // not just the box's own margins.
+    decls.push(`justify-content: ${ALIGN_TO_JUSTIFY_CSS[override.align]} !important;`);
+  }
+  return decls.join(" ");
+}
+
+// Real `@media` CSS for one block's mobile/tablet overrides. Every value
+// here comes from a validated enum (page-schema.ts's blockLayoutSchema) or
+// this app's own generated block id (crypto.randomUUID()) — never
+// host-authored free text — so interpolating straight into a `<style>` tag
+// (page-renderer.tsx) carries no injection risk, unlike parseInlineStyle's
+// customCss above which exists specifically to fence in untrusted text.
+//
+// Only used for the real guest page: the server can't know a visitor's
+// viewport ahead of render, so this has to be real responsive CSS. The
+// builder's own canvas instead swaps the effective layout directly based on
+// its explicit device-toggle state (editable-canvas.tsx) — a `@media` query
+// would evaluate against the actual browser window, not the canvas's
+// simulated device width, so it wouldn't preview correctly there anyway.
+export function blockResponsiveCss(blockId: string, layout: BlockLayout | undefined): string {
+  if (!layout?.mobile && !layout?.tablet) return "";
+  const selector = `[data-block-id="${blockId}"]`;
+  const rules: string[] = [];
+
+  if (layout.mobile) {
+    const decls = breakpointDeclarations(layout.mobile);
+    if (decls) rules.push(`@media (max-width: ${MOBILE_MAX_PX}px) { ${selector} { ${decls} } }`);
+  }
+  if (layout.tablet) {
+    const decls = breakpointDeclarations(layout.tablet);
+    if (decls) {
+      rules.push(
+        `@media (min-width: ${MOBILE_MAX_PX + 1}px) and (max-width: ${TABLET_MAX_PX}px) { ${selector} { ${decls} } }`
+      );
+    }
+  }
+  return rules.join("\n");
 }

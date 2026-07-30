@@ -39,6 +39,24 @@ export type BlockLayout = {
   // how many grid columns this element spans (e.g. 2 of 4 columns = half
   // width). Ignored (and hidden in the editor) otherwise.
   gridSpan?: number;
+  // Per-device overrides: unset fields on either fall back to the base
+  // align/width/hidden above (which is what "desktop" always means — there
+  // is no separate desktop override, the base fields *are* the desktop
+  // layout). `hidden` on its own lets a block be dropped from one device
+  // entirely without touching the others. Real guest page: enforced via
+  // real `@media` CSS (see layout-controls.tsx's blockResponsiveCss) since
+  // the server can't know a visitor's viewport ahead of render. Builder
+  // canvas: enforced via the explicit device-toggle state instead (see
+  // editable-canvas.tsx) — a real `@media` query would evaluate against
+  // the actual browser window, not the canvas's simulated device width.
+  mobile?: BreakpointOverride;
+  tablet?: BreakpointOverride;
+};
+
+export type BreakpointOverride = {
+  hidden?: boolean;
+  align?: BlockAlign;
+  width?: BlockWidth;
 };
 
 export const DEFAULT_BLOCK_LAYOUT: BlockLayout = { align: "center", width: "medium" };
@@ -49,6 +67,15 @@ export const BLOCK_WIDTH_PX: Record<Exclude<BlockWidth, "full">, number> = {
   large: 768,
 };
 
+// Matches Tailwind's own md/lg breakpoints (docs/05 "Breakpoints: Tailwind
+// defaults") — mobile is anything narrower than md, tablet is [md, lg),
+// desktop is lg and up. Shared by the live page's real `@media` rules and
+// the builder's Tablet/Mobile device-simulation widths (768/390 — see
+// page-builder.tsx's DEVICE_WIDTH_PX), so "what counts as mobile" agrees
+// everywhere it matters.
+export const MOBILE_MAX_PX = 767;
+export const TABLET_MAX_PX = 1023;
+
 export function resolveBlockLayout(layout: Partial<BlockLayout> | undefined): BlockLayout {
   return {
     align: layout?.align ?? DEFAULT_BLOCK_LAYOUT.align,
@@ -58,6 +85,8 @@ export function resolveBlockLayout(layout: Partial<BlockLayout> | undefined): Bl
     customCss: layout?.customCss,
     flexGrow: layout?.flexGrow,
     gridSpan: layout?.gridSpan,
+    mobile: layout?.mobile,
+    tablet: layout?.tablet,
   };
 }
 

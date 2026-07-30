@@ -697,6 +697,17 @@ export function PageBuilder({
     // the same one /e/[slug]/page.tsx uses) with zero editor chrome — the
     // definitive answer to "does my 0-padding layout actually look right,"
     // since there's no second implementation to drift from the real page.
+    //
+    // One known gap: per-device (mobile/tablet) layout overrides are real
+    // `@media` CSS on the live page (blockResponsiveCss), which evaluates
+    // against the actual browser window — not this simulated device-width
+    // box (see DEVICE_WIDTH_PX below). Toggling Tablet/Mobile here resizes
+    // the box correctly but won't trigger a narrower @media rule if this
+    // window itself is wide. Edit mode's device toggle IS accurate for
+    // those overrides (editable-canvas.tsx swaps the effective layout
+    // directly instead of relying on @media) — this Preview mode should be
+    // trusted for confirming those specifically on a real narrow window/
+    // device instead.
     <PageRenderer schema={{ version: 1, blocks, pageStyle, themeOverrides, fontFamily, customPage }} ctx={canvasCtx} />
   ) : (
     <div style={{ fontFamily: fontFamily || undefined }}>
@@ -709,6 +720,7 @@ export function PageBuilder({
         onMoveOut={handleMoveOut}
         containerOptions={containerOptions}
         onMoveTo={moveBlock}
+        device={device}
       />
     </div>
   );

@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import type { BlockAlign, BlockLayout, BlockWidth, ContainerLayoutMode } from "@/lib/blocks/types";
+import type { BlockAlign, BlockLayout, BlockWidth, BreakpointOverride, ContainerLayoutMode } from "@/lib/blocks/types";
 import { resolveBlockLayout } from "@/lib/blocks/types";
 import { ToggleGroup } from "@/components/ui/toggle-group";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const WIDTH_OPTIONS: { value: BlockWidth; label: string }[] = [
   { value: "small", label: "S" },
@@ -95,6 +97,78 @@ export function CustomCssField({
   );
 }
 
+const WIDTH_SELECT_LABEL: Record<BlockWidth, string> = {
+  small: "Small",
+  medium: "Medium",
+  large: "Large",
+  full: "Full",
+};
+
+// One device's override — leaving Width/Align at "Same as desktop" keeps
+// that field unset (inheriting whatever the desktop control above is set
+// to) rather than freezing in today's value, so changing the desktop
+// setting later still flows through to a device that never explicitly
+// overrode it.
+function BreakpointOverrideFields({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: BreakpointOverride | undefined;
+  onChange: (next: BreakpointOverride | undefined) => void;
+}) {
+  const hidden = value?.hidden ?? false;
+
+  const set = (patch: Partial<BreakpointOverride>) => {
+    const next = { ...value, ...patch };
+    // Drop the whole override object once every field is back to its
+    // unset/default state, so a block nobody customized per-device stays
+    // byte-for-byte the same as before this feature existed.
+    const isEmpty = !next.hidden && !next.align && !next.width;
+    onChange(isEmpty ? undefined : next);
+  };
+
+  return (
+    <div className="space-y-2 rounded-md border border-border p-2.5">
+      <label className="flex items-center gap-2 text-xs font-medium text-foreground">
+        <Checkbox checked={hidden} onChange={(e) => set({ hidden: e.target.checked || undefined })} />
+        Hide on {label}
+      </label>
+      {!hidden && (
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1">
+            <span className="text-xs text-muted">Width</span>
+            <Select
+              value={value?.width ?? ""}
+              onChange={(e) => set({ width: e.target.value ? (e.target.value as BlockWidth) : undefined })}
+            >
+              <option value="">Same as desktop</option>
+              {WIDTH_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {WIDTH_SELECT_LABEL[opt.value]}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <span className="text-xs text-muted">Align</span>
+            <Select
+              value={value?.align ?? ""}
+              onChange={(e) => set({ align: e.target.value ? (e.target.value as BlockAlign) : undefined })}
+            >
+              <option value="">Same as desktop</option>
+              <option value="left">Left</option>
+              <option value="center">Center</option>
+              <option value="right">Right</option>
+            </Select>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function LayoutControls({
   layout,
   onChange,
@@ -112,6 +186,7 @@ export function LayoutControls({
   const [advancedOpen, setAdvancedOpen] = useState(
     Boolean(resolved.minHeightPx || resolved.textColorOverride || resolved.customCss)
   );
+  const [deviceOpen, setDeviceOpen] = useState(Boolean(resolved.mobile || resolved.tablet));
 
   // The Width preset has no visible effect at all inside a grid container
   // (grid tracks size the block, not this preset) or once a Row-share value
@@ -180,6 +255,34 @@ export function LayoutControls({
             className="h-7 w-16 px-2 text-xs"
           />
           <span className="text-muted">of this container&rsquo;s grid columns</span>
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={() => setDeviceOpen((v) => !v)}
+        className="flex items-center gap-1 text-xs font-medium text-accent hover:underline"
+      >
+        {deviceOpen ? "Hide per-device options" : "Per-device options"}
+        <span aria-hidden="true">{deviceOpen ? "▲" : "▼"}</span>
+      </button>
+
+      {deviceOpen && (
+        <div className="space-y-2 border-t border-border pt-3">
+          <p className="text-xs text-muted-foreground">
+            Hide, resize, or realign this block on mobile/tablet without changing how it looks on desktop. Use
+            the Desktop/Tablet/Mobile toggle in the canvas toolbar to preview it.
+          </p>
+          <BreakpointOverrideFields
+            label="mobile"
+            value={resolved.mobile}
+            onChange={(mobile) => onChange({ ...resolved, mobile })}
+          />
+          <BreakpointOverrideFields
+            label="tablet"
+            value={resolved.tablet}
+            onChange={(tablet) => onChange({ ...resolved, tablet })}
+          />
         </div>
       )}
 

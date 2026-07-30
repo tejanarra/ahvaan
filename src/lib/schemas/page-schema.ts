@@ -22,6 +22,14 @@ const BLOCK_TYPES: BlockType[] = [
   "container",
 ];
 
+const breakpointOverrideSchema = z
+  .object({
+    hidden: z.boolean().optional(),
+    align: z.enum(["left", "center", "right"]).optional(),
+    width: z.enum(["small", "medium", "large", "full"]).optional(),
+  })
+  .passthrough();
+
 const blockLayoutSchema = z
   .object({
     align: z.enum(["left", "center", "right"]),
@@ -31,6 +39,8 @@ const blockLayoutSchema = z
     customCss: z.string().max(4000).optional(),
     flexGrow: z.number().finite().optional(),
     gridSpan: z.number().finite().optional(),
+    mobile: breakpointOverrideSchema.optional(),
+    tablet: breakpointOverrideSchema.optional(),
   })
   .partial({ align: true, width: true })
   .passthrough();

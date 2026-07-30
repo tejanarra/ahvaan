@@ -4,10 +4,12 @@ import { useState, type ReactNode } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { BlockInstance, ContainerLayoutMode } from "@/lib/blocks/types";
+import type { BlockInstance, BlockLayout, ContainerLayoutMode } from "@/lib/blocks/types";
+import { resolveBlockLayout } from "@/lib/blocks/types";
 import type { PageRenderContext } from "@/lib/blocks/context";
 import { BLOCK_REGISTRY } from "@/lib/blocks/registry";
 import { layoutWrapperStyle } from "@/lib/blocks/layout-controls";
+import type { DeviceWidth } from "./page-builder";
 import { ConfirmIconButton } from "@/components/confirm-icon-button";
 import { DragHandleIcon, EditIcon, MoveOutIcon, ChevronDownIcon } from "@/components/icons";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
@@ -23,6 +25,35 @@ export type ContainerOption = { id: string; label: string };
 function descendantContainerIds(block: BlockInstance): string[] {
   if (!("children" in block)) return [];
   return block.children.flatMap((c) => ("children" in c ? [c.id, ...descendantContainerIds(c)] : []));
+}
+
+const DEVICE_LABEL: Record<Exclude<DeviceWidth, "desktop">, string> = {
+  tablet: "Tablet",
+  mobile: "Mobile",
+};
+
+// The real guest page enforces mobile/tablet overrides via actual `@media`
+// CSS (see blockResponsiveCss) since the server can't know a visitor's
+// viewport ahead of render. The canvas instead already knows exactly which
+// device is being simulated (the Desktop/Tablet/Mobile toggle) — a `@media`
+// query here would evaluate against the real browser window, not the
+// canvas's simulated device width, so it wouldn't preview correctly. Swapping
+// the effective layout in JS, keyed off that same toggle, does.
+function effectiveLayoutForDevice(
+  layout: BlockLayout | undefined,
+  device: DeviceWidth
+): { layout: BlockLayout; hiddenForDevice: boolean } {
+  const resolved = resolveBlockLayout(layout);
+  const override = device === "mobile" ? resolved.mobile : device === "tablet" ? resolved.tablet : undefined;
+  if (!override) return { layout: resolved, hiddenForDevice: false };
+  return {
+    layout: {
+      ...resolved,
+      align: override.align ?? resolved.align,
+      width: override.width ?? resolved.width,
+    },
+    hiddenForDevice: Boolean(override.hidden),
+  };
 }
 
 // The canvas *is* the real guest-facing render (same BLOCK_REGISTRY.Render
@@ -48,6 +79,7 @@ function EditableBlock({
   hoveredPath,
   onHover,
   onHoverEnd,
+  device,
 }: {
   block: BlockInstance;
   containerId: string | null;
@@ -89,6 +121,7 @@ function EditableBlock({
   hoveredPath: BlockPath | null;
   onHover: (path: BlockPath) => void;
   onHoverEnd: (path: BlockPath) => void;
+  device: DeviceWidth;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver } = useSortable({ id: block.id });
   const def = BLOCK_REGISTRY[block.type];
@@ -104,8 +137,10 @@ function EditableBlock({
   // instead of one long scroll of every nested block's full render.
   const [collapsed, setCollapsed] = useState(false);
 
+  const { layout: effectiveLayout, hiddenForDevice } = effectiveLayoutForDevice(block.layout, device);
+
   const wrapperStyle = {
-    ...layoutWrapperStyle(block.layout, parentLayoutMode),
+    ...layoutWrapperStyle(effectiveLayout, parentLayoutMode),
     transform: CSS.Transform.toString(transform),
     transition,
   };
@@ -153,6 +188,7 @@ function EditableBlock({
                 hoveredPath={hoveredPath}
                 onHover={onHover}
                 onHoverEnd={onHoverEnd}
+                device={device}
               />
             ))}
           </SortableContext>,
@@ -163,6 +199,7 @@ function EditableBlock({
   return (
     <div
       ref={setNodeRef}
+      data-block-id={block.id}
       style={wrapperStyle}
       onMouseOver={(e) => {
         e.stopPropagation();
@@ -177,9 +214,21 @@ function EditableBlock({
         // was never added at all. `layoutWrapperStyle`'s own minHeightPx,
         // when set, overrides this via the inline style above (more specific).
         "relative min-h-14 rounded-lg",
-        isDragging && "opacity-50"
+        isDragging && "opacity-50",
+        // Never actually hidden in the canvas (unlike the real guest page) —
+        // a fully-hidden block here couldn't be re-selected to undo the
+        // setting. Dimmed + labeled instead.
+        hiddenForDevice && "opacity-40"
       )}
     >
+      {hiddenForDevice && (
+        <div
+          style={{ zIndex: controlsZIndex }}
+          className="absolute -top-3.5 left-1 rounded-md border border-dashed border-border bg-background px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted"
+        >
+          Hidden on {DEVICE_LABEL[device as Exclude<DeviceWidth, "desktop">]}
+        </div>
+      )}
       <div
         className={cn(
           "pointer-events-none absolute -inset-1.5 rounded-xl ring-2 transition-all",
@@ -381,6 +430,7 @@ export function EditableCanvas({
   onMoveOut,
   onMoveTo,
   containerOptions,
+  device,
 }: {
   blocks: BlockInstance[];
   ctx: PageRenderContext;
@@ -390,6 +440,7 @@ export function EditableCanvas({
   onMoveOut: (path: BlockPath) => void;
   onMoveTo: (path: BlockPath, destContainerId: string | null) => void;
   containerOptions: ContainerOption[];
+  device: DeviceWidth;
 }) {
   // Tracks the single deepest block currently under the pointer — see the
   // note on EditableBlock's `hoveredPath` prop for why this replaced CSS
@@ -421,6 +472,7 @@ export function EditableCanvas({
             hoveredPath={hoveredPath}
             onHover={setHoveredPath}
             onHoverEnd={onHoverEnd}
+            device={device}
           />
         ))}
         <EndOfListDropZone containerId={null} />
