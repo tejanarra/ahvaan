@@ -5,6 +5,7 @@ import { listInvites } from "@/lib/data/invites";
 import { listRsvps } from "@/lib/data/rsvps";
 import { GuestDashboard } from "@/components/guest-dashboard/guest-dashboard";
 import { ShareInviteButton } from "@/components/guest-dashboard/share-invite-button";
+import { ExportCsvButton } from "@/components/guest-dashboard/export-csv-button";
 import type { PendingInvite, RespondedGuest } from "@/components/guest-dashboard/guest-card";
 import { resolveFormSchema, findFieldByRole, getFieldValue } from "@/lib/schemas/form-schema";
 import type { Responses } from "@/lib/schemas/form-schema";
@@ -35,6 +36,7 @@ export default async function EventGuestsPage({
   const plusOnesField = findFieldByRole(schema, "plus_ones");
 
   const rsvpByInvite = new Map(rsvps.filter((r) => r.invite_id).map((r) => [r.invite_id, r]));
+  const inviteById = new Map(invites.map((inv) => [inv.id, inv]));
 
   const pendingInvites: PendingInvite[] = invites
     .filter((inv) => !rsvpByInvite.has(inv.id))
@@ -54,6 +56,7 @@ export default async function EventGuestsPage({
       id: r.id,
       inviteId: r.invite_id,
       name: (typeof nameValue === "string" && nameValue) || r.name,
+      email: (r.invite_id && inviteById.get(r.invite_id)?.email) || null,
       attending: attendingField ? attendingValue === "yes" : null,
       additionalGuests: Array.isArray(plusOnesValue) ? plusOnesValue : [],
       responses,
@@ -84,7 +87,15 @@ export default async function EventGuestsPage({
     <div>
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-sm font-semibold text-foreground">Guests</h2>
-        <ShareInviteButton eventId={event.id} eventSlug={event.slug} eventTitle={event.title} />
+        <div className="flex items-center gap-2">
+          <ExportCsvButton
+            eventSlug={event.slug}
+            schema={schema}
+            pendingInvites={pendingInvites}
+            respondedGuests={respondedGuests}
+          />
+          <ShareInviteButton eventId={event.id} eventSlug={event.slug} eventTitle={event.title} />
+        </div>
       </div>
 
       <div className="mt-4">

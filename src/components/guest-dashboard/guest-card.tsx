@@ -66,6 +66,7 @@ export type RespondedGuest = {
   id: string;
   inviteId: string | null;
   name: string;
+  email: string | null;
   attending: boolean | null;
   additionalGuests: string[];
   responses: Responses;
