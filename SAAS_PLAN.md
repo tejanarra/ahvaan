@@ -935,3 +935,67 @@ pass with zero page errors throughout.
 Build + `npx eslint src` clean across every change in this pass (only the
 4 pre-existing `set-state-in-effect` findings remain, unchanged from
 before this session).
+
+## Status: Phase 4 — feature completion (2026-07-30)
+
+All five doc-01 "New in v1" items, each its own commit:
+
+- **Draft/published status**: new events start `draft` (existing events
+  stayed `published` via the column default from Phase 0's migration).
+  Public `/e/[slug]` 404s a draft for everyone except its own host, and
+  only via an explicit `?preview=1` link (shows a small draft-preview
+  banner) — never just by a signed-in host guessing another host's slug.
+  Settings gets a Visibility card (Publish/Unpublish); dashboard card and
+  event header both show a Draft/Published badge; the header's public
+  link becomes "Preview page" (with the param) while draft.
+- **RSVP deadline**: optional datetime field in Settings. Past it, the
+  rsvp-form block shows a themed closed note (heading/message
+  configurable, same pattern as its other states) instead of the form —
+  a guest who already responded still sees their confirmation, just
+  can't reopen/edit it. Enforced server-side in `submitRsvpFromFormData`,
+  not just hidden; host-side manual edits from the Guests tab are
+  unaffected.
+- **Image upload**: new `event-images` public-read Supabase Storage
+  bucket (service-role write only, 5MB/jpeg-png-webp-gif limits enforced
+  both at the DB level and in app code), provisioned by the same
+  idempotent `schema-saas.sql` hosts already run. A shared
+  `ImageUploadField` (upload button + URL-paste fallback) replaced the
+  plain URL inputs on the hero cover image and the Image block — the
+  hero cover image previously had no editable UI at all despite the
+  render path already supporting it, now wired through the same
+  debounced event-fields save the rest of the Hero editor uses.
+- **CSV export**: "Export CSV" button in the Guests tab header, built
+  client-side from data the page already fetched. One row per invite
+  (pending or responded), Name/Email/Status/Responded-at, then one
+  column per current form field by label. UTF-8 BOM + RFC 4180 quoting
+  for Excel/Numbers compatibility with non-ASCII names and embedded
+  commas/quotes.
+- **Password reset**: `/forgot-password` (identical response whether or
+  not the email has an account) → Supabase's PKCE reset-email flow →
+  `/reset-password`, where a small browser-only Supabase client exchanges
+  the emailed `?code=` for a session (the one step that has to run
+  client-side) before a server action updates the password and redirects
+  into the dashboard.
+
+Also fixed two RSVP-form edge cases found while starting this pass, each
+its own commit: a host emptying the form to zero fields silently reverted
+to the default 3-field form on the live guest page while the builder's own
+preview showed it empty (now honored as a real, intentional shape);
+removing the name-role field blanked every future guest's name to the
+literal string "Guest" instead of falling back to the invite's own name
+(now it does); and there was no way to re-add a built-in
+name/attending/plus-ones question once deleted (new "+ Name" / "+
+Attending?" / "+ Plus ones" buttons appear for whichever built-in roles
+are currently missing).
+
+**Verified**: `npm run build` clean after every commit; `npx eslint` shows
+only the same pre-existing `set-state-in-effect` findings as before this
+phase (one new occurrence in `reset-password/page.tsx` was restructured,
+not suppressed, to avoid adding a fifth). Not verified: a live Supabase
+email round-trip for the password-reset flow (needs `RESEND`-equivalent
+inbox access this session doesn't have) — the code path was traced
+against Supabase's documented PKCE reset flow instead.
+
+Phase 4 gate items still outstanding, deliberately deferred to Phase 5/6:
+image resizing/`sizes` (doc 08), and the live regression pass a real
+browser session would give (doc 08's checklist, doc 07 Phase 6).
