@@ -244,6 +244,9 @@ export function RsvpForm({
   guestName,
   venueName,
   venueAddress,
+  confirmedYesHeading = "You're on the list!",
+  confirmedNoHeading = "Thanks for letting us know",
+  showVenueOnConfirmation = true,
 }: {
   eventId: string;
   inviteId: string;
@@ -252,6 +255,12 @@ export function RsvpForm({
   guestName?: string;
   venueName: string | null;
   venueAddress: string | null;
+  // Post-submit confirmation copy — configurable per event via the
+  // rsvp-form block's own settings (previously hardcoded with no way for a
+  // host to adjust it).
+  confirmedYesHeading?: string;
+  confirmedNoHeading?: string;
+  showVenueOnConfirmation?: boolean;
 }) {
   const [state, formAction, pending] = useActionState(submitRsvp, initialState);
 
@@ -274,14 +283,16 @@ export function RsvpForm({
   const plusOnesField = findFieldByRole(schema, "plus_ones");
   const isDeclining = attendingField ? asString(values[attendingField.id]) === "no" : false;
 
-  const venueMap = venueAddress && <VenueMap venueName={venueName || "Venue"} venueAddress={venueAddress} />;
+  const venueMap = venueAddress && showVenueOnConfirmation && (
+    <VenueMap venueName={venueName || "Venue"} venueAddress={venueAddress} />
+  );
 
   if (mode === "view" && saved) {
     const headingField = findFieldByRole(schema, "attending");
     const heading = headingField
       ? asString(saved[headingField.id]) === "yes"
-        ? "You're on the list!"
-        : "Thanks for letting us know"
+        ? confirmedYesHeading
+        : confirmedNoHeading
       : "Thanks for your response!";
 
     return (

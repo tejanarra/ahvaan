@@ -823,3 +823,115 @@ a block, clears after Save — confirming the fix, not just the feature.
 **Phase 2 is now complete** per `docs/07-build-phases.md`'s item list,
 with the one explicit exception (Style-panel tab reorganization) called
 out above.
+
+## Status: Page builder overhaul — nesting, DnD reliability, embeds (2026-07-30)
+
+A large, host-feedback-driven pass fixing the page builder's layout/nesting
+system, which turned out to have several real, confirmed bugs beneath the
+"finicky" complaint — not just a UX polish pass.
+
+**Drag-and-drop reliability** (`page-builder.tsx`, `editable-canvas.tsx`):
+- Moving an *existing* block onto an empty container (or the newly-added
+  always-present end-of-list drop zone) was completely unhandled — only
+  brand-new palette blocks had this case covered. Fixed, and extended to
+  containers-into-containers too.
+- Added a persistent `EndOfListDropZone` to every list (top-level and each
+  container's children) — previously only a *totally* empty list had any
+  drop target past the last item, so dropping "at the end" or dragging a
+  block out of a container into open space silently no-opped.
+- Added click-based, drag-free alternatives that don't depend on hitting a
+  precise drop target: a "Move out" one-click action and a general
+  "Move to…" menu (any container or the top level) on every block's canvas
+  toolbar, built on the same `moveBlock` primitive as the existing
+  "Position" dropdown in each block's edit modal.
+
+**Nested containers actually work now** (`page-builder.tsx`,
+`json-schema-editor.tsx`, `lib/schemas/page-schema.ts` already supported
+depth ≥1 — only the *app* didn't):
+- Every tree helper (`getBlockList`, `setBlockList`, `listContaining`,
+  `blockTypeAndLabelForId`) only ever searched one level deep. A container
+  nested inside another container (buildable via the JSON code editor,
+  which the schema always allowed) was invisible to drag/drop and most
+  lookups. Rewritten to walk the tree recursively, with cycle-safe
+  container-option filtering (`collectContainerIds`) so a container can
+  never be moved into itself or its own descendant.
+- The JSON editor's own separate validator explicitly *rejected* nested
+  containers with a hardcoded one-level check — relaxed to match the real
+  depth cap (8), and its duplicate-id check was fixed to walk the whole
+  tree instead of two levels.
+- JSON editor rebuilt as one collapsible section per top-level block (was
+  a single flat textarea for the whole page) — each section applies and
+  validates independently.
+
+**Block naming**: blocks can now be given a host-chosen name (shown in the
+canvas chip and every "Move to…" menu, indented by nesting depth) instead
+of only the generic type label — makes multiple same-type containers
+(e.g. "Left Column"/"Right Column") distinguishable.
+
+**Canvas toolbar collisions** (the actual root cause behind "the edit/drag
+menu is getting buried"): CSS `:hover`/`group-hover` bubbles to *every*
+DOM ancestor, so hovering a nested block also counted as hovering every
+container wrapping it — both toolbars appeared simultaneously, overlapping
+(confirmed via a host screenshot). Replaced with JS-tracked "deepest
+hovered block" state (`onMouseOver` + `stopPropagation()`, innermost
+element wins) so exactly one toolbar shows at a time. Also: containers no
+longer render a full-cover "click to edit" overlay over their own body —
+that overlay was sitting on top of every nested child's own interactive
+controls, silently eating clicks meant for them. A container's own
+controls are now permanently visible instead of hover-gated (a container
+padded/gapped to 0px has no exposed background left to hover at all once
+it holds children — otherwise its own edit/move/delete became
+unreachable). Toolbar z-index now scales with nesting depth as a second
+layer of defense. Editor-only minimum spacing (4px) was also added around
+every nested child regardless of the container's own configured gap/
+padding, which still applies exactly as set on the real guest page.
+
+**Simplified Layout panel** (`components/builder/layout-controls-ui.tsx`):
+Width/Align stay always visible; Min height, Text color, and Custom CSS
+moved behind a single "Advanced options" disclosure. Fixed a genuinely
+dead control: the Width preset had zero visible effect inside a grid
+container (grid columns size the block instead) or once a Row-share value
+was set — it's now hidden with a one-line explanation instead of looking
+interactive and doing nothing. The two "Custom CSS" fields that appeared
+identically labeled inside a Container block's edit modal (one for its
+outer position, one for its own inside styling) are now clearly
+disambiguated, and the generic block-level CSS presets were changed from
+atomic single-property snippets (often invisible alone, e.g. border-radius
+with no background) to bundled, guaranteed-visible presets.
+
+**Component embedding in custom code** (new): `lib/blocks/shortcodes.ts` —
+writing `{{rsvp_form}}` or `{{venue_map}}` anywhere in a custom-HTML block
+or the whole-page custom mode gets it replaced, server-side, with real
+functional markup. The venue map is pure static HTML (a Maps embed + a
+link). The RSVP form needed a new public endpoint (`POST /api/rsvp`,
+`src/app/api/rsvp/route.ts`) since a sandboxed opaque-origin iframe can't
+invoke a Next.js Server Action (no same-origin fetch with the internal
+action-id header) — a plain HTML `<form method="post">` has no such
+restriction. Both the server action and the new route now share one
+validated implementation (`lib/rsvp-submit.ts`) instead of duplicating
+logic. Fixed a real bug surfaced while testing this: a malformed
+(non-UUID) invite/event id threw an uncaught Postgres error (500) instead
+of the intended graceful "invalid or expired" message — now caught.
+
+**RSVP form finer control**: the "By invitation only" note and the
+post-submit confirmation (heading text, whether the venue map shows) were
+previously hardcoded with zero host control — both are now block config
+fields (`noInviteHeading`/`noInviteMessage`,
+`confirmedYesHeading`/`confirmedNoHeading`/`showVenueOnConfirmation`).
+
+**Verified live** throughout via scripted browser sessions: drag into an
+empty container, drag into a non-empty one, click-based move-out and
+move-to (including container-to-container), the exact nested-container
+JSON the host provided (applied via the code editor, both inner
+containers correctly droppable and named), collapse/expand, only one
+toolbar visible when hovering a nested block (confirmed via computed
+opacity, matching the reported screenshot scenario now fixed), a
+container's own edit action reachable without hovering empty space, the
+`{{rsvp_form}}`/`{{venue_map}}` shortcodes rendering inside the sandboxed
+iframe, `/api/rsvp` both succeeding and gracefully rejecting bad input,
+and a full signup → event → invite → guest RSVP → dashboard regression
+pass with zero page errors throughout.
+
+Build + `npx eslint src` clean across every change in this pass (only the
+4 pre-existing `set-state-in-effect` findings remain, unchanged from
+before this session).

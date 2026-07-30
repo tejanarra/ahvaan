@@ -148,10 +148,10 @@ export function PageSettings({
         <ToggleGroup options={FONT_OPTIONS} value={fontFamily} onChange={onFontFamilyChange} />
       </PanelSection>
 
-      <PanelSection title="Page CSS" hint="Applies to the page's root element — layout (flex/grid), background, max-width, etc.">
+      <PanelSection title="Page CSS" hint="For hosts comfortable with CSS — arranges or styles the whole page, not one block.">
         <CustomCssField
-          label="Edit CSS"
-          helpText="Any CSS property, applied to the whole page."
+          label="Custom CSS (whole page)"
+          helpText="Tap a button below to add a ready-made layout, or type your own."
           guideExamples={PAGE_CSS_GUIDE_EXAMPLES}
           value={pageStyle}
           onChange={onPageStyleChange}
@@ -160,7 +160,7 @@ export function PageSettings({
 
       <PanelSection
         title="Complete custom page"
-        hint="Replaces the whole page below with your own HTML/CSS/JS in a sandboxed frame — the blocks list is ignored while this is on, but not deleted."
+        hint={'Replaces the whole page below with your own HTML/CSS/JS in a sandboxed frame — the blocks list is ignored while this is on, but not deleted. Write "{{rsvp_form}}" or "{{venue_map}}" anywhere in the HTML to embed the real, working RSVP form or venue map.'}
       >
         <label className="flex items-center gap-2 text-sm font-medium text-foreground">
           <Checkbox checked={customPage.enabled} onChange={(e) => onCustomPageChange({ ...customPage, enabled: e.target.checked })} />
@@ -273,9 +273,19 @@ export function PropertiesPanel({
       <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
         <div className="flex items-center gap-2.5">
           <BlockTypeBadge type={selectedBlock.type} />
-          <p className="flex-1 truncate text-sm font-medium text-foreground">{def.label}</p>
-          <ConfirmIconButton label="Remove block" confirmText={`Remove "${def.label}" from the page?`} onConfirm={async () => onRemoveSelected()} />
+          <input
+            type="text"
+            value={selectedBlock.name ?? ""}
+            onChange={(e) => onChangeSelected({ ...selectedBlock, name: e.target.value || undefined } as BlockInstance)}
+            placeholder={def.label}
+            aria-label="Block name"
+            className="min-w-0 flex-1 truncate rounded-md border border-transparent bg-transparent px-1.5 py-1 text-sm font-medium text-foreground hover:border-border focus:border-accent focus:bg-surface focus:outline-none"
+          />
+          <ConfirmIconButton label="Remove block" confirmText={`Remove "${selectedBlock.name || def.label}" from the page?`} onConfirm={async () => onRemoveSelected()} />
         </div>
+        <p className="-mt-2 text-xs text-muted-foreground">
+          {selectedBlock.name ? `${def.label} block` : "Give this block a name to find it easily, especially inside containers."}
+        </p>
 
         <PanelSection title="Layout">
           <LayoutControls

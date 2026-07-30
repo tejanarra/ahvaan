@@ -36,15 +36,46 @@ import { Modal } from "@/components/ui/modal";
 import { ToggleGroup } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/cn";
 
+// Every tree-manipulation helper below is recursive so nesting depth is
+// unlimited (containers can hold containers) — they originally only ever
+// searched one level deep, which meant a container placed inside another
+// container (buildable via the JSON code editor, since the schema itself
+// has always allowed it — see lib/schemas/page-schema.ts's depth cap) was
+// completely invisible to the visual builder: drag/drop, "Move to…", even
+// simple lookups silently failed for anything nested two levels down.
+
+// Recursively finds the children array belonging to the container with this
+// id, wherever it lives in the tree.
+function findContainerBlock(
+  blocks: BlockInstance[],
+  containerId: string
+): Extract<BlockInstance, { children: BlockInstance[] }> | null {
+  for (const b of blocks) {
+    if (b.id === containerId) return "children" in b ? b : null;
+    if ("children" in b) {
+      const found = findContainerBlock(b.children, containerId);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+function findContainerChildren(blocks: BlockInstance[], containerId: string): BlockInstance[] | null {
+  return findContainerBlock(blocks, containerId)?.children ?? null;
+}
+
 function getBlockList(blocks: BlockInstance[], containerId: string | null): BlockInstance[] {
   if (containerId === null) return blocks;
-  const container = blocks.find((b) => b.id === containerId);
-  return container && "children" in container ? container.children : [];
+  return findContainerChildren(blocks, containerId) ?? [];
 }
 
 function setBlockList(blocks: BlockInstance[], containerId: string | null, next: BlockInstance[]): BlockInstance[] {
   if (containerId === null) return next;
-  return blocks.map((b) => (b.id === containerId && "children" in b ? ({ ...b, children: next } as BlockInstance) : b));
+  return blocks.map((b) => {
+    if (b.id === containerId) return "children" in b ? ({ ...b, children: next } as BlockInstance) : b;
+    if ("children" in b) return { ...b, children: setBlockList(b.children, containerId, next) } as BlockInstance;
+    return b;
+  });
 }
 
 function findBlock(blocks: BlockInstance[], path: BlockPath | null): BlockInstance | null {
@@ -52,29 +83,54 @@ function findBlock(blocks: BlockInstance[], path: BlockPath | null): BlockInstan
   return getBlockList(blocks, path.containerId).find((b) => b.id === path.blockId) ?? null;
 }
 
-// Finds which list (top-level, or a specific container's children) a given
-// block id currently lives in. Only ids actually mounted as a droppable/
-// sortable item in the DOM can ever be `over` during a drag, so this doesn't
-// need to know which nested lists are currently visible — if `id` resolves
-// here, dnd-kit already found it as a real drop target.
+// Finds which list (top-level, or a specific container's children, at any
+// depth) a given block id currently lives in. Only ids actually mounted as
+// a droppable/sortable item in the DOM can ever be `over` during a drag, so
+// this doesn't need to know which nested lists are currently visible — if
+// `id` resolves here, dnd-kit already found it as a real drop target.
 function listContaining(id: string, blocks: BlockInstance[]): { containerId: string | null } | null {
   if (blocks.some((b) => b.id === id)) return { containerId: null };
   for (const b of blocks) {
-    if ("children" in b && b.children.some((c) => c.id === id)) return { containerId: b.id };
+    if ("children" in b) {
+      if (b.children.some((c) => c.id === id)) return { containerId: b.id };
+      const nested = listContaining(id, b.children);
+      if (nested) return nested;
+    }
   }
   return null;
 }
 
 function blockTypeAndLabelForId(blocks: BlockInstance[], id: string): { type: BlockType; label: string } | null {
-  const top = blocks.find((b) => b.id === id);
-  if (top) return { type: top.type, label: BLOCK_REGISTRY[top.type]?.label ?? top.type };
   for (const b of blocks) {
+    if (b.id === id) return { type: b.type, label: BLOCK_REGISTRY[b.type]?.label ?? b.type };
     if ("children" in b) {
-      const child = b.children.find((c) => c.id === id);
-      if (child) return { type: child.type, label: BLOCK_REGISTRY[child.type]?.label ?? child.type };
+      const found = blockTypeAndLabelForId(b.children, id);
+      if (found) return found;
     }
   }
   return null;
+}
+
+// Every container id in the tree — the block itself and its own descendants
+// (used to keep a container from being offered as a "Move to…" destination
+// for itself or for a block already inside it, which would create a cycle).
+function collectContainerIds(block: BlockInstance): string[] {
+  if (!("children" in block)) return [];
+  return [block.id, ...block.children.flatMap(collectContainerIds)];
+}
+
+// All containers anywhere in the tree, indented by depth so a nested
+// container's place in the hierarchy is visible in any destination list.
+function collectContainerOptions(blocks: BlockInstance[], depth = 0): { id: string; label: string }[] {
+  const options: { id: string; label: string }[] = [];
+  for (const b of blocks) {
+    if ("children" in b) {
+      const indent = depth > 0 ? "—".repeat(depth) + " " : "";
+      options.push({ id: b.id, label: `${indent}${b.name || BLOCK_REGISTRY[b.type]?.label || b.type}` });
+      options.push(...collectContainerOptions(b.children, depth + 1));
+    }
+  }
+  return options;
 }
 
 // pointerWithin resolves overlapping/nested droppables correctly (which
@@ -349,28 +405,36 @@ export function PageBuilder({
     }
   };
 
-  const handleMoveSelected = (destContainerId: string | null) => {
-    if (!selectedPath || destContainerId === selectedPath.containerId) return;
-    const block = findBlock(blocks, selectedPath);
+  // Shared move logic: "Position" dropdown (moves whatever's currently
+  // selected) and the canvas toolbar's one-click "Move out" button (moves a
+  // specific block by path, independent of selection) both relocate a block
+  // between containers/the top level without depending on drag-and-drop —
+  // precise drag targets can be fiddly to hit (host feedback: "unable to
+  // move to outer").
+  const moveBlock = (path: BlockPath, destContainerId: string | null) => {
+    if (destContainerId === path.containerId) return;
+    const block = getBlockList(blocks, path.containerId).find((b) => b.id === path.blockId);
     if (!block) return;
-    const withoutBlock = setBlockList(
-      blocks,
-      selectedPath.containerId,
-      getBlockList(blocks, selectedPath.containerId).filter((b) => b.id !== block.id)
-    );
-    const finalBlocks = setBlockList(withoutBlock, destContainerId, [...getBlockList(withoutBlock, destContainerId), block]);
-    setBlocks(finalBlocks);
-    setSelectedPath({ containerId: destContainerId, blockId: block.id });
+    const withoutBlock = setBlockList(blocks, path.containerId, getBlockList(blocks, path.containerId).filter((b) => b.id !== block.id));
+    setBlocks(setBlockList(withoutBlock, destContainerId, [...getBlockList(withoutBlock, destContainerId), block]));
+    if (selectedPath?.containerId === path.containerId && selectedPath?.blockId === path.blockId) {
+      setSelectedPath({ containerId: destContainerId, blockId: block.id });
+    }
   };
 
-  const containerOptions = blocks
-    .filter((b): b is Extract<BlockInstance, { children: BlockInstance[] }> => "children" in b)
-    .map((b) => ({ id: b.id, label: BLOCK_REGISTRY[b.type]?.label ?? b.type }));
+  const handleMoveSelected = (destContainerId: string | null) => {
+    if (!selectedPath) return;
+    moveBlock(selectedPath, destContainerId);
+  };
+
+  const handleMoveOut = (path: BlockPath) => moveBlock(path, null);
+
+  const containerOptions = collectContainerOptions(blocks);
 
   // The selected block's Layout section only shows the row-share/grid-span
   // ratio controls when it actually sits inside a row/grid container.
   const selectedParentContainer = selectedPath?.containerId
-    ? blocks.find((b): b is Extract<BlockInstance, { children: BlockInstance[] }> => "children" in b && b.id === selectedPath.containerId)
+    ? findContainerBlock(blocks, selectedPath.containerId) ?? undefined
     : undefined;
   const selectedParentLayoutMode = selectedParentContainer?.config.layoutMode ?? (selectedParentContainer ? "column" : undefined);
 
@@ -450,6 +514,32 @@ export function PageBuilder({
     if (!movingBlock) return;
     const movingIsContainer = "children" in movingBlock;
 
+    // Dropped onto a list's placeholder — either the "totally empty"
+    // placeholder or the always-present end-of-list drop strip, both using
+    // the same id scheme (see EndOfListDropZone in editable-canvas.tsx).
+    // This case was previously unhandled entirely for moving an *existing*
+    // block: that id never matches any real block id, so every check below
+    // fell through to a silent no-op. That's the exact "can't drag an
+    // existing block into a nested/empty container" bug. A moving
+    // container is allowed here too (nested layouts), guarded against
+    // dropping into itself or one of its own descendants.
+    if (overId.startsWith(EMPTY_LIST_PREFIX)) {
+      const raw = overId.slice(EMPTY_LIST_PREFIX.length);
+      const targetContainerId = raw === "root" ? null : raw;
+      const wouldCycle = movingIsContainer && collectContainerIds(movingBlock).includes(targetContainerId ?? "");
+      if (targetContainerId !== activeList.containerId && !wouldCycle) {
+        const withoutBlock = setBlockList(
+          blocks,
+          activeList.containerId,
+          getBlockList(blocks, activeList.containerId).filter((b) => b.id !== activeId)
+        );
+        setBlocks(
+          setBlockList(withoutBlock, targetContainerId, [...getBlockList(withoutBlock, targetContainerId), movingBlock])
+        );
+      }
+      return;
+    }
+
     if (!movingIsContainer) {
       const overContainer = blocks.find((b) => b.id === overId && b.id !== activeId);
       if (overContainer && "children" in overContainer && overContainer.id !== activeList.containerId) {
@@ -467,9 +557,13 @@ export function PageBuilder({
 
     const overList = listContaining(overId, blocks);
     if (!overList) return;
-    // Containers only ever live at the top level — never drop one inside
-    // another container's children.
-    if (movingIsContainer && overList.containerId !== null) return;
+    // A container CAN be dropped inside another container (nested layouts,
+    // e.g. two column-containers inside a row-container) — the schema has
+    // always allowed this depth (see lib/schemas/page-schema.ts's depth
+    // cap) and hosts already build it via the JSON code editor; the drag
+    // path just needs to refuse creating a cycle, i.e. never let a
+    // container land inside itself or one of its own descendants.
+    if (movingIsContainer && collectContainerIds(movingBlock).includes(overList.containerId ?? "")) return;
 
     if (activeList.containerId === overList.containerId) {
       const list = getBlockList(blocks, activeList.containerId);
@@ -500,7 +594,7 @@ export function PageBuilder({
         : null;
 
   const modalOpen = Boolean(selectedBlock) || pageSettingsOpen;
-  const modalTitle = selectedBlock ? BLOCK_REGISTRY[selectedBlock.type]?.label ?? selectedBlock.type : "Page settings";
+  const modalTitle = selectedBlock ? selectedBlock.name || BLOCK_REGISTRY[selectedBlock.type]?.label || selectedBlock.type : "Page settings";
 
   const canvas = (
     <DndContext sensors={sensors} collisionDetection={collisionDetection} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
@@ -551,7 +645,16 @@ export function PageBuilder({
             <div style={{ transform: `scale(${zoom / 100})`, transformOrigin: "top center" }}>
               <div style={{ maxWidth: DEVICE_WIDTH_PX[device] ? `${DEVICE_WIDTH_PX[device]}px` : undefined, margin: "0 auto" }}>
               {customPage.enabled ? (
-                <CustomPageFrame {...customPage} />
+                <CustomPageFrame
+                  {...customPage}
+                  shortcodes={{
+                    eventId: liveEvent.id,
+                    inviteId: "preview",
+                    venueName: liveEvent.venue_name,
+                    venueAddress: liveEvent.venue_address,
+                    schema: formSchema,
+                  }}
+                />
               ) : (
                 <div style={{ fontFamily: fontFamily || undefined }}>
                   <EditableCanvas
@@ -566,6 +669,9 @@ export function PageBuilder({
                     selectedPath={selectedPath}
                     onSelect={openBlock}
                     onRemove={handleRemoveBlock}
+                    onMoveOut={handleMoveOut}
+                    containerOptions={containerOptions}
+                    onMoveTo={moveBlock}
                   />
                 </div>
               )}

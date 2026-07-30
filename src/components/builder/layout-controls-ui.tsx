@@ -20,95 +20,77 @@ const ALIGN_OPTIONS: { value: BlockAlign; label: string }[] = [
   { value: "right", label: "➡" },
 ];
 
-const BLOCK_CSS_GUIDE_EXAMPLES: { label: string; snippet: string }[] = [
-  { label: "Background color", snippet: "background: #f4f4f5;" },
-  { label: "Rounded corners", snippet: "border-radius: 12px;" },
-  { label: "Border", snippet: "border: 1px solid #e4e4e7;" },
-  { label: "Shadow", snippet: "box-shadow: 0 4px 12px rgba(0,0,0,.08);" },
-  { label: "Padding", snippet: "padding: 24px;" },
-  { label: "Extra spacing above", snippet: "margin-top: 32px;" },
-  { label: "Text size", snippet: "font-size: 1.25rem;" },
+// Every example bundles 2-4 properties together so clicking one always
+// produces a *visible* change, regardless of which block it's applied to —
+// a single "border-radius: 12px;" on its own is invisible on an element
+// with no background, which was the #1 source of "I clicked it and
+// nothing happened." Labels describe the visible result, not the raw CSS.
+const BLOCK_CSS_PRESETS: { label: string; snippet: string }[] = [
+  { label: "Card background", snippet: "background: #ffffff; padding: 20px; border-radius: 12px;" },
+  { label: "Soft shadow", snippet: "box-shadow: 0 4px 16px rgba(0,0,0,.10); border-radius: 12px;" },
+  { label: "Thin border", snippet: "border: 1px solid rgba(0,0,0,.12); border-radius: 8px; padding: 16px;" },
+  { label: "Extra space above", snippet: "margin-top: 32px;" },
+  { label: "Extra space below", snippet: "margin-bottom: 32px;" },
 ];
 
 export const PAGE_CSS_GUIDE_EXAMPLES: { label: string; snippet: string }[] = [
-  { label: "Row layout", snippet: "display: flex; flex-direction: row; flex-wrap: wrap; gap: 24px;" },
-  { label: "Column layout", snippet: "display: flex; flex-direction: column; gap: 24px;" },
-  { label: "Grid, 2 columns", snippet: "display: grid; grid-template-columns: 1fr 1fr; gap: 24px;" },
-  { label: "Center everything", snippet: "align-items: center; justify-items: center;" },
-  { label: "Page background", snippet: "background: #fafafa;" },
-  { label: "Max page width", snippet: "max-width: 960px; margin-left: auto; margin-right: auto;" },
-  { label: "Page padding", snippet: "padding: 48px 16px;" },
-  { label: "Gap between blocks", snippet: "gap: 40px;" },
+  { label: "Side-by-side row", snippet: "display: flex; flex-direction: row; flex-wrap: wrap; gap: 24px; justify-content: center;" },
+  { label: "Centered column, capped width", snippet: "max-width: 720px; margin-left: auto; margin-right: auto;" },
+  { label: "Tinted page background", snippet: "background: #fafafa;" },
+  { label: "More breathing room between blocks", snippet: "gap: 48px;" },
 ];
+
+function CssPresetPicker({
+  value,
+  onChange,
+  examples,
+}: {
+  value: string | undefined;
+  onChange: (next: string) => void;
+  examples: { label: string; snippet: string }[];
+}) {
+  return (
+    <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+      {examples.map((example) => (
+        <button
+          key={example.label}
+          type="button"
+          onClick={() => onChange(value ? `${value.trim().replace(/;?$/, ";")} ${example.snippet}` : example.snippet)}
+          className="rounded-md border border-border px-2.5 py-1.5 text-left text-xs font-medium text-foreground hover:border-accent hover:bg-accent-soft"
+        >
+          + {example.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export function CustomCssField({
   value,
   onChange,
   label = "Custom CSS",
-  helpText = "Any CSS property, one per line or separated by ;. Applies only to this block.",
-  guideExamples = BLOCK_CSS_GUIDE_EXAMPLES,
-  defaultOpen,
+  helpText = "For hosts comfortable with CSS. Tap a button below to add a ready-made effect, or type your own.",
+  guideExamples = BLOCK_CSS_PRESETS,
 }: {
   value: string | undefined;
   onChange: (next: string) => void;
   label?: string;
   helpText?: string;
   guideExamples?: { label: string; snippet: string }[];
-  defaultOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(defaultOpen ?? Boolean(value));
-  const [showGuide, setShowGuide] = useState(false);
-
   return (
-    <div className="border-t border-border pt-3">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between text-xs font-medium uppercase tracking-wide text-muted hover:text-foreground"
-      >
-        <span>{label}</span>
-        <span>{open ? "▲" : "▼"}</span>
-      </button>
-
-      {open && (
-        <div className="mt-2 space-y-2">
-          <Textarea
-            value={value ?? ""}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder="border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,.08);"
-            rows={3}
-            spellCheck={false}
-            className="font-mono text-xs"
-          />
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-muted-foreground">{helpText}</p>
-            <button
-              type="button"
-              onClick={() => setShowGuide((v) => !v)}
-              className="shrink-0 text-xs font-medium text-accent hover:underline"
-            >
-              {showGuide ? "Hide examples" : "Show examples"}
-            </button>
-          </div>
-
-          {showGuide && (
-            <div className="grid grid-cols-1 gap-1 rounded-md border border-border bg-surface p-2 sm:grid-cols-2">
-              {guideExamples.map((example) => (
-                <button
-                  key={example.label}
-                  type="button"
-                  onClick={() => onChange(value ? `${value.trim().replace(/;?$/, ";")} ${example.snippet}` : example.snippet)}
-                  className="rounded px-2 py-1 text-left text-xs text-foreground hover:bg-surface-hover"
-                  title={`Add "${example.snippet}"`}
-                >
-                  <span className="text-muted-foreground">{example.label}:</span>{" "}
-                  <code className="font-mono">{example.snippet}</code>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+    <div className="space-y-2">
+      <p className="text-xs font-medium text-foreground">{label}</p>
+      <p className="text-xs text-muted-foreground">{helpText}</p>
+      <CssPresetPicker value={value} onChange={onChange} examples={guideExamples} />
+      <Textarea
+        value={value ?? ""}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="e.g. background: #ffffff; padding: 20px; border-radius: 12px;"
+        rows={3}
+        spellCheck={false}
+        className="font-mono text-xs"
+      />
     </div>
   );
 }
@@ -127,95 +109,142 @@ export function LayoutControls({
   parentLayoutMode?: ContainerLayoutMode;
 }) {
   const resolved = resolveBlockLayout(layout);
+  const [advancedOpen, setAdvancedOpen] = useState(
+    Boolean(resolved.minHeightPx || resolved.textColorOverride || resolved.customCss)
+  );
+
+  // The Width preset has no visible effect at all inside a grid container
+  // (grid tracks size the block, not this preset) or once a Row-share value
+  // is set inside a row (the share replaces "size to this preset" with
+  // "take this fraction of the row") — showing an interactive-looking
+  // control that silently does nothing was the exact "layout is finicky"
+  // complaint, so it's replaced with a one-line explanation instead.
+  const inGrid = parentLayoutMode === "grid";
+  const rowShareActive = parentLayoutMode === "row" && Boolean(resolved.flexGrow && resolved.flexGrow > 0);
+  const widthDisabled = inGrid || rowShareActive;
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-3 text-xs">
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-4">
         <div className="flex items-center gap-2">
-          <span className="text-muted">Width</span>
-          <ToggleGroup
-            options={WIDTH_OPTIONS}
-            value={resolved.width}
-            onChange={(width) => onChange({ ...resolved, width: width as BlockWidth })}
-          />
+          <span className="text-xs text-muted">Width</span>
+          {widthDisabled ? (
+            <span className="text-xs italic text-muted-foreground">
+              {inGrid ? "Set by this container's Grid columns" : "Set by Row share, below"}
+            </span>
+          ) : (
+            <ToggleGroup
+              options={WIDTH_OPTIONS}
+              value={resolved.width}
+              onChange={(width) => onChange({ ...resolved, width: width as BlockWidth })}
+            />
+          )}
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-muted">Align</span>
+          <span className="text-xs text-muted">Align</span>
           <ToggleGroup
             options={ALIGN_OPTIONS}
             value={resolved.align}
             onChange={(align) => onChange({ ...resolved, align: align as BlockAlign })}
           />
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-muted">Min height</span>
+      </div>
+
+      {parentLayoutMode === "row" && (
+        <div className="flex items-center gap-2 text-xs">
+          <span className="text-muted">Row share</span>
           <Input
             type="number"
             min={0}
-            step={10}
-            value={resolved.minHeightPx ?? ""}
-            onChange={(e) => onChange({ ...resolved, minHeightPx: e.target.value ? Number(e.target.value) : undefined })}
+            step={1}
+            value={resolved.flexGrow ?? ""}
+            onChange={(e) => onChange({ ...resolved, flexGrow: e.target.value ? Number(e.target.value) : undefined })}
             placeholder="auto"
-            className="h-7 w-20 px-2 text-xs"
+            className="h-7 w-16 px-2 text-xs"
           />
-          <span className="text-muted">px</span>
+          <span className="text-muted" title="e.g. 2 here + 1 on two siblings = this one takes half the row">
+            Leave blank to size to content, or set a number — a sibling with 2 takes twice the space of one with 1.
+          </span>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-muted">Text color</span>
-          <input
-            type="color"
-            value={resolved.textColorOverride ?? "#000000"}
-            onChange={(e) => onChange({ ...resolved, textColorOverride: e.target.value })}
-            className="h-7 w-7 cursor-pointer rounded border border-border bg-transparent p-0"
+      )}
+      {parentLayoutMode === "grid" && (
+        <div className="flex items-center gap-2 text-xs">
+          <span className="text-muted">Grid span</span>
+          <Input
+            type="number"
+            min={1}
+            max={12}
+            step={1}
+            value={resolved.gridSpan ?? 1}
+            onChange={(e) => onChange({ ...resolved, gridSpan: e.target.value ? Number(e.target.value) : undefined })}
+            className="h-7 w-16 px-2 text-xs"
           />
-          {resolved.textColorOverride && (
-            <button
-              type="button"
-              onClick={() => onChange({ ...resolved, textColorOverride: undefined })}
-              className="text-xs text-accent hover:underline"
-            >
-              Reset
-            </button>
-          )}
+          <span className="text-muted">of this container&rsquo;s grid columns</span>
         </div>
-        {parentLayoutMode === "row" && (
-          <div className="flex items-center gap-2">
-            <span className="text-muted">Row share</span>
-            <Input
-              type="number"
-              min={0}
-              step={1}
-              value={resolved.flexGrow ?? ""}
-              onChange={(e) => onChange({ ...resolved, flexGrow: e.target.value ? Number(e.target.value) : undefined })}
-              placeholder="auto"
-              className="h-7 w-16 px-2 text-xs"
-            />
-            <span className="text-muted" title="e.g. 2 here + 1 on two siblings = this one takes half the row">
-              of siblings&rsquo; total
-            </span>
+      )}
+
+      <button
+        type="button"
+        onClick={() => setAdvancedOpen((v) => !v)}
+        className="flex items-center gap-1 text-xs font-medium text-accent hover:underline"
+      >
+        {advancedOpen ? "Hide advanced options" : "Advanced options"}
+        <span aria-hidden="true">{advancedOpen ? "▲" : "▼"}</span>
+      </button>
+
+      {advancedOpen && (
+        <div className="space-y-4 border-t border-border pt-3">
+          <div className="flex flex-wrap items-center gap-4 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="text-muted">Minimum height</span>
+              <Input
+                type="number"
+                min={0}
+                step={10}
+                value={resolved.minHeightPx ?? ""}
+                onChange={(e) => onChange({ ...resolved, minHeightPx: e.target.value ? Number(e.target.value) : undefined })}
+                placeholder="auto"
+                className="h-7 w-20 px-2 text-xs"
+              />
+              <span className="text-muted">px</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-muted">Text color</span>
+              {resolved.textColorOverride ? (
+                <>
+                  <input
+                    type="color"
+                    value={resolved.textColorOverride}
+                    onChange={(e) => onChange({ ...resolved, textColorOverride: e.target.value })}
+                    className="h-7 w-7 cursor-pointer rounded border border-border bg-transparent p-0"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => onChange({ ...resolved, textColorOverride: undefined })}
+                    className="text-xs text-accent hover:underline"
+                  >
+                    Use theme color instead
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => onChange({ ...resolved, textColorOverride: "#000000" })}
+                  className="rounded-md border border-dashed border-border px-2 py-1 text-xs text-muted hover:border-accent hover:text-accent"
+                >
+                  Using theme color — override…
+                </button>
+              )}
+            </div>
           </div>
-        )}
-        {parentLayoutMode === "grid" && (
-          <div className="flex items-center gap-2">
-            <span className="text-muted">Grid span</span>
-            <Input
-              type="number"
-              min={1}
-              max={12}
-              step={1}
-              value={resolved.gridSpan ?? 1}
-              onChange={(e) => onChange({ ...resolved, gridSpan: e.target.value ? Number(e.target.value) : undefined })}
-              className="h-7 w-16 px-2 text-xs"
-            />
-            <span className="text-muted">columns</span>
-          </div>
-        )}
-      </div>
-      <CustomCssField
-        value={resolved.customCss}
-        onChange={(customCss) => onChange({ ...resolved, customCss })}
-        helpText="Any CSS property except text color — use the Text color control above for that (a plain color: here can't override each element's own color)."
-      />
+          <CustomCssField
+            value={resolved.customCss}
+            onChange={(customCss) => onChange({ ...resolved, customCss })}
+            label="Custom CSS (this block's own box)"
+            helpText="Styles this block's position/spacing. Doesn't affect text color — use the control above for that."
+          />
+        </div>
+      )}
     </div>
   );
 }

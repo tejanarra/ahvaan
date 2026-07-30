@@ -67,7 +67,18 @@ export default async function PublicEventPage({
   const themeFonts = resolveThemeFonts(event.theme_id);
 
   if (pageSchema.customPage?.enabled) {
-    return <CustomPageFrame {...pageSchema.customPage} />;
+    return (
+      <CustomPageFrame
+        {...pageSchema.customPage}
+        shortcodes={{
+          eventId: event.id,
+          inviteId,
+          venueName: event.venue_name,
+          venueAddress: event.venue_address,
+          schema,
+        }}
+      />
+    );
   }
 
   return (

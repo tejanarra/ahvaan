@@ -1,8 +1,10 @@
 import type { CustomHtmlConfig } from "../types";
+import type { PageRenderContext } from "../context";
 import { Field } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { buildSandboxSrcDoc } from "../sandbox";
+import { applyComponentShortcodes } from "../shortcodes";
 
 export const customHtmlDefaultConfig: CustomHtmlConfig = {
   html: "<p>Write your own HTML here.</p>",
@@ -23,7 +25,9 @@ export function CustomHtmlEdit({
       <p className="text-xs text-muted">
         Runs in a sandboxed frame with its own isolated origin — it can never read
         guest cookies/sessions, reach the rest of this site, or affect other
-        hosts&rsquo; pages.
+        hosts&rsquo; pages. Write <code className="font-mono">{"{{rsvp_form}}"}</code> or{" "}
+        <code className="font-mono">{"{{venue_map}}"}</code> anywhere in the HTML to embed the
+        real, working RSVP form or venue map, styled by your own CSS below.
       </p>
       <Field label="HTML">
         <Textarea
@@ -69,14 +73,21 @@ export function CustomHtmlEdit({
   );
 }
 
-export function CustomHtmlRender({ config }: { config: CustomHtmlConfig }) {
+export function CustomHtmlRender({ config, ctx }: { config: CustomHtmlConfig; ctx: PageRenderContext }) {
   // The Edit control clamps to 50–2000, but a hand-edited JSON schema can
   // set anything — clamp here too so a bad value can't collapse the frame
   // to 0/negative height or blow up the page with an absurd one.
   const height = Number.isFinite(config.heightPx) ? Math.min(4000, Math.max(50, config.heightPx)) : 300;
+  const html = applyComponentShortcodes(config.html, {
+    eventId: ctx.event.id,
+    inviteId: ctx.inviteId,
+    venueName: ctx.event.venue_name,
+    venueAddress: ctx.event.venue_address,
+    schema: ctx.schema,
+  });
   return (
     <iframe
-      srcDoc={buildSandboxSrcDoc(config)}
+      srcDoc={buildSandboxSrcDoc({ ...config, html })}
       // allow-scripts without allow-same-origin: scripts can run, but the
       // frame gets a unique opaque origin with no access to this site's
       // cookies/storage/DOM or the parent window — the actual isolation

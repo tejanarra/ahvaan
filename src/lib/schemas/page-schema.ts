@@ -46,6 +46,7 @@ const MAX_CONTAINER_DEPTH = 8;
 function blockInstanceSchema(depth: number): z.ZodType<BlockInstance> {
   const base = z.object({
     id: z.string().min(1),
+    name: z.string().max(80).optional(),
     type: z.enum(BLOCK_TYPES as [BlockType, ...BlockType[]]),
     config: blockConfigSchema,
     layout: blockLayoutSchema.optional(),

@@ -92,6 +92,14 @@ export type CountdownConfig = {
 export type RsvpFormBlockConfig = {
   heading?: string;
   helperText?: string;
+  // Shown instead of the form when the visitor has no valid invite id —
+  // previously hardcoded with no way for a host to change the wording.
+  noInviteHeading?: string;
+  noInviteMessage?: string;
+  // Post-submit confirmation — also previously hardcoded.
+  confirmedYesHeading?: string;
+  confirmedNoHeading?: string;
+  showVenueOnConfirmation?: boolean;
 };
 
 export type VenueMapBlockConfig = Record<string, never>;
@@ -132,7 +140,12 @@ export type ContainerConfig = {
   customStyle?: string;
 };
 
-type BlockBase = { id: string; layout?: BlockLayout };
+// `name` is a host-given label purely for identifying a block in the
+// builder (canvas chips, the "Move to…" menu, the JSON editor) — it has no
+// effect on the guest-facing render. Falls back to the block type's generic
+// label everywhere it's displayed when unset, so it's optional and existing
+// pages need no migration.
+type BlockBase = { id: string; name?: string; layout?: BlockLayout };
 
 export type BlockInstance =
   | (BlockBase & { type: "hero"; config: HeroConfig })

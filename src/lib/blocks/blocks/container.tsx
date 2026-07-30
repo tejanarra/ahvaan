@@ -157,7 +157,10 @@ export function ContainerEdit({
         </p>
       )}
 
-      <Field label="Custom CSS" hint="Inline style properties — can override the layout above too">
+      <Field
+        label="Custom CSS (inside this container)"
+        hint="Styles this box itself — background, corners, shadow. Different from the 'Custom CSS' under this block's Layout section, which positions the box on the page."
+      >
         <Textarea
           value={config.customStyle ?? ""}
           onChange={(e) => onChange({ ...config, customStyle: e.target.value })}

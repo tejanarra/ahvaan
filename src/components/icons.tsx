@@ -237,6 +237,16 @@ export function MinusLineIcon({ className = base }: IconProps) {
   );
 }
 
+export function MoveOutIcon({ className = base }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={className}>
+      <rect x="4" y="11" width="12" height="9" rx="1.5" />
+      <path d="M14 9V5a1 1 0 0 1 1-1h5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M20 4 13 11" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function SparkleIcon({ className = base }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={className}>
