@@ -5,6 +5,8 @@ import type { EventType } from "@/lib/event-types";
 import type { ThemeId } from "@/lib/themes";
 import { NotFoundError, DataError } from "@/lib/data/errors";
 
+export type EventStatus = "draft" | "published";
+
 export type EventRecord = {
   id: string;
   host_id: string;
@@ -21,6 +23,8 @@ export type EventRecord = {
   cover_image_url: string | null;
   form_schema: unknown;
   page_schema: unknown;
+  status: EventStatus;
+  rsvp_deadline: string | null;
   created_at: string;
 };
 
@@ -28,15 +32,17 @@ export type EventRecord = {
 // form_schema/page_schema jsonb columns (see docs/03, W3).
 export type EventSummary = Pick<
   EventRecord,
-  "id" | "slug" | "title" | "event_type" | "event_date" | "theme_id" | "created_at"
+  "id" | "slug" | "title" | "event_type" | "event_date" | "theme_id" | "status" | "created_at"
 >;
 
-const SUMMARY_COLUMNS = "id, slug, title, event_type, event_date, theme_id, created_at";
+const SUMMARY_COLUMNS = "id, slug, title, event_type, event_date, theme_id, status, created_at";
 const FULL_COLUMNS =
-  "id, host_id, slug, event_type, theme_id, title, subtitle, event_date, event_time, venue_name, venue_address, description, cover_image_url, form_schema, page_schema, created_at";
-// The public page never needs host_id.
+  "id, host_id, slug, event_type, theme_id, title, subtitle, event_date, event_time, venue_name, venue_address, description, cover_image_url, form_schema, page_schema, status, rsvp_deadline, created_at";
+// The public page needs `status`/`host_id` only to decide draft visibility
+// (see requireVisiblePublicEvent in src/app/e/[slug]/page.tsx) — never
+// rendered to a guest.
 const PUBLIC_COLUMNS =
-  "id, slug, event_type, theme_id, title, subtitle, event_date, event_time, venue_name, venue_address, description, cover_image_url, form_schema, page_schema";
+  "id, host_id, slug, event_type, theme_id, title, subtitle, event_date, event_time, venue_name, venue_address, description, cover_image_url, form_schema, page_schema, status, rsvp_deadline";
 
 function slugify(title: string) {
   return title
@@ -105,12 +111,12 @@ export async function getEventNav(hostId: string, eventId: string) {
   const supabase = createServiceRoleClient();
   const { data, error } = await supabase
     .from("events")
-    .select("id, title, slug")
+    .select("id, title, slug, status")
     .eq("id", eventId)
     .eq("host_id", hostId)
     .maybeSingle();
   if (error) throw new DataError(error.message);
-  return data as { id: string; title: string; slug: string } | null;
+  return data as { id: string; title: string; slug: string; status: EventStatus } | null;
 }
 
 type GetEventBySlugPublicFn = (slug: string) => Promise<EventRecord | null>;
@@ -175,6 +181,11 @@ export async function createEvent(input: CreateEventInput): Promise<string> {
       venue_address: input.venueAddress,
       description: input.description,
       page_schema: input.pageSchema,
+      // Every new event starts as a draft (docs/01 "New in v1") — the host
+      // designs the page/form privately, then publishes when ready. Existing
+      // events predating this feature default to 'published' at the column
+      // level so nothing already shared goes dark.
+      status: "draft",
     })
     .select("id")
     .single();
@@ -209,6 +220,23 @@ export async function updateEventDetails(hostId: string, eventId: string, input:
   if (!data) throw new NotFoundError("Event not found.");
 
   revalidateEventCache(eventId, data.slug as string);
+}
+
+export async function updateEventStatus(hostId: string, eventId: string, status: EventStatus) {
+  const supabase = createServiceRoleClient();
+  const { data, error } = await supabase
+    .from("events")
+    .update({ status })
+    .eq("id", eventId)
+    .eq("host_id", hostId)
+    .select("id, slug")
+    .maybeSingle();
+
+  if (error) throw new DataError(error.message);
+  if (!data) throw new NotFoundError("Event not found.");
+
+  revalidateEventCache(eventId, data.slug as string);
+  revalidatePath("/dashboard");
 }
 
 export async function deleteEvent(hostId: string, eventId: string) {

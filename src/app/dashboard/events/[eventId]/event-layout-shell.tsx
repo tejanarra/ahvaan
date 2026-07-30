@@ -5,6 +5,8 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { ArrowLeftIcon, ExternalLinkIcon } from "@/components/icons";
 import { Tabs } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import type { EventStatus } from "@/lib/data/events";
 
 // The page builder needs the full available width/height (it's a dense
 // editor, not a document page) and manages its own internal scrolling per
@@ -17,11 +19,13 @@ export function EventLayoutShell({
   eventId,
   eventTitle,
   eventSlug,
+  eventStatus,
   children,
 }: {
   eventId: string;
   eventTitle: string;
   eventSlug: string;
+  eventStatus: EventStatus;
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -49,13 +53,18 @@ export function EventLayoutShell({
           Events
         </Link>
         <div className="mt-2 flex items-center justify-between gap-3">
-          <h1 className="text-xl font-semibold text-foreground">{eventTitle}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-semibold text-foreground">{eventTitle}</h1>
+            <Badge variant={eventStatus === "published" ? "success" : "neutral"}>
+              {eventStatus === "published" ? "Published" : "Draft"}
+            </Badge>
+          </div>
           <Link
-            href={`/e/${eventSlug}`}
+            href={eventStatus === "draft" ? `/e/${eventSlug}?preview=1` : `/e/${eventSlug}`}
             target="_blank"
             className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground"
           >
-            View public page
+            {eventStatus === "draft" ? "Preview page" : "View public page"}
             <ExternalLinkIcon className="h-3.5 w-3.5" />
           </Link>
         </div>

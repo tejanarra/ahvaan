@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { getEventBySlugPublic } from "@/lib/data/events";
 import { getInvitePublic } from "@/lib/data/invites";
 import { getRsvpForInvitePublic } from "@/lib/data/rsvps";
+import { getSessionUser } from "@/lib/supabase/auth-server";
 import { resolveThemeColors } from "@/lib/themes";
 import { resolveThemeFonts } from "@/lib/theme-fonts";
 import { cn } from "@/lib/cn";
@@ -35,14 +36,25 @@ export default async function PublicEventPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ i?: string }>;
+  searchParams: Promise<{ i?: string; preview?: string }>;
 }) {
   const { slug } = await params;
-  const { i: invite } = await searchParams;
+  const { i: invite, preview } = await searchParams;
 
   const event = await getEventBySlugPublic(slug);
   if (!event) {
     notFound();
+  }
+
+  // A draft is only visible to its own host, and only via an explicit
+  // `?preview=1` link (docs/02 W5) — never to the public, and never to a
+  // signed-in host just by knowing the slug of someone else's draft.
+  let isDraftPreview = false;
+  if (event.status === "draft") {
+    isDraftPreview = preview === "1" && (await getSessionUser())?.id === event.host_id;
+    if (!isDraftPreview) {
+      notFound();
+    }
   }
 
   const schema = resolveFormSchema(event.form_schema);
@@ -87,19 +99,28 @@ export default async function PublicEventPage({
     ? Object.fromEntries((await listComponentsForEventPublic(event.id)).map((c) => [c.name, { html: c.html, css: c.css, js: c.js }]))
     : {};
 
+  const draftBanner = isDraftPreview && (
+    <p className="bg-[color-mix(in_oklab,var(--warning)_15%,transparent)] py-1.5 text-center text-xs font-medium text-[var(--warning)]">
+      Draft preview — only you can see this page. Publish it from Settings to share the real link.
+    </p>
+  );
+
   if (pageSchema.customPage?.enabled) {
     return (
-      <CustomPageFrame
-        {...pageSchema.customPage}
-        shortcodes={{
-          eventId: event.id,
-          inviteId,
-          venueName: event.venue_name,
-          venueAddress: event.venue_address,
-          schema,
-          customComponents,
-        }}
-      />
+      <>
+        {draftBanner}
+        <CustomPageFrame
+          {...pageSchema.customPage}
+          shortcodes={{
+            eventId: event.id,
+            inviteId,
+            venueName: event.venue_name,
+            venueAddress: event.venue_address,
+            schema,
+            customComponents,
+          }}
+        />
+      </>
     );
   }
 
@@ -119,6 +140,7 @@ export default async function PublicEventPage({
         } as CSSProperties
       }
     >
+      {draftBanner}
       <PageRenderer
         schema={pageSchema}
         ctx={{

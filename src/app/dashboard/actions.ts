@@ -49,6 +49,11 @@ export async function updateEvent(eventId: string, input: EventFormInput) {
   await eventsData.updateEventDetails(host.id, eventId, toEventRow(parsed.data));
 }
 
+export async function setEventStatus(eventId: string, status: "draft" | "published") {
+  const host = await requireHost();
+  await eventsData.updateEventStatus(host.id, eventId, status);
+}
+
 export async function deleteEvent(eventId: string) {
   const host = await requireHost();
   await eventsData.deleteEvent(host.id, eventId);

@@ -19,7 +19,7 @@ export default async function EventLayout({
   }
 
   return (
-    <EventLayoutShell eventId={eventId} eventTitle={event.title} eventSlug={event.slug}>
+    <EventLayoutShell eventId={eventId} eventTitle={event.title} eventSlug={event.slug} eventStatus={event.status}>
       {children}
     </EventLayoutShell>
   );

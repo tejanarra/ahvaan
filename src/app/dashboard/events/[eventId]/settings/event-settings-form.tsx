@@ -2,10 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { updateEvent, deleteEvent } from "../../../actions";
+import { updateEvent, deleteEvent, setEventStatus } from "../../../actions";
 import { EventDetailsFields, type EventDetailsValue } from "@/components/event-details-form";
 import type { EventRecord } from "@/lib/data/events";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
@@ -28,9 +29,24 @@ export function EventSettingsForm({ event }: { event: EventRecord }) {
   const router = useRouter();
   const { show } = useToast();
   const [value, setValue] = useState<EventDetailsValue>(toValue(event));
+  const [status, setStatus] = useState(event.status);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [isSaving, startSaveTransition] = useTransition();
   const [isDeleting, startDeleteTransition] = useTransition();
+  const [isPublishing, startPublishTransition] = useTransition();
+
+  const handleTogglePublish = () => {
+    const next = status === "published" ? "draft" : "published";
+    startPublishTransition(async () => {
+      try {
+        await setEventStatus(event.id, next);
+        setStatus(next);
+        show(next === "published" ? "Published — your guest page is live." : "Unpublished — the guest page is hidden again.");
+      } catch (err) {
+        show(err instanceof Error ? err.message : "Failed to update status.", "error");
+      }
+    });
+  };
 
   const handleSave = () => {
     startSaveTransition(async () => {
@@ -56,6 +72,34 @@ export function EventSettingsForm({ event }: { event: EventRecord }) {
 
   return (
     <div className="max-w-2xl space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Visibility</CardTitle>
+        </CardHeader>
+        <CardBody className="flex items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <Badge variant={status === "published" ? "success" : "neutral"}>
+                {status === "published" ? "Published" : "Draft"}
+              </Badge>
+            </div>
+            <p className="mt-1.5 text-sm text-muted">
+              {status === "published"
+                ? "Your guest page is live at its public link."
+                : "Only you can see this event's page while it's a draft — design it first, then publish when ready."}
+            </p>
+          </div>
+          <Button
+            variant={status === "published" ? "secondary" : "primary"}
+            size="sm"
+            onClick={handleTogglePublish}
+            loading={isPublishing}
+          >
+            {isPublishing ? "Saving..." : status === "published" ? "Unpublish" : "Publish"}
+          </Button>
+        </CardBody>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Event details</CardTitle>

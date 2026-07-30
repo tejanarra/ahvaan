@@ -6,6 +6,7 @@ import { getTheme } from "@/lib/themes";
 import { formatEventDate } from "@/lib/format";
 import { PlusIcon, CalendarIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { EventCardMenu } from "./event-card-menu";
@@ -48,7 +49,10 @@ export default async function DashboardPage() {
                 />
                 <div className="flex flex-1 flex-col p-4">
                   <div className="flex items-start justify-between gap-2">
-                    <p className="truncate text-sm font-semibold text-foreground">{event.title}</p>
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <p className="truncate text-sm font-semibold text-foreground">{event.title}</p>
+                      {event.status === "draft" && <Badge className="shrink-0">Draft</Badge>}
+                    </div>
                     <div className="relative z-10">
                       <EventCardMenu eventId={event.id} eventTitle={event.title} />
                     </div>
