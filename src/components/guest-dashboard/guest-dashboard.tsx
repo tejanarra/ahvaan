@@ -169,6 +169,11 @@ export function GuestDashboard({
 
   return (
     <div>
+      {!hasAttendingData && (
+        <p className="mb-2 text-xs text-muted-foreground">
+          This event&apos;s form doesn&apos;t ask attendance, so responses aren&apos;t split into attending/declined.
+        </p>
+      )}
       <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
         {statTiles.map((stat) => (
           <StatTile key={stat.label} label={stat.label} value={stat.value} onClick={stat.onClick} />
