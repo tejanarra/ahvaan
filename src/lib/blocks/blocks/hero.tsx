@@ -162,7 +162,12 @@ export function HeroRender({ config, ctx }: { config: HeroConfig; ctx: PageRende
   return (
     <div className="w-full">
       {event.cover_image_url && (
-        <div className="mb-6 aspect-[3/2] w-full max-w-md overflow-hidden rounded-lg">
+        // `mx-auto` matters here: the wrapper's alignment preset centers
+        // the *text* nodes around it via `text-align` (layout-controls.tsx),
+        // but text-align has no effect on a block-level box's own
+        // position — without this, the image (capped at max-w-md) sat
+        // flush-left while the title/subtitle text centered around it.
+        <div className="mx-auto mb-6 aspect-[3/2] w-full max-w-md overflow-hidden rounded-lg">
           {/* Hosts can point this at any external image URL (set outside the
               page builder, in event settings) — next/image would need that
               domain allow-listed in next.config ahead of time, which isn't
