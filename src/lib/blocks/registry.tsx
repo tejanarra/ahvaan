@@ -9,6 +9,7 @@ import {
 } from "./blocks/hero";
 import { TextEdit, TextRender, textDefaultConfig } from "./blocks/text";
 import { ImageEdit, ImageRender, imageDefaultConfig } from "./blocks/image";
+import { CarouselEdit, CarouselRender, carouselDefaultConfig } from "./blocks/carousel";
 import { SpacerEdit, SpacerRender, spacerDefaultConfig } from "./blocks/spacer";
 import {
   CountdownEdit,
@@ -86,6 +87,13 @@ export const BLOCK_REGISTRY = {
     defaultConfig: imageDefaultConfig,
     Edit: ImageEdit,
     Render: ImageRender,
+  },
+  carousel: {
+    type: "carousel",
+    label: "Image carousel",
+    defaultConfig: carouselDefaultConfig,
+    Edit: CarouselEdit,
+    Render: CarouselRender,
   },
   spacer: {
     type: "spacer",

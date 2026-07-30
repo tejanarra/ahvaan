@@ -104,6 +104,23 @@ export type SpacerConfig = {
   heightPx: number;
 };
 
+export type CarouselImage = { url: string; alt?: string };
+
+// Fixed aspect ratios (not a freeform maxHeight like the Image block) — a
+// carousel's slides all need to share one frame size so it doesn't jump as
+// it advances, so the choice is deliberately narrower than the single-image
+// block's controls.
+export type CarouselAspectRatio = "1/1" | "4/3" | "3/2" | "16/9";
+
+export type CarouselConfig = {
+  images: CarouselImage[];
+  aspectRatio?: CarouselAspectRatio;
+  autoplay?: boolean;
+  intervalMs?: number;
+  showArrows?: boolean;
+  showDots?: boolean;
+};
+
 export type CountdownConfig = {
   label?: string;
 };
@@ -191,6 +208,7 @@ export type BlockInstance =
   | (BlockBase & { type: "hero"; config: HeroConfig })
   | (BlockBase & { type: "text"; config: TextConfig })
   | (BlockBase & { type: "image"; config: ImageConfig })
+  | (BlockBase & { type: "carousel"; config: CarouselConfig })
   | (BlockBase & { type: "spacer"; config: SpacerConfig })
   | (BlockBase & { type: "countdown"; config: CountdownConfig })
   | (BlockBase & { type: "rsvp-form"; config: RsvpFormBlockConfig })

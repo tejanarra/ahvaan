@@ -151,6 +151,17 @@ export function ImageIcon({ className = base }: IconProps) {
   );
 }
 
+// Stacked photos — distinguishes the carousel (multiple images) from the
+// single-image block at a glance.
+export function ImagesIcon({ className = base }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={className}>
+      <rect x="6" y="6" width="15" height="15" rx="2" />
+      <path d="M3 16V5a2 2 0 0 1 2-2h11" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function CalendarIcon({ className = base }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={className}>

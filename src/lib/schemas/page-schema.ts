@@ -13,6 +13,7 @@ const BLOCK_TYPES: BlockType[] = [
   "hero",
   "text",
   "image",
+  "carousel",
   "spacer",
   "countdown",
   "rsvp-form",
