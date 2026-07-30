@@ -60,7 +60,11 @@ export const THEMES: Theme[] = [
       background: "#fff8fb",
       foreground: "#33222c",
       accent: "#e0729d",
-      accentDark: "#b8567d",
+      // Darkened from #b8567d — docs/08 contrast sweep found the original
+      // failed AA (4.5:1) as text against both this theme's background
+      // and surface (~4.3/3.9:1); this hits ~4.75/5.3:1 while staying the
+      // same rose hue.
+      accentDark: "#a24c6e",
       surface: "#fbe9f1",
     },
   },
@@ -84,7 +88,10 @@ export const THEMES: Theme[] = [
       background: "#faf7ee",
       foreground: "#2c3324",
       accent: "#7c8c5e",
-      accentDark: "#c1633b",
+      // Darkened from #c1633b — failed AA as text against both this
+      // theme's background and surface (~3.8/3.6:1); this hits
+      // ~4.76/5.1:1 while staying the same terracotta hue.
+      accentDark: "#a25332",
       surface: "#eef0e1",
     },
   },
@@ -108,7 +115,10 @@ export const THEMES: Theme[] = [
       background: "#fffaf2",
       foreground: "#2c1810",
       accent: "#e8552f",
-      accentDark: "#c23e1e",
+      // Nudged darker from #c23e1e — passed against background (~5.05:1)
+      // but failed against surface (~4.47:1); this hits ~4.77:1 against
+      // surface while staying the same coral-red.
+      accentDark: "#ba3c1d",
       surface: "#ffe9d6",
     },
   },
