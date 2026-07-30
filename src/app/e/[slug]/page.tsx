@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getEventBySlugPublic } from "@/lib/data/events";
@@ -30,6 +31,31 @@ function hasCustomComponentTag(blocks: BlockInstance[]): boolean {
 }
 
 export const dynamic = "force-dynamic";
+
+// docs/08 SEO: title/subtitle only — never invite/guest data (this only
+// ever reads the event row) — and always `noindex` (guest pages are
+// semi-private; robots.ts also disallows crawling /e/ entirely, this is
+// the per-page belt-and-suspenders). A draft's real title is withheld too,
+// on the same "nothing about a draft leaks before the host publishes it"
+// principle as the page body's own draft/preview check below.
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const event = await getEventBySlugPublic(slug);
+
+  if (!event || event.status === "draft") {
+    return { title: "Gatherie", robots: { index: false, follow: false } };
+  }
+
+  return {
+    title: event.title,
+    description: event.subtitle || `You're invited to ${event.title}.`,
+    robots: { index: false, follow: false },
+  };
+}
 
 export default async function PublicEventPage({
   params,
