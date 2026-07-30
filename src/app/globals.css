@@ -52,7 +52,7 @@ body {
 }
 
 /* docs/08 "Reduced-motion verified on builder, modals, marketing reveals" —
-   a global floor rather than auditing every animate-*/transition-* utility
+   a global floor rather than auditing every animation/transition utility
    one by one: near-zero-duration animations/transitions still run (so
    onAnimationEnd/onTransitionEnd handlers driving real state, e.g. a toast
    removing itself, still fire) without any visible motion. Scroll behavior
