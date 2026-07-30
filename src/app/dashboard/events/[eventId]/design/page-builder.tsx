@@ -29,6 +29,8 @@ import { ComponentPalette, PALETTE_DRAG_PREFIX } from "./component-palette";
 import { JsonSchemaEditor, type EditableSchema } from "./json-schema-editor";
 import { BlockCard } from "./block-card";
 import { EditableCanvas, type BlockPath } from "./editable-canvas";
+import { OutlinePanel } from "./outline-panel";
+import { PageRenderer } from "@/lib/blocks/page-renderer";
 import { EMPTY_LIST_PREFIX } from "./dnd-ids";
 import { ArrowLeftIcon, CodeBracketsIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
@@ -204,6 +206,21 @@ const DEVICE_OPTIONS: { value: DeviceWidth; label: string }[] = [
   { value: "mobile", label: "Mobile" },
 ];
 
+// Edit: the interactive click-to-place canvas (unchanged). Outline: a
+// structural tree list, immune to the page's own padding/gap since it's
+// plain document flow (see outline-panel.tsx) — the reliable way to
+// identify/rename/reorder/move blocks once tight spacing makes the visual
+// canvas's floating chrome hard to target. Preview: the exact guest-facing
+// render (PageRenderer, the same component /e/[slug] uses) with zero
+// editor chrome, to answer "does my 0-padding layout actually look right."
+export type CanvasMode = "edit" | "outline" | "preview";
+
+const CANVAS_MODE_OPTIONS: { value: CanvasMode; label: string }[] = [
+  { value: "edit", label: "Edit" },
+  { value: "outline", label: "Outline" },
+  { value: "preview", label: "Preview" },
+];
+
 function ThemePicker({ themeId, onSelect }: { themeId: ThemeId; onSelect: (id: ThemeId) => void }) {
   const [open, setOpen] = useState(false);
   const current = getTheme(themeId);
@@ -270,6 +287,7 @@ export function PageBuilder({
   const [codeMode, setCodeMode] = useState(false);
   const [zoom, setZoom] = useState(100);
   const [device, setDevice] = useState<DeviceWidth>("desktop");
+  const [canvasMode, setCanvasMode] = useState<CanvasMode>("edit");
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -428,6 +446,15 @@ export function PageBuilder({
   };
 
   const handleMoveOut = (path: BlockPath) => moveBlock(path, null);
+
+  // Renaming from the Outline panel — same shape as handleChangeSelected
+  // (which the block's own edit-modal header uses for the same field) but
+  // addressable by path, not just "whatever's currently selected."
+  const handleRenameBlock = (path: BlockPath, name: string) => {
+    const list = getBlockList(blocks, path.containerId);
+    const nextList = list.map((b) => (b.id === path.blockId ? ({ ...b, name: name || undefined } as BlockInstance) : b));
+    setBlocks(setBlockList(blocks, path.containerId, nextList));
+  };
 
   const containerOptions = collectContainerOptions(blocks);
 
@@ -596,6 +623,74 @@ export function PageBuilder({
   const modalOpen = Boolean(selectedBlock) || pageSettingsOpen;
   const modalTitle = selectedBlock ? selectedBlock.name || BLOCK_REGISTRY[selectedBlock.type]?.label || selectedBlock.type : "Page settings";
 
+  const canvasThemeStyle = {
+    "--t-bg": themeColors.background,
+    "--t-fg": themeColors.foreground,
+    "--t-accent": themeColors.accent,
+    "--t-accent-dark": themeColors.accentDark,
+    "--t-surface": themeColors.surface,
+    "--t-font-display": themeFonts.displayVar,
+    "--t-font-body": themeFonts.bodyVar,
+    fontFamily: "var(--t-font-body)",
+  } as CSSProperties;
+
+  const canvasCtx = {
+    event: liveEvent,
+    inviteId: "preview",
+    guestName: "Guest Name",
+    schema: formSchema,
+    initialResponses: null,
+  };
+
+  // Everything that swaps in the same theme-backed content well —
+  // CustomPageFrame when the whole-page escape hatch is on (mode toggle is
+  // moot then, blocks aren't in play), otherwise whichever of the three
+  // canvas modes is active. All three modes share the same DndContext/
+  // palette shell below so a palette drag always has somewhere valid to
+  // land, even though only Edit/Outline actually use it.
+  const paneContent = customPage.enabled ? (
+    <CustomPageFrame
+      {...customPage}
+      shortcodes={{
+        eventId: liveEvent.id,
+        inviteId: "preview",
+        venueName: liveEvent.venue_name,
+        venueAddress: liveEvent.venue_address,
+        schema: formSchema,
+      }}
+    />
+  ) : canvasMode === "outline" ? (
+    <OutlinePanel
+      blocks={blocks}
+      selectedPath={selectedPath}
+      onSelect={openBlock}
+      onRemove={handleRemoveBlock}
+      onMoveOut={handleMoveOut}
+      onMoveTo={moveBlock}
+      onRename={handleRenameBlock}
+      containerOptions={containerOptions}
+    />
+  ) : canvasMode === "preview" ? (
+    // Renders through the exact component the guest sees (PageRenderer,
+    // the same one /e/[slug]/page.tsx uses) with zero editor chrome — the
+    // definitive answer to "does my 0-padding layout actually look right,"
+    // since there's no second implementation to drift from the real page.
+    <PageRenderer schema={{ version: 1, blocks, pageStyle, themeOverrides, fontFamily, customPage }} ctx={canvasCtx} />
+  ) : (
+    <div style={{ fontFamily: fontFamily || undefined }}>
+      <EditableCanvas
+        blocks={blocks}
+        ctx={canvasCtx}
+        selectedPath={selectedPath}
+        onSelect={openBlock}
+        onRemove={handleRemoveBlock}
+        onMoveOut={handleMoveOut}
+        containerOptions={containerOptions}
+        onMoveTo={moveBlock}
+      />
+    </div>
+  );
+
   const canvas = (
     <DndContext sensors={sensors} collisionDetection={collisionDetection} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       {/* Individually-scrollable columns so selecting a block near the
@@ -612,72 +707,37 @@ export function PageBuilder({
 
         <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-border">
           <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-background px-4 py-2">
-            <p className="shrink-0 text-xs font-medium uppercase tracking-wide text-muted">Live canvas</p>
+            {!customPage.enabled && (
+              <ToggleGroup options={CANVAS_MODE_OPTIONS} value={canvasMode} onChange={(v) => setCanvasMode(v as CanvasMode)} />
+            )}
             <div className="flex items-center gap-2">
               <ToggleGroup options={DEVICE_OPTIONS} value={device} onChange={(v) => setDevice(v as DeviceWidth)} />
               <ZoomControl zoom={zoom} onChange={setZoom} />
             </div>
           </div>
-          <div
-            className={cn(
-              "min-h-0 flex-1 overflow-auto bg-[var(--t-bg)] px-6 py-4",
-              themeFonts.bodyClassName,
-              themeFonts.displayClassName
-            )}
-            style={
-              {
-                "--t-bg": themeColors.background,
-                "--t-fg": themeColors.foreground,
-                "--t-accent": themeColors.accent,
-                "--t-accent-dark": themeColors.accentDark,
-                "--t-surface": themeColors.surface,
-                "--t-font-display": themeFonts.displayVar,
-                "--t-font-body": themeFonts.bodyVar,
-                fontFamily: "var(--t-font-body)",
-              } as CSSProperties
-            }
-          >
-            {/* Device width caps how wide the content is allowed to reflow
-                (a real breakpoint test); zoom is a pure visual scale of
-                whatever that reflowed layout looks like — the two combine
-                without fighting because zoom wraps the device-width box
-                rather than the other way around. */}
-            <div style={{ transform: `scale(${zoom / 100})`, transformOrigin: "top center" }}>
-              <div style={{ maxWidth: DEVICE_WIDTH_PX[device] ? `${DEVICE_WIDTH_PX[device]}px` : undefined, margin: "0 auto" }}>
-              {customPage.enabled ? (
-                <CustomPageFrame
-                  {...customPage}
-                  shortcodes={{
-                    eventId: liveEvent.id,
-                    inviteId: "preview",
-                    venueName: liveEvent.venue_name,
-                    venueAddress: liveEvent.venue_address,
-                    schema: formSchema,
-                  }}
-                />
-              ) : (
-                <div style={{ fontFamily: fontFamily || undefined }}>
-                  <EditableCanvas
-                    blocks={blocks}
-                    ctx={{
-                      event: liveEvent,
-                      inviteId: "preview",
-                      guestName: "Guest Name",
-                      schema: formSchema,
-                      initialResponses: null,
-                    }}
-                    selectedPath={selectedPath}
-                    onSelect={openBlock}
-                    onRemove={handleRemoveBlock}
-                    onMoveOut={handleMoveOut}
-                    containerOptions={containerOptions}
-                    onMoveTo={moveBlock}
-                  />
-                </div>
+          {canvasMode === "outline" && !customPage.enabled ? (
+            <div className="min-h-0 flex-1 overflow-auto bg-background">{paneContent}</div>
+          ) : (
+            <div
+              className={cn(
+                "min-h-0 flex-1 overflow-auto bg-[var(--t-bg)] px-6 py-4",
+                themeFonts.bodyClassName,
+                themeFonts.displayClassName
               )}
+              style={canvasThemeStyle}
+            >
+              {/* Device width caps how wide the content is allowed to reflow
+                  (a real breakpoint test); zoom is a pure visual scale of
+                  whatever that reflowed layout looks like — the two combine
+                  without fighting because zoom wraps the device-width box
+                  rather than the other way around. */}
+              <div style={{ transform: `scale(${zoom / 100})`, transformOrigin: "top center" }}>
+                <div style={{ maxWidth: DEVICE_WIDTH_PX[device] ? `${DEVICE_WIDTH_PX[device]}px` : undefined, margin: "0 auto" }}>
+                  {paneContent}
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
       <DragOverlay>

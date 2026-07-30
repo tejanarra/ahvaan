@@ -196,13 +196,16 @@ function EditableBlock({
         style={{ zIndex: controlsZIndex }}
         className={cn(
           "absolute -top-3.5 right-1 flex items-center gap-0.5 rounded-md border border-border bg-background px-1 py-0.5 shadow-sm transition-opacity",
-          // Containers stay permanently visible rather than hover-gated: a
-          // container padded/gapped down to 0px has no exposed background
-          // left to hover at all once it holds children, which made its own
-          // toolbar (and therefore its Edit/Move/Delete actions) completely
-          // unreachable (host feedback: "if I put 0 padding in outer nested
-          // component it is becoming very difficult to access it").
-          isSelected || isHovered || isContainer ? "opacity-100" : "pointer-events-none opacity-0"
+          // Was permanently visible for containers (a 0-padding container
+          // has no exposed background left to hover, which made its own
+          // toolbar unreachable) — reverted now that the Outline mode
+          // (outline-panel.tsx) is the reliable, spacing-independent way to
+          // reach a container's Edit/Move/Delete actions regardless of its
+          // padding/gap. Keeping this hover-gated for every block type,
+          // container or not, is what keeps exactly one block's chrome
+          // visible at a time (paired with the JS deepest-hover tracking
+          // below) instead of two overlapping.
+          isSelected || isHovered ? "opacity-100" : "pointer-events-none opacity-0"
         )}
       >
         <span
@@ -250,6 +253,16 @@ function EditableBlock({
       </div>
 
       {isContainer && (
+        // Was permanently visible (both for reachability at 0 padding and
+        // to show the block's name) — now hover/selection-gated like the
+        // toolbar above, for the same reason: two nested containers' chips
+        // both anchor top-left, so at 0 padding they land at nearly the
+        // same coordinates and become unreadable stacked on top of each
+        // other (confirmed live, see the page builder plan doc). The
+        // Outline mode is the reliable place to see every block's name and
+        // structure regardless of spacing; this chip is now a quick visual
+        // confirmation while directly interacting with one block, not the
+        // only way to find out what something's called.
         <button
           type="button"
           onClick={() => setCollapsed((v) => !v)}
@@ -257,7 +270,10 @@ function EditableBlock({
           aria-label={collapsed ? "Expand this container" : "Collapse this container"}
           title={collapsed ? "Expand" : "Collapse"}
           style={{ zIndex: controlsZIndex }}
-          className="absolute -top-2.5 left-2 flex items-center gap-1 rounded-full border border-accent/40 bg-background px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-accent hover:bg-accent-soft"
+          className={cn(
+            "absolute -top-2.5 left-2 flex items-center gap-1 rounded-full border border-accent/40 bg-background px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-accent transition-opacity hover:bg-accent-soft",
+            isSelected || isHovered || collapsed ? "opacity-100" : "pointer-events-none opacity-0"
+          )}
         >
           <span aria-hidden="true" className={cn("transition-transform", collapsed ? "-rotate-90" : "")}>
             ▾
@@ -267,14 +283,6 @@ function EditableBlock({
             <span className="normal-case text-muted-foreground">({block.children.length})</span>
           )}
         </button>
-      )}
-      {!isContainer && block.name && (
-        <span
-          style={{ zIndex: controlsZIndex - 5 }}
-          className="pointer-events-none absolute -top-2.5 left-2 rounded-full border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted"
-        >
-          {block.name}
-        </span>
       )}
       {isEmptyContainer ? (
         <EmptyDropZone containerId={block.id} onClick={() => onSelect(path)} />
