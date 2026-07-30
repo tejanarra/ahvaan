@@ -76,9 +76,13 @@ export type TextConfig = {
 // Width is controlled by the block's own Layout > Width preset (same
 // mechanism every block uses) rather than a second, overlapping per-image
 // max-width — one axis of control instead of two that could disagree.
+// Height is a separate, independent axis: unset keeps the image at its
+// natural aspect ratio (the old behavior); a set value crops to that
+// height via object-fit: cover, same idea as a CSS-background image.
 export type ImageConfig = {
   url: string;
   alt?: string;
+  heightPx?: number;
 };
 
 export type SpacerConfig = {
