@@ -127,6 +127,13 @@ export type CustomHtmlConfig = {
   css: string;
   js: string;
   heightPx: number;
+  // Optional: naming this block saves its html/css/js to a host-level
+  // library (see lib/data/custom-components.ts) whenever the page is saved
+  // — referenceable from *any* block's HTML (any event) via
+  // <custom-component name="..." attr="value" />, substituted at render
+  // time (see lib/blocks/shortcodes.ts). Attributes on the tag become
+  // {{attr}} tokens inside the saved snippet — no separate prop schema.
+  reusableName?: string;
 };
 
 // Raw text like "border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.1);"

@@ -10,9 +10,23 @@ import { cn } from "@/lib/cn";
 import { resolveFormSchema, getFieldValue } from "@/lib/schemas/form-schema";
 import type { Responses } from "@/lib/schemas/form-schema";
 import { defaultPageSchema } from "@/lib/blocks/types";
+import type { BlockInstance } from "@/lib/blocks/types";
 import { parsePageSchema } from "@/lib/schemas/page-schema";
 import { PageRenderer } from "@/lib/blocks/page-renderer";
 import { CustomPageFrame } from "@/lib/blocks/custom-page-frame";
+import { listComponentsForEventPublic } from "@/lib/data/custom-components";
+import type { CustomComponentMap } from "@/lib/blocks/context";
+
+// <custom-component> tags can appear in any custom-html block's HTML, at
+// any nesting depth — this only decides whether the extra component-library
+// query below is worth running at all (most pages use none).
+function hasCustomComponentTag(blocks: BlockInstance[]): boolean {
+  return blocks.some(
+    (b) =>
+      (b.type === "custom-html" && (b.config as { html?: string }).html?.includes("<custom-component")) ||
+      ("children" in b && hasCustomComponentTag(b.children))
+  );
+}
 
 export const dynamic = "force-dynamic";
 
@@ -66,6 +80,13 @@ export default async function PublicEventPage({
   const themeColors = resolveThemeColors(event.theme_id, pageSchema.themeOverrides);
   const themeFonts = resolveThemeFonts(event.theme_id);
 
+  // Only queried when the page might actually reference one — most won't.
+  const mayNeedComponents =
+    hasCustomComponentTag(pageSchema.blocks) || Boolean(pageSchema.customPage?.enabled && pageSchema.customPage.html.includes("<custom-component"));
+  const customComponents: CustomComponentMap = mayNeedComponents
+    ? Object.fromEntries((await listComponentsForEventPublic(event.id)).map((c) => [c.name, { html: c.html, css: c.css, js: c.js }]))
+    : {};
+
   if (pageSchema.customPage?.enabled) {
     return (
       <CustomPageFrame
@@ -76,6 +97,7 @@ export default async function PublicEventPage({
           venueName: event.venue_name,
           venueAddress: event.venue_address,
           schema,
+          customComponents,
         }}
       />
     );
@@ -105,6 +127,7 @@ export default async function PublicEventPage({
           guestName,
           schema,
           initialResponses,
+          customComponents,
         }}
       />
       <p className="pb-6 text-center text-[11px] tracking-wide text-[var(--t-fg)]/40">

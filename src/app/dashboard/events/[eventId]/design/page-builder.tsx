@@ -31,6 +31,8 @@ import { BlockCard } from "./block-card";
 import { EditableCanvas, type BlockPath } from "./editable-canvas";
 import { OutlinePanel } from "./outline-panel";
 import { PageRenderer } from "@/lib/blocks/page-renderer";
+import type { CustomComponentMap } from "@/lib/blocks/context";
+import type { CustomComponentRecord } from "@/lib/data/custom-components";
 import { EMPTY_LIST_PREFIX } from "./dnd-ids";
 import { ArrowLeftIcon, CodeBracketsIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
@@ -268,10 +270,16 @@ export function PageBuilder({
   event,
   formSchema,
   initialSchema,
+  customComponents,
 }: {
   event: EventRecord;
   formSchema: FormSchema;
   initialSchema: PageSchema;
+  // The host's saved component library (see lib/data/custom-components.ts) —
+  // a naming field on the Custom HTML/CSS/JS block's own Edit panel is what
+  // adds to it (on the next page save); this is just read here, to resolve
+  // <custom-component name="..."> tags at render/preview time.
+  customComponents: CustomComponentRecord[];
 }) {
   const initialCustomPage: CustomPageConfig =
     initialSchema.customPage ?? { enabled: false, html: "<p>Write your own page here.</p>", css: "", js: "" };
@@ -640,12 +648,19 @@ export function PageBuilder({
     fontFamily: "var(--t-font-body)",
   } as CSSProperties;
 
+  // Keyed by name (how <custom-component name="..."> looks them up) — built
+  // once here, not re-derived per tag substitution.
+  const customComponentsMap: CustomComponentMap = Object.fromEntries(
+    customComponents.map((c) => [c.name, { html: c.html, css: c.css, js: c.js }])
+  );
+
   const canvasCtx = {
     event: liveEvent,
     inviteId: "preview",
     guestName: "Guest Name",
     schema: formSchema,
     initialResponses: null,
+    customComponents: customComponentsMap,
   };
 
   // Everything that swaps in the same theme-backed content well —
@@ -663,6 +678,7 @@ export function PageBuilder({
         venueName: liveEvent.venue_name,
         venueAddress: liveEvent.venue_address,
         schema: formSchema,
+        customComponents: customComponentsMap,
       }}
     />
   ) : canvasMode === "outline" ? (
@@ -825,13 +841,7 @@ export function PageBuilder({
             onRemoveSelected={handleRemoveSelected}
             event={liveEvent}
             onEventFieldsChange={handleEventFieldsChange}
-            ctx={{
-              event: liveEvent,
-              inviteId: "preview",
-              guestName: "Guest Name",
-              schema: formSchema,
-              initialResponses: null,
-            }}
+            ctx={canvasCtx}
             themeColors={themeColors}
             fontFamily={fontFamily}
             currentContainerId={selectedPath?.containerId ?? null}

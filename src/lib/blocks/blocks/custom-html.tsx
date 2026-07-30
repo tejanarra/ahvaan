@@ -29,6 +29,21 @@ export function CustomHtmlEdit({
         <code className="font-mono">{"{{venue_map}}"}</code> anywhere in the HTML to embed the
         real, working RSVP form or venue map, styled by your own CSS below.
       </p>
+      <Field label="Reusable name">
+        <Input
+          type="text"
+          value={config.reusableName ?? ""}
+          onChange={(e) => onChange({ ...config, reusableName: e.target.value || undefined })}
+          placeholder="e.g. message-card"
+        />
+      </Field>
+      <p className="-mt-2 text-xs text-muted">
+        Optional. Naming this block saves it to your component library when you hit Save — reference it from any
+        block&rsquo;s HTML (this event or any other) with{" "}
+        <code className="font-mono">{'<custom-component name="' + (config.reusableName || "name") + '" />'}</code>.
+        Any attribute on that tag (e.g. <code className="font-mono">message=&quot;Hi!&quot;</code>) is available
+        inside this snippet as <code className="font-mono">{"{{message}}"}</code>.
+      </p>
       <Field label="HTML">
         <Textarea
           value={config.html}
@@ -84,6 +99,7 @@ export function CustomHtmlRender({ config, ctx }: { config: CustomHtmlConfig; ct
     venueName: ctx.event.venue_name,
     venueAddress: ctx.event.venue_address,
     schema: ctx.schema,
+    customComponents: ctx.customComponents,
   });
   return (
     <iframe

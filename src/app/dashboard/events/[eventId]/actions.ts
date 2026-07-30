@@ -11,7 +11,9 @@ import { resolveFormSchema, deriveLegacyScalars, enforceRoleLock } from "@/lib/s
 import type { FormSchema, Responses } from "@/lib/schemas/form-schema";
 import { sanitizeResponses, validateResponses, assertResponsesWithinSizeBudget } from "@/lib/schemas/responses";
 import { parsePageSchema } from "@/lib/schemas/page-schema";
-import type { PageSchema } from "@/lib/blocks/types";
+import type { PageSchema, BlockInstance, CustomHtmlConfig } from "@/lib/blocks/types";
+import { parseCustomComponentInput } from "@/lib/schemas/custom-component";
+import { upsertComponentByName } from "@/lib/data/custom-components";
 
 export async function createInvite(eventId: string, name: string, email?: string) {
   const host = await requireHost();
@@ -158,4 +160,35 @@ export async function updatePageSchema(eventId: string, schema: PageSchema) {
   }
 
   await updatePageSchemaData(host.id, eventId, validated);
+
+  // A host makes a Custom HTML/CSS/JS block reusable purely by naming it
+  // (see CustomHtmlEdit's "Reusable name" field) — no separate save action,
+  // it just piggybacks on this normal page save. Every named block, at any
+  // nesting depth, upserts into the host's shared component library so
+  // <custom-component name="..."> tags anywhere (this event or any other)
+  // pick up the latest version. A validation failure on one named block
+  // (e.g. an empty name after trimming) is skipped rather than failing the
+  // whole page save — the page itself already saved successfully above.
+  for (const named of findNamedCustomHtmlBlocks(validated.blocks)) {
+    const result = parseCustomComponentInput(named);
+    if (result.ok) {
+      await upsertComponentByName(host.id, result.value);
+    }
+  }
+}
+
+function findNamedCustomHtmlBlocks(blocks: BlockInstance[]): { name: string; html: string; css: string; js: string }[] {
+  const found: { name: string; html: string; css: string; js: string }[] = [];
+  for (const block of blocks) {
+    if (block.type === "custom-html") {
+      const config = block.config as CustomHtmlConfig;
+      if (config.reusableName) {
+        found.push({ name: config.reusableName, html: config.html, css: config.css, js: config.js });
+      }
+    }
+    if ("children" in block) {
+      found.push(...findNamedCustomHtmlBlocks(block.children));
+    }
+  }
+  return found;
 }

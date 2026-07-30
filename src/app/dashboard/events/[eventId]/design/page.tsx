@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { requireHost } from "@/lib/supabase/auth-server";
 import { getEventFull } from "@/lib/data/events";
+import { listComponents } from "@/lib/data/custom-components";
 import { resolveFormSchema } from "@/lib/schemas/form-schema";
 import { defaultPageSchema } from "@/lib/blocks/types";
 import { parsePageSchema } from "@/lib/schemas/page-schema";
@@ -27,6 +28,7 @@ export default async function DesignPage({
   // so the builder never opens on a blank canvas.
   const initialSchema = parsePageSchema(record.page_schema) ?? defaultPageSchema();
   const formSchema = resolveFormSchema(record.form_schema);
+  const customComponents = await listComponents(host.id);
 
-  return <PageBuilder event={record} formSchema={formSchema} initialSchema={initialSchema} />;
+  return <PageBuilder event={record} formSchema={formSchema} initialSchema={initialSchema} customComponents={customComponents} />;
 }

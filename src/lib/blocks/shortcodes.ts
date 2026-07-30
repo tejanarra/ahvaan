@@ -1,4 +1,5 @@
 import type { FormSchema, FormField, Responses } from "@/lib/schemas/form-schema";
+import type { CustomComponentMap } from "./context";
 
 // Lets a host embed the *real, working* RSVP form or venue map inside a
 // sandboxed custom-HTML/CSS/JS block or the whole-page custom mode, styled
@@ -109,6 +110,54 @@ export function renderResponsesSummaryHtml(schema: FormSchema, responses: Respon
   return `<div class="gatherie-responses-summary">${rows}</div>`;
 }
 
+// Parses `name="value"`/`name='value'` pairs out of a self-closing tag's
+// attribute text — deliberately simple (no boolean-attribute or unquoted-
+// value support) since this is only ever a host's own <custom-component>
+// tag, not general HTML.
+function parseTagAttrs(attrText: string): Record<string, string> {
+  const attrs: Record<string, string> = {};
+  const pattern = /([a-zA-Z_:][-a-zA-Z0-9_:.]*)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(attrText))) {
+    attrs[match[1]] = match[2] ?? match[3] ?? "";
+  }
+  return attrs;
+}
+
+// A saved reusable component (see lib/data/custom-components.ts) is
+// referenced with a plain self-closing tag —
+// `<custom-component name="message-card" message="Hi!" />` — anywhere in a
+// custom-html block's HTML, the whole-page custom mode, or the RSVP
+// confirmation override. Every attribute besides `name` becomes a
+// `{{attr}}` token inside that saved snippet's own html/css, exactly like
+// the RSVP-form/venue-map shortcodes below use `{{...}}` — no separate prop
+// schema to author up front. Single-pass only: a referenced snippet's own
+// html is not re-scanned for further <custom-component> tags, so this can
+// never infinite-loop on a component that (accidentally or not) references
+// itself.
+function substituteCustomComponentTags(html: string, components: CustomComponentMap): string {
+  return html.replace(/<custom-component\s+([^>]*?)\/>/g, (_match, attrText: string) => {
+    const { name, ...values } = parseTagAttrs(attrText);
+    const component = name ? components[name] : undefined;
+    if (!component) return `<!-- custom-component "${escapeAttr(name ?? "")}" not found -->`;
+
+    const substitute = (text: string) => {
+      let result = text;
+      for (const [key, value] of Object.entries(values)) {
+        result = result.replaceAll(`{{${key}}}`, value);
+      }
+      return result;
+    };
+
+    const styleTag = component.css ? `<style>${substitute(component.css)}</style>` : "";
+    // Wrapped in an IIFE so a referenced component's own top-level
+    // `const`/`let` declarations can't collide with the parent block's
+    // script (both ultimately land in the same sandboxed document).
+    const scriptTag = component.js ? `<script>(function(){${component.js}})();</script>` : "";
+    return `${styleTag}${substitute(component.html)}${scriptTag}`;
+  });
+}
+
 export type ShortcodeContext = {
   eventId: string;
   inviteId: string | null;
@@ -118,10 +167,15 @@ export type ShortcodeContext = {
   // Present only when substituting into a guest's own post-submit
   // confirmation screen — enables {{responses_summary}}.
   responses?: Responses;
+  // The current host's saved component library — enables <custom-component>.
+  customComponents?: CustomComponentMap;
 };
 
 export function applyComponentShortcodes(html: string, ctx: ShortcodeContext): string {
   let result = html;
+  if (result.includes("<custom-component") && ctx.customComponents) {
+    result = substituteCustomComponentTags(result, ctx.customComponents);
+  }
   if (result.includes("{{rsvp_form}}")) {
     result = result.replaceAll("{{rsvp_form}}", renderRsvpFormHtml(ctx.schema, ctx.eventId, ctx.inviteId));
   }

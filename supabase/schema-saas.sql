@@ -100,3 +100,25 @@ alter table public.email_sends enable row level security;
 alter table public.events add column if not exists form_schema jsonb;
 alter table public.events add column if not exists page_schema jsonb;
 alter table public.rsvps add column if not exists responses jsonb not null default '{}'::jsonb;
+
+-- Reusable custom components: a host names a Custom HTML/CSS/JS block (any
+-- event) to save it here on the next page save, then references it from
+-- *any* block's HTML (any event) via <custom-component name="..." /> —
+-- attributes on that tag become {{attr}} tokens inside the saved snippet, no
+-- separate prop schema. See lib/blocks/shortcodes.ts and
+-- dashboard/events/[eventId]/actions.ts's updatePageSchema. Same
+-- host-scoping/RLS-backstop model as every table above. (`props` is unused —
+-- kept only because it already shipped to production; harmless to leave.)
+create table if not exists public.custom_components (
+  id uuid primary key default gen_random_uuid(),
+  host_id uuid not null references auth.users(id) on delete cascade,
+  name text not null,
+  html text not null default '',
+  css text not null default '',
+  js text not null default '',
+  props jsonb not null default '[]'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists custom_components_host_id_idx on public.custom_components(host_id);
+alter table public.custom_components enable row level security;
