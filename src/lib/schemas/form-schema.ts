@@ -109,12 +109,19 @@ function sanitizeField(raw: unknown): FormField | null {
 
 // null/invalid input (an event that never customized its form, or malformed
 // jsonb) falls back to the default 3-field form — existing events keep
-// working unchanged.
+// working unchanged. A deliberately-emptied form (`{ fields: [] }`, saved by
+// a host who removed every field) is honored as-is rather than treated as
+// "invalid" — a fields-less RSVP ("just confirm you saw this, no questions
+// asked") is a legitimate form shape, not a corrupt one. Only a non-empty
+// `fields` array where every entry fails sanitization counts as corrupt
+// (malformed jsonb), and still falls back to the default.
 export function resolveFormSchema(raw: unknown): FormSchema {
   if (raw && typeof raw === "object" && Array.isArray((raw as { fields?: unknown }).fields)) {
-    const fields = (raw as { fields: unknown[] }).fields
-      .map(sanitizeField)
-      .filter((f): f is FormField => f !== null);
+    const rawFields = (raw as { fields: unknown[] }).fields;
+    if (rawFields.length === 0) {
+      return { fields: [] };
+    }
+    const fields = rawFields.map(sanitizeField).filter((f): f is FormField => f !== null);
     if (fields.length > 0) {
       return { fields };
     }
@@ -142,7 +149,13 @@ type LegacyRsvpRow = {
 // Derives the 3 legacy scalar columns from a schema-driven Responses value,
 // so every write keeps them as a reliable fast-path/historical fallback —
 // not just during a migration window (see getFieldValue's role fallback).
-export function deriveLegacyScalars(schema: FormSchema, responses: Responses) {
+//
+// `fallbackName` covers events with no name-role field: callers pass the one
+// name they already know is trustworthy for that guest (the invite's own
+// name for a public submission, or the RSVP row's current name when a host
+// edits a response with no name field to read from) so the guest list never
+// regresses to the generic "Guest" placeholder while a real name is known.
+export function deriveLegacyScalars(schema: FormSchema, responses: Responses, fallbackName?: string) {
   const nameField = findFieldByRole(schema, "name");
   const attendingField = findFieldByRole(schema, "attending");
   const plusOnesField = findFieldByRole(schema, "plus_ones");
@@ -152,7 +165,7 @@ export function deriveLegacyScalars(schema: FormSchema, responses: Responses) {
   const plusOnesValue = plusOnesField ? responses[plusOnesField.id] : undefined;
 
   return {
-    name: typeof nameValue === "string" && nameValue ? nameValue : "Guest",
+    name: (typeof nameValue === "string" && nameValue) || fallbackName || "Guest",
     attending: attendingValue === "yes",
     additional_guests: Array.isArray(plusOnesValue) ? plusOnesValue : [],
   };

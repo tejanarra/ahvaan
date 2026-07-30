@@ -3,6 +3,7 @@
 import { useState, useTransition, type CSSProperties } from "react";
 import { updateFormSchema } from "../actions";
 import { ConfirmIconButton } from "@/components/confirm-icon-button";
+import { resolveFormSchema } from "@/lib/schemas/form-schema";
 import type { FieldType, FormField, FormSchema } from "@/lib/schemas/form-schema";
 import type { EventRecord } from "@/lib/data/events";
 import { resolveThemeColors } from "@/lib/themes";
@@ -208,8 +209,9 @@ export function FormBuilder({ event, schema }: { event: EventRecord; schema: For
         <div>
           <h2 className="text-sm font-semibold text-foreground">RSVP form fields</h2>
           <p className="mt-0.5 text-xs text-muted">
-            {fields.length} field{fields.length === 1 ? "" : "s"} — add, edit, reorder, or remove any of them, including the
-            built-in ones.
+            {fields.length === 0
+              ? "No fields — guests will see a plain confirm button with no questions."
+              : `${fields.length} field${fields.length === 1 ? "" : "s"} — add, edit, reorder, or remove any of them, including the built-in ones.`}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -224,6 +226,13 @@ export function FormBuilder({ event, schema }: { event: EventRecord; schema: For
 
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[360px_1fr] lg:items-start">
         <div className="space-y-2">
+          {fields.length === 0 && (
+            <p className="rounded-lg border border-dashed border-border px-4 py-3 text-xs text-muted">
+              This form has no questions. Guests will just see a Submit button to confirm they&rsquo;ve seen the
+              invite — no name, attendance, or plus-ones tracked. Add a question below if you want to collect
+              anything, including who&rsquo;s coming.
+            </p>
+          )}
           {fields.map((field, index) => (
             <div
               key={field.id}
@@ -310,7 +319,7 @@ export function FormBuilder({ event, schema }: { event: EventRecord; schema: For
               </CardBody>
             </Card>
           ) : (
-            <FormPreview event={event} schema={{ fields }} />
+            <FormPreview event={event} schema={resolveFormSchema({ fields })} />
           )}
         </div>
       </div>

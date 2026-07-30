@@ -46,7 +46,8 @@ export async function updateRsvp(eventId: string, rsvpId: string, rawResponses: 
   const responses = sanitizeResponses(schema, rawResponses);
   assertResponsesWithinSizeBudget(responses);
   validateResponses(schema, responses);
-  const scalars = deriveLegacyScalars(schema, responses);
+  const existingName = await rsvpsData.getRsvpName(host.id, eventId, rsvpId);
+  const scalars = deriveLegacyScalars(schema, responses, existingName ?? undefined);
 
   await rsvpsData.updateRsvp(host.id, eventId, rsvpId, responses, scalars);
 }

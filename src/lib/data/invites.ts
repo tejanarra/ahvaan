@@ -105,10 +105,10 @@ export async function getInviteForRsvpSubmissionPublic(eventId: string, inviteId
   const supabase = createServiceRoleClient();
   const { data, error } = await supabase
     .from("invites")
-    .select("id, host_id")
+    .select("id, host_id, name")
     .eq("id", inviteId)
     .eq("event_id", eventId)
     .maybeSingle();
   if (error) throw new DataError(error.message);
-  return data as { id: string; host_id: string } | null;
+  return data as { id: string; host_id: string; name: string } | null;
 }

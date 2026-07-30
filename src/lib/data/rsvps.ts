@@ -51,6 +51,24 @@ export async function deleteRsvp(hostId: string, eventId: string, rsvpId: string
 
 export type RsvpScalars = { name: string; attending: boolean; additional_guests: string[] };
 
+// Cheap pre-read used only to carry forward a guest's existing name when a
+// host edits a response on a schema with no name-role field (see
+// deriveLegacyScalars's `fallbackName`) — without this, recomputing scalars
+// from a fields-less/name-less schema would blank a real name back to the
+// generic "Guest" placeholder on every edit.
+export async function getRsvpName(hostId: string, eventId: string, rsvpId: string): Promise<string | null> {
+  const supabase = createServiceRoleClient();
+  const { data, error } = await supabase
+    .from("rsvps")
+    .select("name")
+    .eq("id", rsvpId)
+    .eq("event_id", eventId)
+    .eq("host_id", hostId)
+    .maybeSingle();
+  if (error) throw new DataError(error.message);
+  return data?.name ?? null;
+}
+
 export async function updateRsvp(
   hostId: string,
   eventId: string,

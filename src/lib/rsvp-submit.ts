@@ -57,7 +57,7 @@ export async function submitRsvpFromFormData(formData: FormData): Promise<RsvpSu
     return { status: "error", message: err instanceof Error ? err.message : "Invalid submission." };
   }
 
-  const scalars = deriveLegacyScalars(schema, responses);
+  const scalars = deriveLegacyScalars(schema, responses, invite.name);
 
   try {
     await upsertRsvpPublic({ eventId, hostId: invite.host_id, inviteId: invite.id, responses, scalars });
