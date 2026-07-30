@@ -1,8 +1,8 @@
 "use client";
 
 import { useDraggable } from "@dnd-kit/core";
-import type { BlockType } from "@/lib/page-blocks/types";
-import { BLOCK_REGISTRY } from "@/lib/page-blocks/registry";
+import type { BlockType } from "@/lib/blocks/types";
+import { BLOCK_REGISTRY } from "@/lib/blocks/registry";
 import { BlockCard } from "./block-card";
 
 // Shared with page-builder.tsx's onDragEnd to distinguish "a new block being

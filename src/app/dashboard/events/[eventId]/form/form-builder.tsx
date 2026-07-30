@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { updateFormSchema } from "../actions";
 import { ConfirmIconButton } from "@/components/confirm-icon-button";
-import type { FieldType, FormField, FormSchema } from "@/lib/form-schema";
+import type { FieldType, FormField, FormSchema } from "@/lib/schemas/form-schema";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";

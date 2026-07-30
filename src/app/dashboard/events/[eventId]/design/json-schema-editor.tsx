@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import type { BlockInstance, PageSchema } from "@/lib/page-blocks/types";
-import { BLOCK_REGISTRY } from "@/lib/page-blocks/registry";
+import type { BlockInstance, PageSchema } from "@/lib/blocks/types";
+import { BLOCK_REGISTRY } from "@/lib/blocks/registry";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 

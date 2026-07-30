@@ -1,9 +1,11 @@
 "use server";
 
-import { createServiceRoleClient } from "@/lib/supabase/server";
-import { resolveFormSchema, findFieldByRole, deriveLegacyScalars } from "@/lib/form-schema";
-import type { Responses } from "@/lib/form-schema";
-import { buildResponsesFromFormData, validateResponses } from "@/lib/rsvp-validation";
+import { getEventFull } from "@/lib/data/events";
+import { getInviteForRsvpSubmissionPublic } from "@/lib/data/invites";
+import { upsertRsvpPublic } from "@/lib/data/rsvps";
+import { resolveFormSchema, findFieldByRole, deriveLegacyScalars } from "@/lib/schemas/form-schema";
+import type { Responses } from "@/lib/schemas/form-schema";
+import { buildResponsesFromFormData, validateResponses, assertResponsesWithinSizeBudget } from "@/lib/schemas/responses";
 
 export type RsvpFormState = {
   status: "idle" | "success" | "error";
@@ -20,18 +22,16 @@ export async function submitRsvp(
   const eventId = String(formData.get("eventId") ?? "").trim();
   const inviteId = String(formData.get("inviteId") ?? "").trim();
 
-  const supabase = createServiceRoleClient();
-
   // The invite id is the actual access control — the UI only shows the RSVP
   // form when one is present, but this is what makes that real rather than
   // just cosmetic. No valid invite for this exact event, no saved RSVP.
   // host_id comes from the invite row itself (denormalized at invite-creation
   // time), not trusted from the client, so the RSVP always lands under the
-  // correct host regardless of what the form submits.
-  const [{ data: invite }, { data: event }] = await Promise.all([
-    supabase.from("invites").select("id, host_id").eq("id", inviteId).eq("event_id", eventId).maybeSingle(),
-    supabase.from("events").select("form_schema").eq("id", eventId).maybeSingle(),
-  ]);
+  // correct host regardless of what the form submits. eventId here is
+  // whatever the host owns the invite under — not scoped by host_id since
+  // this is the public submission path.
+  const invite = await getInviteForRsvpSubmissionPublic(eventId, inviteId);
+  const event = invite ? await getEventFull(invite.host_id, eventId) : null;
 
   if (!invite || !event) {
     return {
@@ -53,6 +53,7 @@ export async function submitRsvp(
   }
 
   try {
+    assertResponsesWithinSizeBudget(responses);
     validateResponses(schema, responses);
   } catch (err) {
     return { status: "error", message: err instanceof Error ? err.message : "Invalid submission." };
@@ -60,22 +61,16 @@ export async function submitRsvp(
 
   const scalars = deriveLegacyScalars(schema, responses);
 
-  const payload = {
-    event_id: eventId,
-    host_id: invite.host_id,
-    invite_id: invite.id,
-    responses,
-    ...scalars,
-  };
-
-  // Upserting on the unique invite_id constraint (see supabase/schema-saas.sql)
-  // makes "resubmitting updates the existing row" atomic — a check-then-
-  // insert/update pattern here would race under concurrent/duplicate
-  // submissions and create two rows for the same invite.
-  const { error } = await supabase.from("rsvps").upsert(payload, { onConflict: "invite_id" });
-
-  if (error) {
-    console.error("Failed to save RSVP", error);
+  try {
+    await upsertRsvpPublic({
+      eventId,
+      hostId: invite.host_id,
+      inviteId: invite.id,
+      responses,
+      scalars,
+    });
+  } catch (err) {
+    console.error("Failed to save RSVP", err);
     return {
       status: "error",
       message: "Something went wrong saving your RSVP. Please try again.",

@@ -1,7 +1,7 @@
 import type { ComponentType } from "react";
 import type { BlockInstance, BlockType } from "./types";
 import type { PageRenderContext } from "./context";
-import type { EventRecord } from "@/lib/event";
+import type { EventRecord } from "@/lib/data/events";
 import {
   HeroEdit,
   HeroRender,

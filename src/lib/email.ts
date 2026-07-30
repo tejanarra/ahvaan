@@ -1,7 +1,7 @@
 import { Resend } from "resend";
 import { buildInviteLink } from "@/components/guest-dashboard/invite-link";
 import { getEventTypeLabel } from "@/lib/event-types";
-import type { EventRecord } from "@/lib/event";
+import type { EventRecord } from "@/lib/data/events";
 
 function requireEnv(name: string) {
   const value = process.env[name];
@@ -64,7 +64,7 @@ function emailShell(event: EventRecord, invite: InviteEmailTarget, heading: stri
   `;
 }
 
-export async function sendInviteEmail(event: EventRecord, invite: InviteEmailTarget) {
+export async function deliverInviteEmail(event: EventRecord, invite: InviteEmailTarget) {
   const resend = getResendClient();
   const from = requireEnv("RESEND_FROM_EMAIL");
 
@@ -85,7 +85,7 @@ export async function sendInviteEmail(event: EventRecord, invite: InviteEmailTar
   }
 }
 
-export async function sendReminderEmail(event: EventRecord, invite: InviteEmailTarget) {
+export async function deliverReminderEmail(event: EventRecord, invite: InviteEmailTarget) {
   const resend = getResendClient();
   const from = requireEnv("RESEND_FROM_EMAIL");
 

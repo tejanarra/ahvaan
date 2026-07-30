@@ -5,7 +5,7 @@ import { SearchIcon, MailIcon } from "@/components/icons";
 import { PendingGuestCard, RespondedGuestCard } from "./guest-card";
 import type { PendingInvite, RespondedGuest } from "./guest-card";
 import { sendReminderEmails } from "@/app/dashboard/events/[eventId]/actions";
-import type { FormSchema } from "@/lib/form-schema";
+import type { FormSchema } from "@/lib/schemas/form-schema";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";

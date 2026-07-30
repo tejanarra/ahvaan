@@ -1,5 +1,5 @@
 import type { FormField, FormSchema, Responses } from "./form-schema";
-import { MAX_NAME_LENGTH, MAX_GUESTS } from "./rsvp-limits";
+import { MAX_NAME_LENGTH, MAX_GUESTS } from "../rsvp-limits";
 
 function sanitizeScalar(value: unknown, maxLength: number) {
   return String(value ?? "").trim().slice(0, maxLength);
@@ -101,5 +101,17 @@ export function validateResponses(schema: FormSchema, responses: Responses) {
     ) {
       throw new Error(`${field.label} has an invalid value.`);
     }
+  }
+}
+
+const MAX_PAYLOAD_BYTES = 64 * 1024;
+
+// Per-field sanitization already caps every value's length/count — this is
+// the belt-and-suspenders total-size guard doc 02/03 (W1/W9) call for, so a
+// schema with many large fields still can't produce an unbounded write.
+export function assertResponsesWithinSizeBudget(responses: Responses) {
+  const bytes = new TextEncoder().encode(JSON.stringify(responses)).length;
+  if (bytes > MAX_PAYLOAD_BYTES) {
+    throw new Error("This submission is too large.");
   }
 }

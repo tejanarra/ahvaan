@@ -1,7 +1,7 @@
 "use client";
 
 import { forwardRef, type CSSProperties, type ComponentType, type HTMLAttributes, type ReactNode } from "react";
-import type { BlockType } from "@/lib/page-blocks/types";
+import type { BlockType } from "@/lib/blocks/types";
 import {
   SparkleIcon,
   TextLinesIcon,

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { requireHost } from "@/lib/supabase/auth-server";
-import { createServiceRoleClient } from "@/lib/supabase/server";
+import { getEventNav } from "@/lib/data/events";
 import { EventLayoutShell } from "./event-layout-shell";
 
 export default async function EventLayout({
@@ -12,15 +12,8 @@ export default async function EventLayout({
 }) {
   const { eventId } = await params;
   const host = await requireHost();
-  const supabase = createServiceRoleClient();
 
-  const { data: event } = await supabase
-    .from("events")
-    .select("id, title, slug")
-    .eq("id", eventId)
-    .eq("host_id", host.id)
-    .maybeSingle();
-
+  const event = await getEventNav(host.id, eventId);
   if (!event) {
     notFound();
   }

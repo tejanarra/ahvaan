@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, type CSSProperties, type ReactNode } from "react";
-import type { EventRecord } from "@/lib/event";
-import type { BlockInstance, ContainerLayoutMode, PageSchema } from "@/lib/page-blocks/types";
-import type { PageRenderContext } from "@/lib/page-blocks/context";
-import { BLOCK_REGISTRY } from "@/lib/page-blocks/registry";
-import { layoutWrapperStyle } from "@/lib/page-blocks/layout-controls";
-import { LayoutControls, CustomCssField, PAGE_CSS_GUIDE_EXAMPLES } from "@/lib/page-blocks/layout-controls-ui";
+import type { EventRecord } from "@/lib/data/events";
+import type { BlockInstance, ContainerLayoutMode, PageSchema } from "@/lib/blocks/types";
+import type { PageRenderContext } from "@/lib/blocks/context";
+import { BLOCK_REGISTRY } from "@/lib/blocks/registry";
+import { layoutWrapperStyle } from "@/lib/blocks/layout-controls";
+import { LayoutControls, CustomCssField, PAGE_CSS_GUIDE_EXAMPLES } from "@/components/builder/layout-controls-ui";
 import { resolveThemeColors, type Theme, type ThemeId, type ThemeColorOverrides } from "@/lib/themes";
 import { Field } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";

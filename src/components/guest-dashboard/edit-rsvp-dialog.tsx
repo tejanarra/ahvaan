@@ -3,7 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { updateRsvp } from "@/app/dashboard/events/[eventId]/actions";
 import type { RespondedGuest } from "./guest-card";
-import type { FormField, FormSchema, Responses } from "@/lib/form-schema";
+import type { FormField, FormSchema, Responses } from "@/lib/schemas/form-schema";
 import { Modal } from "@/components/ui/modal";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";

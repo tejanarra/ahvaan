@@ -3,8 +3,8 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { submitRsvp, type RsvpFormState } from "./actions";
 import { VenueMap } from "@/components/venue-map";
-import { findFieldByRole } from "@/lib/form-schema";
-import type { FormField, FormSchema, Responses } from "@/lib/form-schema";
+import { findFieldByRole } from "@/lib/schemas/form-schema";
+import type { FormField, FormSchema, Responses } from "@/lib/schemas/form-schema";
 
 const initialState: RsvpFormState = { status: "idle" };
 

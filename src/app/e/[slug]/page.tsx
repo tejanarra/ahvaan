@@ -1,13 +1,15 @@
 import type { CSSProperties } from "react";
 import { notFound } from "next/navigation";
-import { createServiceRoleClient } from "@/lib/supabase/server";
+import { getEventBySlugPublic } from "@/lib/data/events";
+import { getInvitePublic } from "@/lib/data/invites";
+import { getRsvpForInvitePublic } from "@/lib/data/rsvps";
 import { resolveThemeColors } from "@/lib/themes";
-import type { EventRecord } from "@/lib/event";
-import { resolveFormSchema, getFieldValue } from "@/lib/form-schema";
-import type { Responses } from "@/lib/form-schema";
-import { resolvePageSchema, defaultPageSchema } from "@/lib/page-blocks/types";
-import { PageRenderer } from "@/lib/page-blocks/page-renderer";
-import { CustomPageFrame } from "@/lib/page-blocks/custom-page-frame";
+import { resolveFormSchema, getFieldValue } from "@/lib/schemas/form-schema";
+import type { Responses } from "@/lib/schemas/form-schema";
+import { defaultPageSchema } from "@/lib/blocks/types";
+import { parsePageSchema } from "@/lib/schemas/page-schema";
+import { PageRenderer } from "@/lib/blocks/page-renderer";
+import { CustomPageFrame } from "@/lib/blocks/custom-page-frame";
 
 export const dynamic = "force-dynamic";
 
@@ -21,18 +23,12 @@ export default async function PublicEventPage({
   const { slug } = await params;
   const { i: invite } = await searchParams;
 
-  const supabase = createServiceRoleClient();
-  const { data: event } = await supabase
-    .from("events")
-    .select("*")
-    .eq("slug", slug)
-    .maybeSingle();
-
+  const event = await getEventBySlugPublic(slug);
   if (!event) {
     notFound();
   }
 
-  const schema = resolveFormSchema((event as EventRecord).form_schema);
+  const schema = resolveFormSchema(event.form_schema);
 
   let inviteId: string | null = null;
   let guestName: string | null = null;
@@ -41,23 +37,13 @@ export default async function PublicEventPage({
   if (invite) {
     // A malformed invite param (not a valid uuid) errors rather than
     // returning no rows — either way, fall back to the view-only experience.
-    const { data } = await supabase
-      .from("invites")
-      .select("id, name")
-      .eq("id", invite)
-      .eq("event_id", event.id)
-      .maybeSingle();
+    const inviteRow = await getInvitePublic(event.id, invite);
 
-    if (data) {
-      inviteId = data.id;
-      guestName = data.name;
+    if (inviteRow) {
+      inviteId = inviteRow.id;
+      guestName = inviteRow.name;
 
-      const { data: rsvp } = await supabase
-        .from("rsvps")
-        .select("name, attending, additional_guests, responses")
-        .eq("invite_id", inviteId)
-        .maybeSingle();
-
+      const rsvp = await getRsvpForInvitePublic(inviteId);
       if (rsvp) {
         initialResponses = {};
         for (const field of schema.fields) {
@@ -68,12 +54,13 @@ export default async function PublicEventPage({
     }
   }
 
-  // Older events created before the page builder existed have no saved
-  // page_schema — fall back to the same default layout (hero + RSVP form +
-  // venue map) a brand-new event is seeded with, so every event renders
-  // through the one page-block system rather than a second hardcoded layout.
-  const pageSchema = resolvePageSchema((event as EventRecord).page_schema) ?? defaultPageSchema();
-  const themeColors = resolveThemeColors((event as EventRecord).theme_id, pageSchema.themeOverrides);
+  // Older events created before the page builder existed (or a schema that
+  // fails validation) have no usable page_schema — fall back to the same
+  // default layout (hero + RSVP form + venue map) a brand-new event is
+  // seeded with, so every event renders through the one page-block system
+  // rather than a second hardcoded layout or a crash.
+  const pageSchema = parsePageSchema(event.page_schema) ?? defaultPageSchema();
+  const themeColors = resolveThemeColors(event.theme_id, pageSchema.themeOverrides);
 
   if (pageSchema.customPage?.enabled) {
     return <CustomPageFrame {...pageSchema.customPage} />;
@@ -95,7 +82,7 @@ export default async function PublicEventPage({
       <PageRenderer
         schema={pageSchema}
         ctx={{
-          event: event as EventRecord,
+          event,
           inviteId,
           guestName,
           schema,

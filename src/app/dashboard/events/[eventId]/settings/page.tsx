@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import { requireHost } from "@/lib/supabase/auth-server";
-import { createServiceRoleClient } from "@/lib/supabase/server";
-import type { EventRecord } from "@/lib/event";
+import { getEventFull } from "@/lib/data/events";
 import { EventSettingsForm } from "./event-settings-form";
 
 export const dynamic = "force-dynamic";
@@ -13,18 +12,11 @@ export default async function EventSettingsPage({
 }) {
   const { eventId } = await params;
   const host = await requireHost();
-  const supabase = createServiceRoleClient();
 
-  const { data: event } = await supabase
-    .from("events")
-    .select("*")
-    .eq("id", eventId)
-    .eq("host_id", host.id)
-    .maybeSingle();
-
+  const event = await getEventFull(host.id, eventId);
   if (!event) {
     notFound();
   }
 
-  return <EventSettingsForm event={event as EventRecord} />;
+  return <EventSettingsForm event={event} />;
 }

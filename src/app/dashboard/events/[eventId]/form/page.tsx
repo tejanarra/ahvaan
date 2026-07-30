@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation";
 import { requireHost } from "@/lib/supabase/auth-server";
-import { createServiceRoleClient } from "@/lib/supabase/server";
-import { resolveFormSchema } from "@/lib/form-schema";
-import type { EventRecord } from "@/lib/event";
+import { getEventFull } from "@/lib/data/events";
+import { resolveFormSchema } from "@/lib/schemas/form-schema";
 import { FormBuilder } from "./form-builder";
 
 export const dynamic = "force-dynamic";
@@ -14,20 +13,13 @@ export default async function EventFormPage({
 }) {
   const { eventId } = await params;
   const host = await requireHost();
-  const supabase = createServiceRoleClient();
 
-  const { data: event } = await supabase
-    .from("events")
-    .select("*")
-    .eq("id", eventId)
-    .eq("host_id", host.id)
-    .maybeSingle();
-
+  const event = await getEventFull(host.id, eventId);
   if (!event) {
     notFound();
   }
 
-  const schema = resolveFormSchema((event as EventRecord).form_schema);
+  const schema = resolveFormSchema(event.form_schema);
 
   return <FormBuilder eventId={event.id} schema={schema} />;
 }

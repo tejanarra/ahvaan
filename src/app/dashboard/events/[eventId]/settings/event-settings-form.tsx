@@ -2,10 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { updateEvent, deleteEvent, type EventFormInput } from "../../../actions";
+import { updateEvent, deleteEvent } from "../../../actions";
 import { ConfirmIconButton } from "@/components/confirm-icon-button";
 import { EVENT_TYPES } from "@/lib/event-types";
-import type { EventRecord } from "@/lib/event";
+import type { EventRecord } from "@/lib/data/events";
+import type { EventFormInput } from "@/lib/schemas/event-input";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";

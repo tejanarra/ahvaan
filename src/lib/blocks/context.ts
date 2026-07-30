@@ -1,5 +1,5 @@
-import type { EventRecord } from "@/lib/event";
-import type { FormSchema, Responses } from "@/lib/form-schema";
+import type { EventRecord } from "@/lib/data/events";
+import type { FormSchema, Responses } from "@/lib/schemas/form-schema";
 
 // Threaded down to every block's Render component on the public page. Only
 // the rsvp-form block actually needs the guest-specific fields; everything

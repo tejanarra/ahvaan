@@ -7,10 +7,10 @@ import { EditIcon, MailIcon, CheckIcon } from "@/components/icons";
 import {
   deleteInvite,
   deleteRsvp,
-  sendInviteEmail,
+  sendInviteEmailAction,
 } from "@/app/dashboard/events/[eventId]/actions";
 import { EditRsvpDialog } from "./edit-rsvp-dialog";
-import type { FormSchema, Responses } from "@/lib/form-schema";
+import type { FormSchema, Responses } from "@/lib/schemas/form-schema";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { IconButton } from "@/components/ui/icon-button";
@@ -33,7 +33,7 @@ function SendInviteEmailButton({ eventId, invite }: { eventId: string; invite: P
     setError("");
     startTransition(async () => {
       try {
-        await sendInviteEmail(eventId, invite.id);
+        await sendInviteEmailAction(eventId, invite.id);
         setSent(true);
         setTimeout(() => setSent(false), 2000);
       } catch (err) {

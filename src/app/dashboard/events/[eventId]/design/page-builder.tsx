@@ -17,12 +17,12 @@ import {
 import { arrayMove } from "@dnd-kit/sortable";
 import { updatePageSchema } from "../actions";
 import { updateEvent } from "../../../actions";
-import type { EventRecord } from "@/lib/event";
-import type { FormSchema } from "@/lib/form-schema";
-import type { BlockInstance, BlockType, PageSchema } from "@/lib/page-blocks/types";
-import { BLOCK_REGISTRY, makeBlockInstance } from "@/lib/page-blocks/registry";
+import type { EventRecord } from "@/lib/data/events";
+import type { FormSchema } from "@/lib/schemas/form-schema";
+import type { BlockInstance, BlockType, PageSchema } from "@/lib/blocks/types";
+import { BLOCK_REGISTRY, makeBlockInstance } from "@/lib/blocks/registry";
 import { getTheme, resolveThemeColors, THEMES, type ThemeId, type ThemeColorOverrides } from "@/lib/themes";
-import { CustomPageFrame } from "@/lib/page-blocks/custom-page-frame";
+import { CustomPageFrame } from "@/lib/blocks/custom-page-frame";
 import { PropertiesPanel, PageSettings, type CustomPageConfig } from "./properties-panel";
 import { ComponentPalette, PALETTE_DRAG_PREFIX } from "./component-palette";
 import { JsonSchemaEditor, type EditableSchema } from "./json-schema-editor";

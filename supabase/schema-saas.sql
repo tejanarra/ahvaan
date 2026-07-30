@@ -76,6 +76,20 @@ create table if not exists public.email_sends (
 
 create index if not exists email_sends_invite_id_idx on public.email_sends(invite_id);
 
+-- Phase 0 additive columns (docs/03-codebase-restructure.md W7 + Phase 4
+-- prep) — host_id/event_id let the audit log be queried without a join
+-- through invites; error captures the failure message instead of
+-- overloading status with 'failed: <msg>'; status/rsvp_deadline on events
+-- are the Phase 4 draft/publish + deadline columns, added now so the
+-- schema file only needs one more re-run before that phase lands.
+alter table public.email_sends add column if not exists host_id uuid references auth.users(id) on delete cascade;
+alter table public.email_sends add column if not exists event_id uuid references public.events(id) on delete cascade;
+alter table public.email_sends add column if not exists error text;
+create index if not exists email_sends_event_id_idx on public.email_sends(event_id);
+
+alter table public.events add column if not exists status text not null default 'published';
+alter table public.events add column if not exists rsvp_deadline timestamptz;
+
 alter table public.events enable row level security;
 alter table public.invites enable row level security;
 alter table public.rsvps enable row level security;

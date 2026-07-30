@@ -1,4 +1,4 @@
-import { MAX_NAME_LENGTH, MAX_GUESTS } from "./rsvp-limits";
+import { MAX_NAME_LENGTH, MAX_GUESTS } from "../rsvp-limits";
 
 export type FieldType = "text" | "textarea" | "select" | "radio" | "checkbox" | "plus_ones";
 

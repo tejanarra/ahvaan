@@ -197,14 +197,7 @@ export function defaultPageSchema(): PageSchema {
   };
 }
 
-export function resolvePageSchema(raw: unknown): PageSchema | null {
-  if (
-    raw &&
-    typeof raw === "object" &&
-    Array.isArray((raw as { blocks?: unknown }).blocks) &&
-    (raw as { blocks: unknown[] }).blocks.length > 0
-  ) {
-    return raw as PageSchema;
-  }
-  return null;
-}
+// Real validation (structural + per-block filtering) lives in
+// @/lib/schemas/page-schema's parsePageSchema — this module stays
+// types-only so it can be imported from both the pure renderer and the
+// zod schema without a circular dependency.

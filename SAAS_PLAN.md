@@ -573,3 +573,77 @@ the other. `git worktree list` (run from either folder) shows both.
 Standard git commands (`git add`, `git commit`, `git push`, `git log`) work
 normally from within this folder against the `saas` branch, same as any
 other checkout.
+
+## Status: docs/ planning folder + Gatherie rebrand assets (2026-07-30)
+
+- Added `docs/` (01–09 + README): the canonical forward-looking plan
+  (architecture review/target, Phase-0 restructure spec, design system,
+  page blueprints, home page, phase plan with gates, production checklist,
+  brand doc). `CLAUDE.md` at the repo root points every future session at it.
+- Product renamed **Invitely → Gatherie** (host's pick after a web-verified
+  naming audit — full candidate/rejection table in
+  `docs/09-brand-and-favicon.md`; "Invitely" collides with existing RSVP
+  apps on both app stores).
+- Brand assets built and wired in (`npm run build` passes): theme-aware
+  `src/app/icon.svg` favicon + new `icon.png` (512) / `apple-icon.png`
+  (180) replacing the old wedding icons; `src/components/brand.tsx`
+  (BrandMark + BrandLockup, Fraunces wordmark via new `--font-fraunces` in
+  the root layout) used in the dashboard header, landing header, and auth
+  pages; root metadata now Gatherie (old wedding OG image and unused
+  wedding photos in `public/` deleted).
+
+## Status: Phase 0 — foundation refactor (2026-07-30)
+
+Executed `docs/03-codebase-restructure.md` in full (pure refactor, no
+user-visible behavior change):
+
+- **Data-access layer** (`src/lib/data/{events,invites,rsvps,email-log}.ts`):
+  every Supabase query now lives here — every host-scoped function takes
+  `hostId` and applies `.eq("host_id", hostId)`; explicit column lists
+  everywhere (`listEvents` no longer pulls `form_schema`/`page_schema`
+  jsonb for the dashboard cards); typed `NotFoundError`/`DataError`.
+  `getEventBySlugPublic` is `unstable_cache`d and tagged `event:{slug}`,
+  invalidated by every mutating action via `revalidateEventCache`.
+- **Validation layer** (`src/lib/schemas/`): added `zod`. New
+  `page-schema.ts` gives `page_schema` real structural validation for the
+  first time (previously only checked "has a non-empty blocks array" and
+  cast the rest) — invalid individual blocks are dropped with a
+  server-side warning instead of crashing the guest page; verified live
+  with a hand-corrupted block type. `event-input.ts` validates
+  create/update event fields. `form-schema.ts`/`responses.ts` moved here
+  from `lib/` unchanged (already had real hand-rolled validation) plus a
+  new `assertResponsesWithinSizeBudget` (64KB cap) wired into both the
+  guest submit and host edit paths.
+- **Directory restructure**: `lib/page-blocks` → `lib/blocks` (pure:
+  types/registry/renderer/block components, importable from the public
+  page); editor-only `layout-controls-ui.tsx` → `components/builder/`;
+  `lib/event.ts` merged into `lib/data/events.ts`.
+- **Naming cleanup**: the `sendInviteEmail` action/lib-function name
+  collision resolved — lib functions renamed `deliverInviteEmail`/
+  `deliverReminderEmail`, action renamed `sendInviteEmailAction`. Added
+  `lib/format.ts` (`formatEventDate`, UTC-safe) for the dashboard cards.
+- **Schema migration** (additive, idempotent, already applied to the dev
+  project and re-run safe): `email_sends` gained `host_id`/`event_id`/
+  `error` columns; `events` gained `status` (defaults `'published'` — no
+  existing event goes dark) and `rsvp_deadline`, both Phase 4 prep.
+- **Deferred to Phase 1** (per `docs/07`, not a Phase 0 item): the shared
+  `EventDetailsForm` + live-preview theme picker — `events/new` and
+  `settings` still have their own field markup for now, since that
+  consolidation is bundled with the Phase 1 re-skin in the phase plan.
+- **Not folded in**: `LockBodyScroll` stays a small client component
+  rather than a CSS-only fix — doing it via `<body>` class would require
+  restructuring the root layout for a route-group-conditional class, not
+  worth the churn for a cosmetic edge case.
+
+**Verified**: `npm run build` passes; grep proofs clean (no `select("*")`,
+no direct Supabase table access, no `EventRecord`/`PageSchema`/
+`FormSchema` casts outside `lib/data/`); live smoke via a scripted browser
+session — signup → session persists across navigation → create event →
+guests/design/settings tabs all load → dashboard lists the new event;
+static route checks (`/`, `/login`, `/signup` 200, unauthenticated
+`/dashboard` redirects, unknown `/e/[slug]` 404s) all correct. One bug
+found and fixed during this verification: `export type { X }` re-exported
+from a `"use server"` actions file breaks Turbopack's server-action
+transform (`X is not defined` at runtime) — fixed by having consumers
+import the type directly from its source module instead of re-exporting
+it through the actions file.

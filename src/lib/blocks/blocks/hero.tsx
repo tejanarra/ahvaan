@@ -5,7 +5,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import type { EventRecord } from "@/lib/event";
+import type { EventRecord } from "@/lib/data/events";
 
 function formatEventDate(event: PageRenderContext["event"] | EventRecord) {
   if (!event.event_date) return null;

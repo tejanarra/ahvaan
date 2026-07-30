@@ -1,14 +1,16 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { requireHost } from "@/lib/supabase/auth-server";
-import { createServiceRoleClient } from "@/lib/supabase/server";
-import { sendInviteEmail as sendInviteEmailViaResend, sendReminderEmail } from "@/lib/email";
-import type { EventRecord } from "@/lib/event";
-import { resolveFormSchema, deriveLegacyScalars, enforceRoleLock } from "@/lib/form-schema";
-import type { FormSchema, Responses } from "@/lib/form-schema";
-import { sanitizeResponses, validateResponses } from "@/lib/rsvp-validation";
-import type { PageSchema } from "@/lib/page-blocks/types";
+import { deliverInviteEmail, deliverReminderEmail } from "@/lib/email";
+import { getEventFull, updateFormSchema as updateFormSchemaData, updatePageSchema as updatePageSchemaData } from "@/lib/data/events";
+import * as invitesData from "@/lib/data/invites";
+import * as rsvpsData from "@/lib/data/rsvps";
+import { logEmailSend } from "@/lib/data/email-log";
+import { NotFoundError } from "@/lib/data/errors";
+import { resolveFormSchema, deriveLegacyScalars, enforceRoleLock } from "@/lib/schemas/form-schema";
+import type { FormSchema, Responses } from "@/lib/schemas/form-schema";
+import { sanitizeResponses, validateResponses, assertResponsesWithinSizeBudget } from "@/lib/schemas/responses";
+import type { PageSchema } from "@/lib/blocks/types";
 
 export async function createInvite(eventId: string, name: string, email?: string) {
   const host = await requireHost();
@@ -17,118 +19,33 @@ export async function createInvite(eventId: string, name: string, email?: string
   if (!trimmed) {
     throw new Error("Guest name is required.");
   }
-  const trimmedEmail = email?.trim() || null;
 
-  const supabase = createServiceRoleClient();
-
-  // Verify the event belongs to this host before attaching an invite to
-  // it — otherwise a forged eventId in the request would let a host create
-  // invites (denormalized host_id and all) against another host's event.
-  const { data: event } = await supabase
-    .from("events")
-    .select("id")
-    .eq("id", eventId)
-    .eq("host_id", host.id)
-    .maybeSingle();
-
-  if (!event) {
-    throw new Error("Event not found.");
-  }
-
-  const { data, error } = await supabase
-    .from("invites")
-    .insert({ event_id: eventId, host_id: host.id, name: trimmed, email: trimmedEmail })
-    .select("id")
-    .single();
-
-  if (error || !data) {
-    throw new Error(error?.message ?? "Failed to create invite.");
-  }
-
-  revalidatePath(`/dashboard/events/${eventId}`);
-  return data.id as string;
+  return invitesData.createInvite(host.id, eventId, trimmed, email?.trim() || null);
 }
 
 export async function deleteInvite(eventId: string, inviteId: string) {
   const host = await requireHost();
-
-  const supabase = createServiceRoleClient();
-  const { error } = await supabase
-    .from("invites")
-    .delete()
-    .eq("id", inviteId)
-    .eq("event_id", eventId)
-    .eq("host_id", host.id);
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  revalidatePath(`/dashboard/events/${eventId}`);
+  await invitesData.deleteInvite(host.id, eventId, inviteId);
 }
 
 export async function deleteRsvp(eventId: string, rsvpId: string) {
   const host = await requireHost();
-
-  const supabase = createServiceRoleClient();
-  const { error } = await supabase
-    .from("rsvps")
-    .delete()
-    .eq("id", rsvpId)
-    .eq("event_id", eventId)
-    .eq("host_id", host.id);
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  revalidatePath(`/dashboard/events/${eventId}`);
+  await rsvpsData.deleteRsvp(host.id, eventId, rsvpId);
 }
 
 export async function updateRsvp(eventId: string, rsvpId: string, rawResponses: Responses) {
   const host = await requireHost();
 
-  const supabase = createServiceRoleClient();
-
-  const { data: event } = await supabase
-    .from("events")
-    .select("form_schema")
-    .eq("id", eventId)
-    .eq("host_id", host.id)
-    .maybeSingle();
-  if (!event) {
-    throw new Error("Event not found.");
-  }
+  const event = await getEventFull(host.id, eventId);
+  if (!event) throw new NotFoundError("Event not found.");
 
   const schema = resolveFormSchema(event.form_schema);
   const responses = sanitizeResponses(schema, rawResponses);
+  assertResponsesWithinSizeBudget(responses);
   validateResponses(schema, responses);
   const scalars = deriveLegacyScalars(schema, responses);
 
-  // .select().maybeSingle() is required here, not just to read the row
-  // back, but because without it Supabase reports no error at all when
-  // the id/event_id/host_id combination matches zero rows (e.g. the RSVP
-  // was deleted in the moment between opening the edit dialog and saving,
-  // or eventId/rsvpId belong to different hosts) — silently "succeeding"
-  // at nothing instead of surfacing that the row is gone or not this
-  // host's to edit.
-  const { data, error } = await supabase
-    .from("rsvps")
-    .update({ responses, ...scalars })
-    .eq("id", rsvpId)
-    .eq("event_id", eventId)
-    .eq("host_id", host.id)
-    .select("id")
-    .maybeSingle();
-
-  if (error) {
-    throw new Error(error.message);
-  }
-  if (!data) {
-    throw new Error("This RSVP no longer exists — it may have been deleted.");
-  }
-
-  revalidatePath(`/dashboard/events/${eventId}`);
+  await rsvpsData.updateRsvp(host.id, eventId, rsvpId, responses, scalars);
 }
 
 export async function updateFormSchema(eventId: string, rawSchema: FormSchema) {
@@ -161,156 +78,66 @@ export async function updateFormSchema(eventId: string, rawSchema: FormSchema) {
     }
   }
 
-  const supabase = createServiceRoleClient();
-  const { data, error } = await supabase
-    .from("events")
-    .update({ form_schema: schema })
-    .eq("id", eventId)
-    .eq("host_id", host.id)
-    .select("id")
-    .maybeSingle();
-
-  if (error) {
-    throw new Error(error.message);
-  }
-  if (!data) {
-    throw new Error("Event not found.");
-  }
-
-  revalidatePath(`/dashboard/events/${eventId}`);
+  await updateFormSchemaData(host.id, eventId, schema);
 }
 
-async function loadEventAndEmailableInvite(
-  supabase: ReturnType<typeof createServiceRoleClient>,
-  eventId: string,
-  inviteId: string,
-  hostId: string
-) {
-  const [{ data: event }, { data: invite }] = await Promise.all([
-    supabase.from("events").select("*").eq("id", eventId).eq("host_id", hostId).maybeSingle(),
-    supabase
-      .from("invites")
-      .select("id, name, email")
-      .eq("id", inviteId)
-      .eq("event_id", eventId)
-      .eq("host_id", hostId)
-      .maybeSingle(),
-  ]);
-
-  if (!event) {
-    throw new Error("Event not found.");
-  }
-  if (!invite) {
-    throw new Error("Invite not found.");
-  }
-  if (!invite.email) {
-    throw new Error(`${invite.name} doesn't have an email address on file.`);
-  }
-
-  return { event: event as EventRecord, invite: invite as { id: string; name: string; email: string } };
-}
-
-export async function sendInviteEmail(eventId: string, inviteId: string) {
+export async function sendInviteEmailAction(eventId: string, inviteId: string) {
   const host = await requireHost();
-  const supabase = createServiceRoleClient();
 
-  const { event, invite } = await loadEventAndEmailableInvite(supabase, eventId, inviteId, host.id);
+  const [event, invite] = await Promise.all([
+    getEventFull(host.id, eventId),
+    invitesData.getEmailableInvite(host.id, eventId, inviteId),
+  ]);
+  if (!event) throw new NotFoundError("Event not found.");
 
   try {
-    await sendInviteEmailViaResend(event, invite);
+    await deliverInviteEmail(event, invite);
   } catch (err) {
-    await supabase.from("email_sends").insert({
-      invite_id: invite.id,
+    await logEmailSend({
+      hostId: host.id,
+      eventId,
+      inviteId: invite.id,
       kind: "invite",
-      status: err instanceof Error ? `failed: ${err.message}`.slice(0, 200) : "failed",
+      status: "failed",
+      error: err instanceof Error ? err.message : undefined,
     });
     throw err;
   }
 
-  const { error } = await supabase
-    .from("email_sends")
-    .insert({ invite_id: invite.id, kind: "invite", status: "sent" });
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  revalidatePath(`/dashboard/events/${eventId}`);
+  await logEmailSend({ hostId: host.id, eventId, inviteId: invite.id, kind: "invite", status: "sent" });
 }
 
 export async function sendReminderEmails(eventId: string) {
   const host = await requireHost();
-  const supabase = createServiceRoleClient();
 
-  const { data: event } = await supabase
-    .from("events")
-    .select("*")
-    .eq("id", eventId)
-    .eq("host_id", host.id)
-    .maybeSingle();
-  if (!event) {
-    throw new Error("Event not found.");
-  }
+  const event = await getEventFull(host.id, eventId);
+  if (!event) throw new NotFoundError("Event not found.");
 
-  const { data: rsvps } = await supabase.from("rsvps").select("invite_id").eq("event_id", eventId);
-  const respondedInviteIds = new Set((rsvps ?? []).map((r) => r.invite_id).filter(Boolean));
-
-  const { data: invites, error: invitesError } = await supabase
-    .from("invites")
-    .select("id, name, email")
-    .eq("event_id", eventId)
-    .eq("host_id", host.id)
-    .not("email", "is", null);
-  if (invitesError) {
-    throw new Error(invitesError.message);
-  }
-
-  const pending = (invites ?? []).filter((inv) => !respondedInviteIds.has(inv.id));
+  const respondedInviteIds = await rsvpsData.listRespondedInviteIds(eventId);
+  const pending = await invitesData.listPendingInvitesWithEmail(host.id, eventId, respondedInviteIds);
 
   let sent = 0;
   for (const invite of pending) {
     try {
-      await sendReminderEmail(event as EventRecord, invite as { id: string; name: string; email: string });
-      await supabase
-        .from("email_sends")
-        .insert({ invite_id: invite.id, kind: "reminder", status: "sent" });
+      await deliverReminderEmail(event, invite);
+      await logEmailSend({ hostId: host.id, eventId, inviteId: invite.id, kind: "reminder", status: "sent" });
       sent += 1;
     } catch (err) {
-      await supabase.from("email_sends").insert({
-        invite_id: invite.id,
+      await logEmailSend({
+        hostId: host.id,
+        eventId,
+        inviteId: invite.id,
         kind: "reminder",
-        status: err instanceof Error ? `failed: ${err.message}`.slice(0, 200) : "failed",
+        status: "failed",
+        error: err instanceof Error ? err.message : undefined,
       });
     }
   }
 
-  revalidatePath(`/dashboard/events/${eventId}`);
   return { sent, total: pending.length };
 }
 
 export async function updatePageSchema(eventId: string, schema: PageSchema) {
   const host = await requireHost();
-
-  const supabase = createServiceRoleClient();
-  const { data: event } = await supabase
-    .from("events")
-    .select("slug")
-    .eq("id", eventId)
-    .eq("host_id", host.id)
-    .maybeSingle();
-  if (!event) {
-    throw new Error("Event not found.");
-  }
-
-  const { error } = await supabase
-    .from("events")
-    .update({ page_schema: schema })
-    .eq("id", eventId)
-    .eq("host_id", host.id);
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  revalidatePath(`/dashboard/events/${eventId}/design`);
-  revalidatePath(`/e/${event.slug}`);
+  await updatePageSchemaData(host.id, eventId, schema);
 }

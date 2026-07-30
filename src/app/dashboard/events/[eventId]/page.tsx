@@ -1,12 +1,13 @@
 import { notFound } from "next/navigation";
 import { requireHost } from "@/lib/supabase/auth-server";
-import { createServiceRoleClient } from "@/lib/supabase/server";
-import type { EventRecord } from "@/lib/event";
+import { getEventFull } from "@/lib/data/events";
+import { listInvites } from "@/lib/data/invites";
+import { listRsvps } from "@/lib/data/rsvps";
 import { GuestDashboard } from "@/components/guest-dashboard/guest-dashboard";
 import { ShareInviteButton } from "@/components/guest-dashboard/share-invite-button";
 import type { PendingInvite, RespondedGuest } from "@/components/guest-dashboard/guest-card";
-import { resolveFormSchema, findFieldByRole, getFieldValue } from "@/lib/form-schema";
-import type { Responses } from "@/lib/form-schema";
+import { resolveFormSchema, findFieldByRole, getFieldValue } from "@/lib/schemas/form-schema";
+import type { Responses } from "@/lib/schemas/form-schema";
 
 export const dynamic = "force-dynamic";
 
@@ -17,49 +18,29 @@ export default async function EventGuestsPage({
 }) {
   const { eventId } = await params;
   const host = await requireHost();
-  const supabase = createServiceRoleClient();
 
-  const { data: event } = await supabase
-    .from("events")
-    .select("*")
-    .eq("id", eventId)
-    .eq("host_id", host.id)
-    .maybeSingle();
-
+  const event = await getEventFull(host.id, eventId);
   if (!event) {
     notFound();
   }
 
-  const [{ data: invites, error: invitesError }, { data: rsvps, error: rsvpsError }] =
-    await Promise.all([
-      supabase
-        .from("invites")
-        .select("*")
-        .eq("event_id", eventId)
-        .eq("host_id", host.id)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("rsvps")
-        .select("*")
-        .eq("event_id", eventId)
-        .eq("host_id", host.id)
-        .order("created_at", { ascending: false }),
-    ]);
+  const [invites, rsvps] = await Promise.all([
+    listInvites(host.id, eventId),
+    listRsvps(host.id, eventId),
+  ]);
 
-  const schema = resolveFormSchema((event as EventRecord).form_schema);
+  const schema = resolveFormSchema(event.form_schema);
   const nameField = findFieldByRole(schema, "name");
   const attendingField = findFieldByRole(schema, "attending");
   const plusOnesField = findFieldByRole(schema, "plus_ones");
 
-  const rsvpByInvite = new Map(
-    (rsvps ?? []).filter((r) => r.invite_id).map((r) => [r.invite_id, r])
-  );
+  const rsvpByInvite = new Map(rsvps.filter((r) => r.invite_id).map((r) => [r.invite_id, r]));
 
-  const pendingInvites: PendingInvite[] = (invites ?? [])
+  const pendingInvites: PendingInvite[] = invites
     .filter((inv) => !rsvpByInvite.has(inv.id))
     .map((inv) => ({ id: inv.id, name: inv.name, email: inv.email, createdAt: inv.created_at }));
 
-  const respondedGuests: RespondedGuest[] = (rsvps ?? []).map((r) => {
+  const respondedGuests: RespondedGuest[] = rsvps.map((r) => {
     const responses: Responses = {};
     for (const field of schema.fields) {
       const value = getFieldValue(r, field);
@@ -91,7 +72,7 @@ export default async function EventGuestsPage({
     : null;
 
   const stats = {
-    sent: invites?.length ?? 0,
+    sent: invites.length,
     pending: pendingInvites.length,
     responded: respondedGuests.length,
     attending: attendingCount,
@@ -105,12 +86,6 @@ export default async function EventGuestsPage({
         <h2 className="text-sm font-semibold text-foreground">Guests</h2>
         <ShareInviteButton eventId={event.id} eventSlug={event.slug} eventTitle={event.title} />
       </div>
-
-      {(invitesError || rsvpsError) && (
-        <p className="mt-4 text-sm font-medium text-destructive">
-          Failed to load guest data: {invitesError?.message ?? rsvpsError?.message}
-        </p>
-      )}
 
       <div className="mt-4">
         <GuestDashboard

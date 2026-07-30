@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import type { BlockAlign, BlockLayout, BlockWidth, ContainerLayoutMode } from "./types";
-import { resolveBlockLayout } from "./types";
+import type { BlockAlign, BlockLayout, BlockWidth, ContainerLayoutMode } from "@/lib/blocks/types";
+import { resolveBlockLayout } from "@/lib/blocks/types";
 import { ToggleGroup } from "@/components/ui/toggle-group";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
