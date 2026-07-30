@@ -27,24 +27,29 @@ function descendantContainerIds(block: BlockInstance): string[] {
   return block.children.flatMap((c) => ("children" in c ? [c.id, ...descendantContainerIds(c)] : []));
 }
 
-const DEVICE_LABEL: Record<Exclude<DeviceWidth, "desktop">, string> = {
+const DEVICE_LABEL: Record<DeviceWidth, string> = {
+  desktop: "Desktop",
   tablet: "Tablet",
   mobile: "Mobile",
 };
 
-// The real guest page enforces mobile/tablet overrides via actual `@media`
-// CSS (see blockResponsiveCss) since the server can't know a visitor's
-// viewport ahead of render. The canvas instead already knows exactly which
-// device is being simulated (the Desktop/Tablet/Mobile toggle) — a `@media`
-// query here would evaluate against the real browser window, not the
-// canvas's simulated device width, so it wouldn't preview correctly. Swapping
-// the effective layout in JS, keyed off that same toggle, does.
+// The real guest page enforces mobile/tablet/hiddenOnDesktop overrides via
+// actual `@media` CSS (see blockResponsiveCss) since the server can't know
+// a visitor's viewport ahead of render. The canvas instead already knows
+// exactly which device is being simulated (the Desktop/Tablet/Mobile
+// toggle) — a `@media` query here would evaluate against the real browser
+// window, not the canvas's simulated device width, so it wouldn't preview
+// correctly. Swapping the effective layout in JS, keyed off that same
+// toggle, does.
 function effectiveLayoutForDevice(
   layout: BlockLayout | undefined,
   device: DeviceWidth
 ): { layout: BlockLayout; hiddenForDevice: boolean } {
   const resolved = resolveBlockLayout(layout);
-  const override = device === "mobile" ? resolved.mobile : device === "tablet" ? resolved.tablet : undefined;
+  if (device === "desktop") {
+    return { layout: resolved, hiddenForDevice: Boolean(resolved.hiddenOnDesktop) };
+  }
+  const override = device === "mobile" ? resolved.mobile : resolved.tablet;
   if (!override) return { layout: resolved, hiddenForDevice: false };
   return {
     layout: {
@@ -226,7 +231,7 @@ function EditableBlock({
           style={{ zIndex: controlsZIndex }}
           className="absolute -top-3.5 left-1 rounded-md border border-dashed border-border bg-background px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted"
         >
-          Hidden on {DEVICE_LABEL[device as Exclude<DeviceWidth, "desktop">]}
+          Hidden on {DEVICE_LABEL[device]}
         </div>
       )}
       <div

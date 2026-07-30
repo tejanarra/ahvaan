@@ -186,7 +186,9 @@ export function LayoutControls({
   const [advancedOpen, setAdvancedOpen] = useState(
     Boolean(resolved.minHeightPx || resolved.textColorOverride || resolved.customCss)
   );
-  const [deviceOpen, setDeviceOpen] = useState(Boolean(resolved.mobile || resolved.tablet));
+  const [deviceOpen, setDeviceOpen] = useState(
+    Boolean(resolved.mobile || resolved.tablet || resolved.hiddenOnDesktop)
+  );
 
   // The Width preset has no visible effect at all inside a grid container
   // (grid tracks size the block, not this preset) or once a Row-share value
@@ -270,9 +272,17 @@ export function LayoutControls({
       {deviceOpen && (
         <div className="space-y-2 border-t border-border pt-3">
           <p className="text-xs text-muted-foreground">
-            Hide, resize, or realign this block on mobile/tablet without changing how it looks on desktop. Use
-            the Desktop/Tablet/Mobile toggle in the canvas toolbar to preview it.
+            Hide, resize, or realign this block on mobile/tablet without changing how it looks on desktop — or
+            hide it on desktop only, for something you only want mobile/tablet visitors to see. Use the
+            Desktop/Tablet/Mobile toggle in the canvas toolbar to preview it.
           </p>
+          <label className="flex items-center gap-2 rounded-md border border-border p-2.5 text-xs font-medium text-foreground">
+            <Checkbox
+              checked={resolved.hiddenOnDesktop ?? false}
+              onChange={(e) => onChange({ ...resolved, hiddenOnDesktop: e.target.checked || undefined })}
+            />
+            Hide on desktop
+          </label>
           <BreakpointOverrideFields
             label="mobile"
             value={resolved.mobile}

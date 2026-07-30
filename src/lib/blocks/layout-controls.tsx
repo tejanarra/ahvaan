@@ -169,10 +169,13 @@ function breakpointDeclarations(override: BreakpointOverride): string {
 // would evaluate against the actual browser window, not the canvas's
 // simulated device width, so it wouldn't preview correctly there anyway.
 export function blockResponsiveCss(blockId: string, layout: BlockLayout | undefined): string {
-  if (!layout?.mobile && !layout?.tablet) return "";
+  if (!layout?.mobile && !layout?.tablet && !layout?.hiddenOnDesktop) return "";
   const selector = `[data-block-id="${blockId}"]`;
   const rules: string[] = [];
 
+  if (layout.hiddenOnDesktop) {
+    rules.push(`@media (min-width: ${TABLET_MAX_PX + 1}px) { ${selector} { display: none !important; } }`);
+  }
   if (layout.mobile) {
     const decls = breakpointDeclarations(layout.mobile);
     if (decls) rules.push(`@media (max-width: ${MOBILE_MAX_PX}px) { ${selector} { ${decls} } }`);

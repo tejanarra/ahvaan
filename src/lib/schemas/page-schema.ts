@@ -39,6 +39,7 @@ const blockLayoutSchema = z
     customCss: z.string().max(4000).optional(),
     flexGrow: z.number().finite().optional(),
     gridSpan: z.number().finite().optional(),
+    hiddenOnDesktop: z.boolean().optional(),
     mobile: breakpointOverrideSchema.optional(),
     tablet: breakpointOverrideSchema.optional(),
   })

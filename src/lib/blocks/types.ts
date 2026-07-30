@@ -39,16 +39,24 @@ export type BlockLayout = {
   // how many grid columns this element spans (e.g. 2 of 4 columns = half
   // width). Ignored (and hidden in the editor) otherwise.
   gridSpan?: number;
+  // Hides this block on desktop specifically (>= lg, see TABLET_MAX_PX)
+  // while leaving mobile/tablet alone — the desktop-side equivalent of
+  // `mobile.hidden`/`tablet.hidden` below. Named distinctly from those
+  // (not just `hidden`) because the base align/width fields already *are*
+  // "the desktop layout" — a plain `hidden` here would be ambiguous
+  // between "hidden on desktop" and "hidden everywhere."
+  hiddenOnDesktop?: boolean;
   // Per-device overrides: unset fields on either fall back to the base
-  // align/width/hidden above (which is what "desktop" always means — there
-  // is no separate desktop override, the base fields *are* the desktop
-  // layout). `hidden` on its own lets a block be dropped from one device
-  // entirely without touching the others. Real guest page: enforced via
-  // real `@media` CSS (see layout-controls.tsx's blockResponsiveCss) since
-  // the server can't know a visitor's viewport ahead of render. Builder
-  // canvas: enforced via the explicit device-toggle state instead (see
-  // editable-canvas.tsx) — a real `@media` query would evaluate against
-  // the actual browser window, not the canvas's simulated device width.
+  // align/width above (which is what "desktop" always means — there is no
+  // separate desktop override object, the base fields *are* the desktop
+  // layout; `hiddenOnDesktop` above is desktop's one exception). `hidden`
+  // on its own lets a block be dropped from one device entirely without
+  // touching the others. Real guest page: enforced via real `@media` CSS
+  // (see layout-controls.tsx's blockResponsiveCss) since the server can't
+  // know a visitor's viewport ahead of render. Builder canvas: enforced via
+  // the explicit device-toggle state instead (see editable-canvas.tsx) — a
+  // real `@media` query would evaluate against the actual browser window,
+  // not the canvas's simulated device width.
   mobile?: BreakpointOverride;
   tablet?: BreakpointOverride;
 };
@@ -85,6 +93,7 @@ export function resolveBlockLayout(layout: Partial<BlockLayout> | undefined): Bl
     customCss: layout?.customCss,
     flexGrow: layout?.flexGrow,
     gridSpan: layout?.gridSpan,
+    hiddenOnDesktop: layout?.hiddenOnDesktop,
     mobile: layout?.mobile,
     tablet: layout?.tablet,
   };
