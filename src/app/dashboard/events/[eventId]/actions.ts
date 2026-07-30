@@ -14,6 +14,7 @@ import { parsePageSchema } from "@/lib/schemas/page-schema";
 import type { PageSchema, BlockInstance, CustomHtmlConfig } from "@/lib/blocks/types";
 import { parseCustomComponentInput } from "@/lib/schemas/custom-component";
 import { upsertComponentByName } from "@/lib/data/custom-components";
+import { uploadEventImage } from "@/lib/data/storage";
 
 export async function createInvite(eventId: string, name: string, email?: string) {
   const host = await requireHost();
@@ -139,6 +140,20 @@ export async function sendReminderEmails(eventId: string) {
   }
 
   return { sent, total: pending.length };
+}
+
+export async function uploadImage(eventId: string, formData: FormData) {
+  const host = await requireHost();
+
+  const event = await getEventFull(host.id, eventId);
+  if (!event) throw new NotFoundError("Event not found.");
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    throw new Error("No image file provided.");
+  }
+
+  return uploadEventImage(host.id, eventId, file);
 }
 
 export async function updatePageSchema(eventId: string, schema: PageSchema) {

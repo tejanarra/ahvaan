@@ -122,3 +122,24 @@ create table if not exists public.custom_components (
 
 create index if not exists custom_components_host_id_idx on public.custom_components(host_id);
 alter table public.custom_components enable row level security;
+
+-- Phase 4: host-uploaded images (hero cover, Image block). Public-read (a
+-- public bucket serves objects straight from its public URL, no auth
+-- header, independent of storage.objects RLS) — every write goes through
+-- the service-role client (src/lib/data/storage.ts), same "service-role
+-- write, RLS as backstop only" model as every table above, so no
+-- storage.objects policies are needed. `file_size_limit`/
+-- `allowed_mime_types` are a second, DB-level enforcement of the same 5MB/
+-- image-type limits already checked in application code.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'event-images',
+  'event-images',
+  true,
+  5242880,
+  array['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+)
+on conflict (id) do update set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;

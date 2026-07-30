@@ -161,6 +161,7 @@ export type CreateEventInput = {
   venueAddress: string | null;
   subtitle: string | null;
   description: string | null;
+  coverImageUrl: string | null;
   pageSchema: unknown;
 };
 
@@ -180,6 +181,7 @@ export async function createEvent(input: CreateEventInput): Promise<string> {
       venue_name: input.venueName,
       venue_address: input.venueAddress,
       description: input.description,
+      cover_image_url: input.coverImageUrl,
       page_schema: input.pageSchema,
       // Every new event starts as a draft (docs/01 "New in v1") — the host
       // designs the page/form privately, then publishes when ready. Existing
@@ -210,6 +212,7 @@ export async function updateEventDetails(hostId: string, eventId: string, input:
       venue_name: input.venueName,
       venue_address: input.venueAddress,
       description: input.description,
+      cover_image_url: input.coverImageUrl,
     })
     .eq("id", eventId)
     .eq("host_id", hostId)

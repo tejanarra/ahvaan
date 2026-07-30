@@ -1,7 +1,9 @@
 import type { ImageConfig, ImageFit } from "../types";
+import type { EventRecord } from "@/lib/data/events";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { ToggleGroup } from "@/components/ui/toggle-group";
+import { ImageUploadField } from "@/components/image-upload-field";
 
 export const imageDefaultConfig: ImageConfig = { url: "", alt: "" };
 
@@ -13,9 +15,11 @@ const FIT_OPTIONS: { value: ImageFit; label: string }[] = [
 export function ImageEdit({
   config,
   onChange,
+  event,
 }: {
   config: ImageConfig;
   onChange: (next: ImageConfig) => void;
+  event?: EventRecord;
 }) {
   const fit: ImageFit = config.fit ?? "cover";
   const hasMaxHeight = config.maxHeightPx !== undefined;
@@ -24,14 +28,23 @@ export function ImageEdit({
     <div className="space-y-5">
       <div className="space-y-3">
         <p className="text-xs font-medium uppercase tracking-wide text-muted">Source</p>
-        <Field label="Image URL" hint="A direct link to an image (jpg, png, gif, webp).">
-          <Input
-            type="text"
+        {event ? (
+          <ImageUploadField
+            eventId={event.id}
+            label="Image"
             value={config.url}
-            onChange={(e) => onChange({ ...config, url: e.target.value })}
-            placeholder="https://…"
+            onChange={(url) => onChange({ ...config, url })}
           />
-        </Field>
+        ) : (
+          <Field label="Image URL" hint="A direct link to an image (jpg, png, gif, webp).">
+            <Input
+              type="text"
+              value={config.url}
+              onChange={(e) => onChange({ ...config, url: e.target.value })}
+              placeholder="https://…"
+            />
+          </Field>
+        )}
         <Field label="Alt text" hint="A short description for screen readers — leave blank if purely decorative.">
           <Input
             type="text"

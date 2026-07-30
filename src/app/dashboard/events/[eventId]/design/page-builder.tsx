@@ -353,6 +353,7 @@ export function PageBuilder({
         venueAddress: next.venue_address ?? "",
         subtitle: next.subtitle ?? "",
         description: next.description ?? "",
+        coverImageUrl: next.cover_image_url ?? "",
       }).then(() => {
         if (!isMountedRef.current) return;
         setEventSaveState("saved");

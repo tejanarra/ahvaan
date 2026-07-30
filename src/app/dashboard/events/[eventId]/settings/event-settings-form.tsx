@@ -78,7 +78,10 @@ export function EventSettingsForm({ event }: { event: EventRecord }) {
   const handleSave = () => {
     startSaveTransition(async () => {
       try {
-        await updateEvent(event.id, value);
+        // coverImageUrl isn't part of this form (it's set from the Hero
+        // block in the page builder) — carry the event's current value
+        // through unchanged so saving Settings never blanks it.
+        await updateEvent(event.id, { ...value, coverImageUrl: event.cover_image_url ?? "" });
         show("Saved.");
       } catch (err) {
         show(err instanceof Error ? err.message : "Failed to save.", "error");
