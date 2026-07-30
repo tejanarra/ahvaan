@@ -100,6 +100,15 @@ export type RsvpFormBlockConfig = {
   confirmedYesHeading?: string;
   confirmedNoHeading?: string;
   showVenueOnConfirmation?: boolean;
+  // Full visual control over the post-submit screen: when set, this
+  // replaces the built-in heading/field-list/venue-map layout with the
+  // host's own markup, rendered in the same sandboxed iframe model as the
+  // custom-html block (allow-scripts, no allow-same-origin). Supports the
+  // same {{venue_map}} shortcode plus {{responses_summary}} (the guest's
+  // own submitted answers, pre-formatted as an HTML list).
+  confirmationHtml?: string;
+  confirmationCss?: string;
+  confirmationHeightPx?: number;
 };
 
 export type VenueMapBlockConfig = Record<string, never>;

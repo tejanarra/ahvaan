@@ -5,6 +5,8 @@ import { submitRsvp, type RsvpFormState } from "./actions";
 import { VenueMap } from "@/components/venue-map";
 import { findFieldByRole } from "@/lib/schemas/form-schema";
 import type { FormField, FormSchema, Responses } from "@/lib/schemas/form-schema";
+import { buildSandboxSrcDoc } from "@/lib/blocks/sandbox";
+import { applyComponentShortcodes } from "@/lib/blocks/shortcodes";
 
 const initialState: RsvpFormState = { status: "idle" };
 
@@ -247,6 +249,9 @@ export function RsvpForm({
   confirmedYesHeading = "You're on the list!",
   confirmedNoHeading = "Thanks for letting us know",
   showVenueOnConfirmation = true,
+  confirmationHtml,
+  confirmationCss,
+  confirmationHeightPx,
 }: {
   eventId: string;
   inviteId: string;
@@ -261,6 +266,12 @@ export function RsvpForm({
   confirmedYesHeading?: string;
   confirmedNoHeading?: string;
   showVenueOnConfirmation?: boolean;
+  // Full visual override for the confirmation screen — when set, replaces
+  // everything below (heading, field list, venue map) with the host's own
+  // sandboxed HTML/CSS.
+  confirmationHtml?: string;
+  confirmationCss?: string;
+  confirmationHeightPx?: number;
 }) {
   const [state, formAction, pending] = useActionState(submitRsvp, initialState);
 
@@ -288,6 +299,30 @@ export function RsvpForm({
   );
 
   if (mode === "view" && saved) {
+    if (confirmationHtml) {
+      const height = Number.isFinite(confirmationHeightPx)
+        ? Math.min(4000, Math.max(50, confirmationHeightPx!))
+        : 300;
+      const html = applyComponentShortcodes(confirmationHtml, {
+        eventId,
+        inviteId,
+        venueName,
+        venueAddress,
+        schema,
+        responses: saved,
+      });
+      return (
+        <iframe
+          srcDoc={buildSandboxSrcDoc({ html, css: confirmationCss ?? "", js: "" })}
+          sandbox="allow-scripts"
+          referrerPolicy="no-referrer"
+          title="RSVP confirmation"
+          style={{ height: `${height}px` }}
+          className="w-full rounded-lg border-0"
+        />
+      );
+    }
+
     const headingField = findFieldByRole(schema, "attending");
     const heading = headingField
       ? asString(saved[headingField.id]) === "yes"

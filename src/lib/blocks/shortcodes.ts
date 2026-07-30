@@ -1,4 +1,4 @@
-import type { FormSchema, FormField } from "@/lib/schemas/form-schema";
+import type { FormSchema, FormField, Responses } from "@/lib/schemas/form-schema";
 
 // Lets a host embed the *real, working* RSVP form or venue map inside a
 // sandboxed custom-HTML/CSS/JS block or the whole-page custom mode, styled
@@ -84,12 +84,40 @@ export function renderRsvpFormHtml(schema: FormSchema, eventId: string, inviteId
   ].join("");
 }
 
+function formatResponseValue(field: FormField, value: string | string[] | undefined): string {
+  if (field.type === "plus_ones" || field.type === "checkbox") {
+    const list = Array.isArray(value) ? value : [];
+    return list.length > 0 ? list.map(escapeHtml).join(", ") : "—";
+  }
+  if (field.role === "attending") {
+    return (typeof value === "string" ? value : "") === "yes" ? "Yes" : "No";
+  }
+  const str = typeof value === "string" ? value : "";
+  return str ? escapeHtml(str) : "—";
+}
+
+// Only meaningful right after a guest's own submission (the post-submit
+// confirmation screen), never during a page's normal render — that's why
+// it's a separate optional field on the context rather than always present.
+export function renderResponsesSummaryHtml(schema: FormSchema, responses: Responses): string {
+  const rows = schema.fields
+    .map(
+      (field) =>
+        `<p><span class="gatherie-summary-label">${escapeHtml(field.label)}: </span>${formatResponseValue(field, responses[field.id])}</p>`
+    )
+    .join("");
+  return `<div class="gatherie-responses-summary">${rows}</div>`;
+}
+
 export type ShortcodeContext = {
   eventId: string;
   inviteId: string | null;
   venueName: string | null;
   venueAddress: string | null;
   schema: FormSchema;
+  // Present only when substituting into a guest's own post-submit
+  // confirmation screen — enables {{responses_summary}}.
+  responses?: Responses;
 };
 
 export function applyComponentShortcodes(html: string, ctx: ShortcodeContext): string {
@@ -99,6 +127,9 @@ export function applyComponentShortcodes(html: string, ctx: ShortcodeContext): s
   }
   if (result.includes("{{venue_map}}") && ctx.venueAddress) {
     result = result.replaceAll("{{venue_map}}", renderVenueMapHtml(ctx.venueName || "Venue", ctx.venueAddress));
+  }
+  if (result.includes("{{responses_summary}}") && ctx.responses) {
+    result = result.replaceAll("{{responses_summary}}", renderResponsesSummaryHtml(ctx.schema, ctx.responses));
   }
   return result;
 }

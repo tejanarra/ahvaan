@@ -86,6 +86,49 @@ export function RsvpFormEdit({
           />
           Show the venue map after a guest responds
         </label>
+
+        <p className="text-xs text-muted">
+          For full visual control over the confirmation screen, write your own HTML below
+          (sandboxed the same way as the Custom HTML/CSS/JS block). Write{" "}
+          <code className="font-mono">{"{{responses_summary}}"}</code> to show the guest&rsquo;s
+          own answers, or <code className="font-mono">{"{{venue_map}}"}</code> to show the venue —
+          leave HTML empty to keep the built-in layout above.
+        </p>
+        <Field label="Confirmation HTML" hint="Leave empty to use the built-in layout.">
+          <Textarea
+            value={config.confirmationHtml ?? ""}
+            onChange={(e) => onChange({ ...config, confirmationHtml: e.target.value })}
+            rows={5}
+            spellCheck={false}
+            className="font-mono text-xs"
+          />
+        </Field>
+        {config.confirmationHtml && (
+          <>
+            <Field label="Confirmation CSS">
+              <Textarea
+                value={config.confirmationCss ?? ""}
+                onChange={(e) => onChange({ ...config, confirmationCss: e.target.value })}
+                rows={4}
+                spellCheck={false}
+                className="font-mono text-xs"
+              />
+            </Field>
+            <Field label="Frame height">
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min={50}
+                  max={2000}
+                  value={config.confirmationHeightPx ?? 300}
+                  onChange={(e) => onChange({ ...config, confirmationHeightPx: Number(e.target.value) || 0 })}
+                  className="w-24"
+                />
+                <span className="text-sm text-muted">px</span>
+              </div>
+            </Field>
+          </>
+        )}
       </div>
     </div>
   );
@@ -138,6 +181,9 @@ export function RsvpFormRender({
           confirmedYesHeading={config.confirmedYesHeading || DEFAULT_CONFIRMED_YES_HEADING}
           confirmedNoHeading={config.confirmedNoHeading || DEFAULT_CONFIRMED_NO_HEADING}
           showVenueOnConfirmation={config.showVenueOnConfirmation !== false}
+          confirmationHtml={config.confirmationHtml}
+          confirmationCss={config.confirmationCss}
+          confirmationHeightPx={config.confirmationHeightPx}
         />
       </div>
     </div>
