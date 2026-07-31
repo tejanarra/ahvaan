@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import { cn } from "@/lib/cn";
 
-// The Gatherie mark: a reply card tilted −8° carrying a wax-seal dot — see
+// The Ahvan mark: a reply card tilted −8° carrying a wax-seal dot — see
 // docs/09-brand-and-favicon.md for the geometry/color spec. The dot is always
 // brand green (not the UI --accent token) so the mark stays identical across
 // the Studio, marketing pages, and any guest theme it ever appears on.
@@ -44,9 +44,9 @@ export function BrandLockup({
       <BrandMark className={markClassName} />
       <span
         style={wordmarkStyle}
-        className={cn("text-lg font-semibold lowercase leading-none font-display", textClassName)}
+        className={cn("text-lg font-semibold uppercase leading-none font-display", textClassName)}
       >
-        gatherie
+        ahvan
       </span>
     </span>
   );

@@ -11,7 +11,7 @@ export default function GuestPageNotFound() {
         The link may be incorrect, or the host hasn&rsquo;t published this page yet.
       </p>
       <Link href="/" className="mt-2 text-sm font-medium text-accent hover:underline">
-        Gatherie home
+        Ahvan home
       </Link>
     </div>
   );

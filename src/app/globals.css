@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  /* Gatherie Studio tokens — "paper & ink" palette, see docs/04-design-system.md */
+  /* Ahvan Studio tokens — "paper & ink" palette, see docs/04-design-system.md */
   --background: #fbfaf8;
   --surface: #ffffff;
   --surface-sunken: #f4f2ee;

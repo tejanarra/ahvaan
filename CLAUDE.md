@@ -1,4 +1,4 @@
-# Gatherie (branch `saas`)
+# Ahvan (branch `saas`)
 
 Multi-tenant event-invitation SaaS (Next.js 16 + Supabase + Resend).
 

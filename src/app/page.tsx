@@ -55,7 +55,7 @@ function InviteVignette() {
         </span>
       </div>
       <div className="mt-3 flex items-center gap-2 rounded-lg bg-surface-sunken px-3 py-2">
-        <p className="flex-1 truncate font-mono text-[11px] text-muted">gatherie.app/e/maya-julien?i=8f2…</p>
+        <p className="flex-1 truncate font-mono text-[11px] text-muted">ahvan.app/e/maya-julien?i=8f2…</p>
         <span className="text-xs font-semibold text-accent">Copy</span>
       </div>
     </div>
@@ -103,7 +103,7 @@ export default function Home() {
       {/* Navbar */}
       <header className="sticky top-0 z-40 border-b border-border/70 bg-background/85 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
-          <Link href="/" aria-label="Gatherie home">
+          <Link href="/" aria-label="Ahvan home">
             <BrandLockup />
           </Link>
           <nav className="flex items-center gap-1.5 sm:gap-3">
@@ -123,12 +123,12 @@ export default function Home() {
         {/* Hero */}
         <section className="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-16 pt-14 sm:px-6 sm:pt-20 lg:grid-cols-[1.1fr_1fr] lg:gap-16">
           <div className="text-center lg:text-left">
-            <Eyebrow>Free forever · No guest accounts</Eyebrow>
+            <Eyebrow>RSVP made easy · Free forever · No guest accounts</Eyebrow>
             <h1 className="mt-4 text-4xl leading-[1.08] text-foreground sm:text-5xl lg:text-[3.4rem] font-display">
               Design the <em className="text-accent">invitation</em>. Share one link. Watch the RSVPs arrive.
             </h1>
             <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-muted lg:mx-0">
-              Gatherie gives every event a beautiful, fully-customizable page — with built-in
+              Ahvan gives every event a beautiful, fully-customizable page — with built-in
               RSVPs your guests can answer in seconds.
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
@@ -302,7 +302,7 @@ export default function Home() {
       <footer className="border-t border-border">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 py-8 sm:flex-row sm:px-6">
           <BrandLockup markClassName="h-4 w-4" textClassName="text-sm" />
-          <p className="text-xs text-muted">© {new Date().getFullYear()} Gatherie</p>
+          <p className="text-xs text-muted">© {new Date().getFullYear()} Ahvan</p>
           <nav className="flex items-center gap-4 text-sm">
             <Link href="/privacy" className="text-muted hover:text-foreground">
               Privacy

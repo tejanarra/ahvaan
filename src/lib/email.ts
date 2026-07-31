@@ -80,7 +80,7 @@ function emailShell(event: EventRecord, invite: InviteEmailTarget, heading: stri
         Or copy this link: ${link}
       </p>
       <hr style="margin-top: 24px; border: none; border-top: 1px solid ${BORDER};" />
-      <p style="margin-top: 12px; font-size: 11px; color: ${MUTED_FOREGROUND};">Sent via Gatherie</p>
+      <p style="margin-top: 12px; font-size: 11px; color: ${MUTED_FOREGROUND};">Sent via Ahvan</p>
     </div>
   `;
 }

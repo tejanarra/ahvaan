@@ -32,8 +32,8 @@ SYSTEM
 - The event workspace header row: title (editable inline? **no** — edit in
   Settings, one way to do things), status Badge (Draft/Published, Phase 4),
   "View page ↗" (opens `/e/[slug]`; when draft, appends preview param).
-- Guest pages have **no** Gatherie chrome except a single discreet footer
-  line: "Made with Gatherie" linking home (this is the growth loop; keep it
+- Guest pages have **no** Ahvan chrome except a single discreet footer
+  line: "Made with Ahvan" linking home (this is the growth loop; keep it
   small, `text-caption`, theme-muted color).
 
 ## Page blueprints

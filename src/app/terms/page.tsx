@@ -9,7 +9,7 @@ export const metadata = { title: "Terms of Service" };
 export default function TermsOfServicePage() {
   return (
     <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6">
-      <Link href="/" aria-label="Gatherie home" className="inline-flex">
+      <Link href="/" aria-label="Ahvan home" className="inline-flex">
         <BrandLockup />
       </Link>
       <h1 className="mt-8 text-3xl text-foreground font-display">Terms of Service</h1>
@@ -17,7 +17,7 @@ export default function TermsOfServicePage() {
 
       <div className="mt-8 space-y-6 text-sm leading-relaxed text-foreground">
         <p>
-          These terms cover your use of Gatherie — a free tool for building event-invitation pages,
+          These terms cover your use of Ahvan — a free tool for building event-invitation pages,
           sending personal guest links, and collecting RSVPs. By creating an account or using the
           product, you agree to them.
         </p>
@@ -25,7 +25,7 @@ export default function TermsOfServicePage() {
         <section>
           <h2 className="text-base font-semibold">The service</h2>
           <p className="mt-2">
-            Gatherie is free, with no paid plans or billing. We may add, change, or remove features
+            Ahvan is free, with no paid plans or billing. We may add, change, or remove features
             over time, and we&rsquo;ll try not to break anything you&rsquo;re relying on without notice.
           </p>
         </section>
@@ -35,7 +35,7 @@ export default function TermsOfServicePage() {
           <p className="mt-2">
             You&rsquo;re responsible for the accuracy of what you enter and for anything published under
             your account, including custom HTML/CSS/JS you add to your event page. Don&rsquo;t use
-            Gatherie to collect information you don&rsquo;t have a right to collect, to send unwanted or
+            Ahvan to collect information you don&rsquo;t have a right to collect, to send unwanted or
             deceptive email through the invite/reminder feature, or to publish unlawful, harassing, or
             malicious content.
           </p>
@@ -64,7 +64,7 @@ export default function TermsOfServicePage() {
         <section>
           <h2 className="text-base font-semibold">Availability</h2>
           <p className="mt-2">
-            We aim to keep Gatherie available and your data intact, but we can&rsquo;t guarantee
+            We aim to keep Ahvan available and your data intact, but we can&rsquo;t guarantee
             uninterrupted service, and we&rsquo;re not liable for lost RSVPs, missed deadlines, or other
             damages arising from downtime, bugs, or data loss. Keep your own copy of anything
             irreplaceable (e.g. export your guest list to CSV before an important deadline).

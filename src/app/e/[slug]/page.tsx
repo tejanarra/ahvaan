@@ -47,7 +47,7 @@ export async function generateMetadata({
   const event = await getEventBySlugPublic(slug);
 
   if (!event || event.status === "draft") {
-    return { title: "Gatherie", robots: { index: false, follow: false } };
+    return { title: "Ahvan", robots: { index: false, follow: false } };
   }
 
   return {
@@ -181,7 +181,7 @@ export default async function PublicEventPage({
       <p className="pb-6 text-center text-[11px] tracking-wide text-[var(--t-fg)]/40">
         Made with{" "}
         <Link href="/" className="underline decoration-dotted underline-offset-2 hover:text-[var(--t-fg)]/70">
-          Gatherie
+          Ahvan
         </Link>
       </p>
     </div>

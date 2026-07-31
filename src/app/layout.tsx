@@ -35,19 +35,19 @@ const description =
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "Gatherie — Beautiful invitations with effortless RSVPs",
-    template: "%s · Gatherie",
+    default: "Ahvan — RSVP made easy",
+    template: "%s · Ahvan",
   },
   description,
   openGraph: {
     type: "website",
-    siteName: "Gatherie",
-    title: "Gatherie — Beautiful invitations with effortless RSVPs",
+    siteName: "Ahvan",
+    title: "Ahvan — RSVP made easy",
     description,
   },
   twitter: {
     card: "summary_large_image",
-    title: "Gatherie — Beautiful invitations with effortless RSVPs",
+    title: "Ahvan — RSVP made easy",
     description,
   },
 };

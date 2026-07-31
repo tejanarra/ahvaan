@@ -1,6 +1,6 @@
-# Gatherie — Product Documentation & Build Reference
+# Ahvan — Product Documentation & Build Reference
 
-This folder is the **canonical planning reference** for building Gatherie to a
+This folder is the **canonical planning reference** for building Ahvan to a
 customer-ready, production-grade product. It was produced from a full review of
 the codebase as of 2026-07-30 (branch `saas`, post-Stage-5 — see `SAAS_PLAN.md`
 at the repo root for the build history that led here).

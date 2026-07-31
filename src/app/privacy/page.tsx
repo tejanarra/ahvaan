@@ -10,7 +10,7 @@ export const metadata = { title: "Privacy Policy" };
 export default function PrivacyPolicyPage() {
   return (
     <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6">
-      <Link href="/" aria-label="Gatherie home" className="inline-flex">
+      <Link href="/" aria-label="Ahvan home" className="inline-flex">
         <BrandLockup />
       </Link>
       <h1 className="mt-8 text-3xl text-foreground font-display">Privacy Policy</h1>
@@ -18,7 +18,7 @@ export default function PrivacyPolicyPage() {
 
       <div className="mt-8 space-y-6 text-sm leading-relaxed text-foreground">
         <p>
-          Gatherie is an event-invitation tool: a host creates an event page, invites guests with
+          Ahvan is an event-invitation tool: a host creates an event page, invites guests with
           personal links, and collects their RSVPs. This page explains what information we collect
           and why.
         </p>
@@ -57,7 +57,7 @@ export default function PrivacyPolicyPage() {
           <h2 className="text-base font-semibold">Where it&rsquo;s stored</h2>
           <p className="mt-2">
             All data is stored in a Supabase (PostgreSQL) database. Emails are sent through Resend.
-            Neither is used for any purpose beyond operating Gatherie on our behalf.
+            Neither is used for any purpose beyond operating Ahvan on our behalf.
           </p>
         </section>
 
@@ -91,7 +91,7 @@ export default function PrivacyPolicyPage() {
           <h2 className="text-base font-semibold">Contact</h2>
           <p className="mt-2">
             Questions about this policy or your data — reach out to the person or team operating this
-            Gatherie instance.
+            Ahvan instance.
           </p>
         </section>
       </div>

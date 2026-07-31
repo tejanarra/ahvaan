@@ -2,14 +2,14 @@
 
 ## Vision
 
-**Gatherie** lets anyone create a beautiful, fully-customizable event invitation
+**Ahvan** lets anyone create a beautiful, fully-customizable event invitation
 page, share personal invite links with guests, and track every RSVP — without
 design skills, spreadsheets, or paid plans.
 
 The product's core differentiator (already built, must stay the hero): the
 invitation page is **truly customizable** — a drag-and-drop block editor, an
 editable RSVP form schema, per-block styling, nested containers, and a sandboxed
-custom-code escape hatch. Competitors give you a template; Gatherie gives you a
+custom-code escape hatch. Competitors give you a template; Ahvan gives you a
 page.
 
 One sentence for the home page: *"Design the invitation. Share one link. Watch

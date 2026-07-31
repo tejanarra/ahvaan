@@ -25,7 +25,7 @@ export function renderVenueMapHtml(venueName: string, venueAddress: string): str
   const embedUrl = `https://www.google.com/maps?q=${query}&output=embed`;
   const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${query}`;
   return [
-    `<div class="gatherie-venue-map">`,
+    `<div class="ahvan-venue-map">`,
     `<p>${escapeHtml(venueName)}</p>`,
     `<p>${escapeHtml(venueAddress)}</p>`,
     `<iframe src="${escapeAttr(embedUrl)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" style="width:100%;height:280px;border:0" title="Venue location map"></iframe>`,
@@ -72,11 +72,11 @@ function renderFieldHtml(field: FormField): string {
 
 export function renderRsvpFormHtml(schema: FormSchema, eventId: string, inviteId: string | null): string {
   if (!inviteId) {
-    return `<div class="gatherie-rsvp-form"><p>By invitation only — open this page from your personal invite link to RSVP.</p></div>`;
+    return `<div class="ahvan-rsvp-form"><p>By invitation only — open this page from your personal invite link to RSVP.</p></div>`;
   }
   const fields = schema.fields.map(renderFieldHtml).join("");
   return [
-    `<form class="gatherie-rsvp-form" method="post" action="/api/rsvp">`,
+    `<form class="ahvan-rsvp-form" method="post" action="/api/rsvp">`,
     `<input type="hidden" name="eventId" value="${escapeAttr(eventId)}" />`,
     `<input type="hidden" name="inviteId" value="${escapeAttr(inviteId)}" />`,
     fields,
@@ -104,10 +104,10 @@ export function renderResponsesSummaryHtml(schema: FormSchema, responses: Respon
   const rows = schema.fields
     .map(
       (field) =>
-        `<p><span class="gatherie-summary-label">${escapeHtml(field.label)}: </span>${formatResponseValue(field, responses[field.id])}</p>`
+        `<p><span class="ahvan-summary-label">${escapeHtml(field.label)}: </span>${formatResponseValue(field, responses[field.id])}</p>`
     )
     .join("");
-  return `<div class="gatherie-responses-summary">${rows}</div>`;
+  return `<div class="ahvan-responses-summary">${rows}</div>`;
 }
 
 // Parses `name="value"`/`name='value'` pairs out of a self-closing tag's
