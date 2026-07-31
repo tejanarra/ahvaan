@@ -37,7 +37,10 @@ export const dynamic = "force-dynamic";
 // semi-private; robots.ts also disallows crawling /e/ entirely, this is
 // the per-page belt-and-suspenders). A draft's real title is withheld too,
 // on the same "nothing about a draft leaks before the host publishes it"
-// principle as the page body's own draft/preview check below.
+// principle as the page body's own draft/preview check below — so a draft
+// also gets no og:image (opengraph-image.tsx below has its own matching
+// draft/not-found fallback, but link previews shouldn't hit it at all
+// while noindex/notFound already keep drafts out of reach).
 export async function generateMetadata({
   params,
 }: {
@@ -50,10 +53,32 @@ export async function generateMetadata({
     return { title: "Ahvan", robots: { index: false, follow: false } };
   }
 
+  const title = event.title;
+  const description = event.subtitle || `You're invited to ${event.title}.`;
+  // A relative path resolves against root layout.tsx's `metadataBase` — a
+  // host's own upload (cover_image_url) is already an absolute Supabase
+  // Storage URL, so takes precedence untouched; otherwise this event's own
+  // route segment doubles as the fallback image endpoint (see the sibling
+  // opengraph-image.tsx file, which Next serves at this same path).
+  const image = event.cover_image_url || `/e/${slug}/opengraph-image`;
+
   return {
-    title: event.title,
-    description: event.subtitle || `You're invited to ${event.title}.`,
+    title,
+    description,
     robots: { index: false, follow: false },
+    openGraph: {
+      type: "website",
+      siteName: "Ahvan",
+      title,
+      description,
+      images: [{ url: image, width: 1200, height: 630 }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [image],
+    },
   };
 }
 

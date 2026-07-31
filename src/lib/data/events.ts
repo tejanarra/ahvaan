@@ -20,6 +20,7 @@ export type EventRecord = {
   venue_name: string | null;
   venue_address: string | null;
   description: string | null;
+  cover_image_url: string | null;
   form_schema: unknown;
   page_schema: unknown;
   status: EventStatus;
@@ -36,12 +37,14 @@ export type EventSummary = Pick<
 
 const SUMMARY_COLUMNS = "id, slug, title, event_type, event_date, theme_id, status, created_at";
 const FULL_COLUMNS =
-  "id, host_id, slug, event_type, theme_id, title, subtitle, event_date, event_time, venue_name, venue_address, description, form_schema, page_schema, status, rsvp_deadline, created_at";
+  "id, host_id, slug, event_type, theme_id, title, subtitle, event_date, event_time, venue_name, venue_address, description, cover_image_url, form_schema, page_schema, status, rsvp_deadline, created_at";
 // The public page needs `status`/`host_id` only to decide draft visibility
 // (see requireVisiblePublicEvent in src/app/e/[slug]/page.tsx) — never
-// rendered to a guest.
+// rendered to a guest. `cover_image_url` is included here (unlike most host-
+// only fields) because generateMetadata reads it straight off this same
+// public row to build the guest page's og:image.
 const PUBLIC_COLUMNS =
-  "id, host_id, slug, event_type, theme_id, title, subtitle, event_date, event_time, venue_name, venue_address, description, form_schema, page_schema, status, rsvp_deadline";
+  "id, host_id, slug, event_type, theme_id, title, subtitle, event_date, event_time, venue_name, venue_address, description, cover_image_url, form_schema, page_schema, status, rsvp_deadline";
 
 function slugify(title: string) {
   return title
@@ -243,6 +246,27 @@ export async function updateRsvpDeadline(hostId: string, eventId: string, rsvpDe
   const { data, error } = await supabase
     .from("events")
     .update({ rsvp_deadline: rsvpDeadline })
+    .eq("id", eventId)
+    .eq("host_id", hostId)
+    .select("id, slug")
+    .maybeSingle();
+
+  if (error) throw new DataError(error.message);
+  if (!data) throw new NotFoundError("Event not found.");
+
+  revalidateEventCache(eventId, data.slug as string);
+}
+
+// Separate from updateEventDetails (like updateRsvpDeadline) rather than
+// folded into EventDetailsFields/CreateEventInput: that form is shared with
+// events/new, where there's no eventId yet for ImageUploadField to upload
+// against (uploadEventImage's storage path is keyed by eventId) — this
+// field is only ever settable post-creation, from Settings.
+export async function updateCoverImage(hostId: string, eventId: string, coverImageUrl: string | null) {
+  const supabase = createServiceRoleClient();
+  const { data, error } = await supabase
+    .from("events")
+    .update({ cover_image_url: coverImageUrl })
     .eq("id", eventId)
     .eq("host_id", hostId)
     .select("id, slug")

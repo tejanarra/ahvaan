@@ -62,6 +62,11 @@ export async function setRsvpDeadline(eventId: string, deadlineIso: string | nul
   await eventsData.updateRsvpDeadline(host.id, eventId, deadlineIso);
 }
 
+export async function setCoverImage(eventId: string, url: string | null) {
+  const host = await requireHost();
+  await eventsData.updateCoverImage(host.id, eventId, url);
+}
+
 export async function deleteEvent(eventId: string) {
   const host = await requireHost();
   await eventsData.deleteEvent(host.id, eventId);

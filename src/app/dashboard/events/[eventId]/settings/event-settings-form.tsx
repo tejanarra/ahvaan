@@ -2,8 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { updateEvent, deleteEvent, setEventStatus, setRsvpDeadline } from "../../../actions";
+import { updateEvent, deleteEvent, setEventStatus, setRsvpDeadline, setCoverImage } from "../../../actions";
 import { EventDetailsFields, type EventDetailsValue } from "@/components/event-details-form";
+import { ImageUploadField } from "@/components/image-upload-field";
 import type { EventRecord } from "@/lib/data/events";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -44,11 +45,13 @@ export function EventSettingsForm({ event }: { event: EventRecord }) {
   const [value, setValue] = useState<EventDetailsValue>(toValue(event));
   const [status, setStatus] = useState(event.status);
   const [deadlineInput, setDeadlineInput] = useState(() => toLocalInputValue(event.rsvp_deadline));
+  const [coverImageUrl, setCoverImageUrl] = useState(event.cover_image_url ?? "");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [isSaving, startSaveTransition] = useTransition();
   const [isDeleting, startDeleteTransition] = useTransition();
   const [isPublishing, startPublishTransition] = useTransition();
   const [isSavingDeadline, startDeadlineTransition] = useTransition();
+  const [isSavingCoverImage, startCoverImageTransition] = useTransition();
 
   const handleSaveDeadline = () => {
     startDeadlineTransition(async () => {
@@ -82,6 +85,17 @@ export function EventSettingsForm({ event }: { event: EventRecord }) {
         show("Saved.");
       } catch (err) {
         show(err instanceof Error ? err.message : "Failed to save.", "error");
+      }
+    });
+  };
+
+  const handleSaveCoverImage = () => {
+    startCoverImageTransition(async () => {
+      try {
+        await setCoverImage(event.id, coverImageUrl || null);
+        show(coverImageUrl ? "Cover image saved." : "Cover image removed — link previews will use a generated one.");
+      } catch (err) {
+        show(err instanceof Error ? err.message : "Failed to save cover image.", "error");
       }
     });
   };
@@ -169,6 +183,36 @@ export function EventSettingsForm({ event }: { event: EventRecord }) {
                 variant="ghost"
                 onClick={() => setDeadlineInput("")}
                 disabled={isSavingDeadline}
+              >
+                Clear
+              </Button>
+            )}
+          </div>
+        </CardBody>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Social sharing image</CardTitle>
+        </CardHeader>
+        <CardBody>
+          <ImageUploadField
+            eventId={event.id}
+            label="Cover image"
+            hint="Shown as the preview image when your invite link is shared (iMessage, WhatsApp, Slack, etc). If left blank, we generate one automatically from your invite page."
+            value={coverImageUrl}
+            onChange={setCoverImageUrl}
+          />
+          <div className="mt-4 flex items-center gap-2">
+            <Button size="sm" onClick={handleSaveCoverImage} loading={isSavingCoverImage}>
+              {isSavingCoverImage ? "Saving..." : "Save"}
+            </Button>
+            {coverImageUrl && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setCoverImageUrl("")}
+                disabled={isSavingCoverImage}
               >
                 Clear
               </Button>
