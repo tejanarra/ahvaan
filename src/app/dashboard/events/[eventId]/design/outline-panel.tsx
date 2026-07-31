@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -9,7 +9,18 @@ import type { BlockInstance } from "@/lib/blocks/types";
 import { BLOCK_REGISTRY } from "@/lib/blocks/registry";
 import { BlockTypeBadge } from "./block-card";
 import type { BlockPath, ContainerOption } from "./editable-canvas";
-import { emptyListId } from "./dnd-ids";
+import { emptyListId, startListId, type DropPlan } from "./dnd-ids";
+
+// A thin accent line showing exactly where a drag would land right now —
+// the Outline's own version of editable-canvas.tsx's InsertionBar. Unlike
+// that one, this needs no absolute positioning to avoid a layout-shift
+// feedback loop: rows here are a plain vertical block list (space-y-*), not
+// row-direction flex, so a normal flow element between two rows doesn't
+// create the same circular-sizing/collision-detection problem a flex-wrap
+// row's children did.
+function OutlineInsertionLine({ depth }: { depth: number }) {
+  return <div aria-hidden="true" style={{ marginLeft: depth * 20 }} className="my-0.5 h-0.5 rounded-full bg-accent" />;
+}
 import { ConfirmIconButton } from "@/components/confirm-icon-button";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { DragHandleIcon, ChevronDownIcon, MoveOutIcon } from "@/components/icons";
@@ -47,6 +58,49 @@ function OutlineEmptyDropZone({ containerId, depth }: { containerId: string; dep
   );
 }
 
+// The non-empty counterpart to OutlineEmptyDropZone — without this, a list
+// with at least one row already in it had no droppable at all past its last
+// item, so dragging a block to the end of a container (or the end of the
+// top-level page) here silently did nothing, unlike the visual canvas
+// (editable-canvas.tsx's EndOfListDropZone), which already has this. Same
+// id scheme (emptyListId) as the empty-state zone above, so page-builder.tsx's
+// existing EMPTY_LIST_PREFIX resolution handles both with no extra logic.
+function OutlineEndOfListDropZone({ containerId, depth }: { containerId: string | null; depth: number }) {
+  const { setNodeRef, isOver } = useDroppable({ id: emptyListId(containerId) });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ paddingLeft: (depth + 1) * 20 }}
+      className={cn(
+        "flex h-4 items-center rounded-md border border-dashed text-[10px] uppercase tracking-wide transition-colors",
+        isOver ? "border-accent bg-accent-soft px-2 text-accent" : "border-transparent text-transparent"
+      )}
+    >
+      Drop here
+    </div>
+  );
+}
+
+// Symmetric counterpart, rendered before the children — see the matching
+// comment on editable-canvas.tsx's StartOfListDropZone for why the
+// container's own box alone (always "append at end") isn't enough to
+// reliably land something at the very top of a list.
+function OutlineStartOfListDropZone({ containerId, depth }: { containerId: string | null; depth: number }) {
+  const { setNodeRef, isOver } = useDroppable({ id: startListId(containerId) });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ paddingLeft: (depth + 1) * 20 }}
+      className={cn(
+        "flex h-4 items-center rounded-md border border-dashed text-[10px] uppercase tracking-wide transition-colors",
+        isOver ? "border-accent bg-accent-soft px-2 text-accent" : "border-transparent text-transparent"
+      )}
+    >
+      Drop here
+    </div>
+  );
+}
+
 function OutlineRow({
   block,
   containerId,
@@ -58,6 +112,7 @@ function OutlineRow({
   onMoveTo,
   onRename,
   containerOptions,
+  dropPlan,
 }: {
   block: BlockInstance;
   containerId: string | null;
@@ -69,8 +124,12 @@ function OutlineRow({
   onMoveTo: (path: BlockPath, destContainerId: string | null) => void;
   onRename: (path: BlockPath, name: string) => void;
   containerOptions: ContainerOption[];
+  dropPlan: DropPlan;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: block.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: block.id,
+    transition: { duration: 150, easing: "ease" },
+  });
   const def = BLOCK_REGISTRY[block.type];
   const path: BlockPath = { containerId, blockId: block.id };
   const isSelected = selectedPath?.containerId === containerId && selectedPath?.blockId === block.id;
@@ -178,23 +237,31 @@ function OutlineRow({
             <OutlineEmptyDropZone containerId={block.id} depth={depth} />
           ) : (
             <SortableContext items={block.children.map((c) => c.id)} strategy={verticalListSortingStrategy}>
-              {block.children.map((child) => (
-                <OutlineRow
-                  key={child.id}
-                  block={child}
-                  containerId={block.id}
-                  depth={depth + 1}
-                  selectedPath={selectedPath}
-                  onSelect={onSelect}
-                  onRemove={onRemove}
-                  onMoveOut={onMoveOut}
-                  onMoveTo={onMoveTo}
-                  onRename={onRename}
-                  containerOptions={containerOptions}
-                />
+              <OutlineStartOfListDropZone containerId={block.id} depth={depth} />
+              {block.children.map((child, i) => (
+                <Fragment key={child.id}>
+                  {dropPlan?.containerId === block.id && dropPlan.index === i && <OutlineInsertionLine depth={depth + 1} />}
+                  <OutlineRow
+                    block={child}
+                    containerId={block.id}
+                    depth={depth + 1}
+                    selectedPath={selectedPath}
+                    onSelect={onSelect}
+                    onRemove={onRemove}
+                    onMoveOut={onMoveOut}
+                    onMoveTo={onMoveTo}
+                    onRename={onRename}
+                    containerOptions={containerOptions}
+                    dropPlan={dropPlan}
+                  />
+                </Fragment>
               ))}
+              {dropPlan?.containerId === block.id && dropPlan.index === block.children.length && (
+                <OutlineInsertionLine depth={depth + 1} />
+              )}
             </SortableContext>
           )}
+          {block.children.length > 0 && <OutlineEndOfListDropZone containerId={block.id} depth={depth} />}
         </div>
       )}
     </div>
@@ -210,6 +277,7 @@ export function OutlinePanel({
   onMoveTo,
   onRename,
   containerOptions,
+  dropPlan,
 }: {
   blocks: BlockInstance[];
   selectedPath: BlockPath | null;
@@ -219,6 +287,7 @@ export function OutlinePanel({
   onMoveTo: (path: BlockPath, destContainerId: string | null) => void;
   onRename: (path: BlockPath, name: string) => void;
   containerOptions: ContainerOption[];
+  dropPlan: DropPlan;
 }) {
   if (blocks.length === 0) {
     return (
@@ -231,22 +300,28 @@ export function OutlinePanel({
   return (
     <div className="space-y-0.5 p-2">
       <SortableContext items={blocks.map((b) => b.id)} strategy={verticalListSortingStrategy}>
-        {blocks.map((block) => (
-          <OutlineRow
-            key={block.id}
-            block={block}
-            containerId={null}
-            depth={0}
-            selectedPath={selectedPath}
-            onSelect={onSelect}
-            onRemove={onRemove}
-            onMoveOut={onMoveOut}
-            onMoveTo={onMoveTo}
-            onRename={onRename}
-            containerOptions={containerOptions}
-          />
+        <OutlineStartOfListDropZone containerId={null} depth={0} />
+        {blocks.map((block, i) => (
+          <Fragment key={block.id}>
+            {dropPlan?.containerId === null && dropPlan.index === i && <OutlineInsertionLine depth={0} />}
+            <OutlineRow
+              block={block}
+              containerId={null}
+              depth={0}
+              selectedPath={selectedPath}
+              onSelect={onSelect}
+              onRemove={onRemove}
+              onMoveOut={onMoveOut}
+              onMoveTo={onMoveTo}
+              onRename={onRename}
+              containerOptions={containerOptions}
+              dropPlan={dropPlan}
+            />
+          </Fragment>
         ))}
+        {dropPlan?.containerId === null && dropPlan.index === blocks.length && <OutlineInsertionLine depth={0} />}
       </SortableContext>
+      <OutlineEndOfListDropZone containerId={null} depth={0} />
     </div>
   );
 }

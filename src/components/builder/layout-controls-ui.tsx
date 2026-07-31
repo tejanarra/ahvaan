@@ -115,6 +115,7 @@ function BreakpointOverrideFields({
   value,
   onChange,
   hideDisabled,
+  fallbackLabel = "desktop",
 }: {
   label: string;
   value: BreakpointOverride | undefined;
@@ -123,6 +124,12 @@ function BreakpointOverrideFields({
   // one too would leave the block invisible everywhere, which is never a
   // real intent (docs: "at least one screen size" must show it).
   hideDisabled: boolean;
+  // What "unset" actually falls back to — "desktop" for mobile, but
+  // "mobile" for tablet (see blockResponsiveCss's own fallback in
+  // layout-controls.tsx: a tablet held portrait defaults to the mobile
+  // override, not desktop, so a host doesn't have to duplicate one into
+  // the other).
+  fallbackLabel?: "desktop" | "mobile";
 }) {
   const hidden = value?.hidden ?? false;
 
@@ -159,7 +166,7 @@ function BreakpointOverrideFields({
               value={value?.width ?? ""}
               onChange={(e) => set({ width: e.target.value ? (e.target.value as BlockWidth) : undefined })}
             >
-              <option value="">Same as desktop</option>
+              <option value="">Same as {fallbackLabel}</option>
               {WIDTH_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {WIDTH_SELECT_LABEL[opt.value]}
@@ -173,7 +180,7 @@ function BreakpointOverrideFields({
               value={value?.align ?? ""}
               onChange={(e) => set({ align: e.target.value ? (e.target.value as BlockAlign) : undefined })}
             >
-              <option value="">Same as desktop</option>
+              <option value="">Same as {fallbackLabel}</option>
               <option value="left">Left</option>
               <option value="center">Center</option>
               <option value="right">Right</option>
@@ -215,13 +222,15 @@ export function LayoutControls({
   const hiddenCount = [desktopHidden, mobileHidden, tabletHidden].filter(Boolean).length;
 
   // The Width preset has no visible effect at all inside a grid container
-  // (grid tracks size the block, not this preset) or once a Row-share value
-  // is set inside a row (the share replaces "size to this preset" with
-  // "take this fraction of the row") — showing an interactive-looking
-  // control that silently does nothing was the exact "layout is finicky"
-  // complaint, so it's replaced with a one-line explanation instead.
+  // (grid tracks size the block, not this preset) or inside a row — a row
+  // child defaults to an equal share of the row (Row share unset behaves as
+  // 1) rather than sizing to this preset, so Width only matters again once
+  // Row share is explicitly set to 0 (opting back out to content-sized).
+  // Showing an interactive-looking control that silently does nothing was
+  // the exact "layout is finicky" complaint, so it's replaced with a
+  // one-line explanation instead.
   const inGrid = parentLayoutMode === "grid";
-  const rowShareActive = parentLayoutMode === "row" && Boolean(resolved.flexGrow && resolved.flexGrow > 0);
+  const rowShareActive = parentLayoutMode === "row" && resolved.flexGrow !== 0;
   const widthDisabled = inGrid || rowShareActive;
 
   return (
@@ -260,11 +269,11 @@ export function LayoutControls({
             step={1}
             value={resolved.flexGrow ?? ""}
             onChange={(e) => onChange({ ...resolved, flexGrow: e.target.value ? Number(e.target.value) : undefined })}
-            placeholder="auto"
+            placeholder="1"
             className="h-7 w-16 px-2 text-xs"
           />
           <span className="text-muted" title="e.g. 2 here + 1 on two siblings = this one takes half the row">
-            Leave blank to size to content, or set a number — a sibling with 2 takes twice the space of one with 1.
+            Blank splits evenly (equal share of 1). Set a different number for a custom ratio, or 0 to size this one to its own content instead.
           </span>
         </div>
       )}
@@ -297,8 +306,10 @@ export function LayoutControls({
         <div className="space-y-2 border-t border-border pt-3">
           <p className="text-xs text-muted-foreground">
             Hide, resize, or realign this block on mobile/tablet without changing how it looks on desktop — or
-            hide it on desktop only, for something you only want mobile/tablet visitors to see. Use the
-            Desktop/Tablet/Mobile toggle in the canvas toolbar to preview it.
+            hide it on desktop only, for something you only want mobile/tablet visitors to see. Tablet fields left
+            unset use your Mobile settings instead of Desktop's — a tablet held upright (portrait) is meant to look
+            like mobile by default, the same way one held sideways (landscape) already looks like desktop with no
+            setup. Use the Desktop/Tablet/Mobile toggle in the canvas toolbar to preview it.
           </p>
           <label
             className={cn(
@@ -329,6 +340,7 @@ export function LayoutControls({
             value={resolved.tablet}
             onChange={(tablet) => onChange({ ...resolved, tablet })}
             hideDisabled={hiddenCount >= 2 && !tabletHidden}
+            fallbackLabel="mobile"
           />
         </div>
       )}

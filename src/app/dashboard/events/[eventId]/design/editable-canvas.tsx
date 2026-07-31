@@ -13,8 +13,32 @@ import type { DeviceWidth } from "./page-builder";
 import { ConfirmIconButton } from "@/components/confirm-icon-button";
 import { DragHandleIcon, EditIcon, MoveOutIcon, ChevronDownIcon } from "@/components/icons";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
-import { emptyListId } from "./dnd-ids";
+import { emptyListId, startListId, type DropPlan } from "./dnd-ids";
 import { cn } from "@/lib/cn";
+
+// Renders as an absolutely-positioned overlay on the target block's own
+// (already `position: relative`) wrapper — NOT a real flex/sortable list
+// item. That distinction matters: an earlier version spliced this in as an
+// actual sibling, which shifted every block below it in the flow every time
+// the drop target changed. Since droppable rects are re-measured live during
+// a drag, that shift fed straight back into collision detection — pointer
+// stays still, the rect under it moves, collision detection sees a new
+// "over" target, the indicator jumps again, shifting layout again — an
+// infinite loop, which is exactly the "flickering like hell near the bottom
+// edge" and the silently-failing nested drops this replaces. An absolutely
+// positioned element contributes zero size to its flow parent, so it can
+// never move anything else's rect, however often it appears or moves.
+function InsertionBar({ orientation }: { orientation: "row" | "column" }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={cn(
+        "pointer-events-none absolute z-30 rounded-full bg-accent",
+        orientation === "row" ? "-left-2.5 inset-y-1 w-1" : "-top-2.5 inset-x-1 h-1"
+      )}
+    />
+  );
+}
 
 export type BlockPath = { containerId: string | null; blockId: string };
 export type ContainerOption = { id: string; label: string };
@@ -43,7 +67,15 @@ function effectiveLayoutForDevice(
   if (device === "desktop") {
     return { layout: resolved, hiddenForDevice: Boolean(resolved.hiddenOnDesktop) };
   }
-  const override = device === "mobile" ? resolved.mobile : resolved.tablet;
+  // Tablet fields fall back to the mobile override field-by-field wherever
+  // a tablet-specific value isn't set — matches blockResponsiveCss's own
+  // merge (layout-controls.tsx) for the real guest page: a tablet held
+  // "short side down" (portrait, this app's tablet range) is meant to look
+  // like mobile by default, while "long side down" (landscape, 1024px+)
+  // already lands outside the tablet range entirely and matches desktop
+  // with zero configuration either way.
+  const override =
+    device === "mobile" ? resolved.mobile : resolved.mobile || resolved.tablet ? { ...resolved.mobile, ...resolved.tablet } : undefined;
   if (!override) return { layout: resolved, hiddenForDevice: false };
   return {
     layout: {
@@ -79,6 +111,8 @@ function EditableBlock({
   onHover,
   onHoverEnd,
   device,
+  dropPlan,
+  showInsertionBefore = false,
 }: {
   block: BlockInstance;
   containerId: string | null;
@@ -121,8 +155,20 @@ function EditableBlock({
   onHover: (path: BlockPath) => void;
   onHoverEnd: (path: BlockPath) => void;
   device: DeviceWidth;
+  // Live "where would this land right now" from page-builder.tsx's
+  // onDragOver — null whenever nothing is being dragged, or the current
+  // hover position doesn't resolve to a valid drop.
+  dropPlan: DropPlan;
+  // True when the current drop would land immediately before this specific
+  // block (computed by the parent from dropPlan.index vs. this block's
+  // position in its own list) — draws the InsertionBar on this block's own
+  // wrapper, oriented to match `parentLayoutMode`.
+  showInsertionBefore?: boolean;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver } = useSortable({ id: block.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: block.id,
+    transition: { duration: 150, easing: "ease" },
+  });
   const def = BLOCK_REGISTRY[block.type];
   const path: BlockPath = { containerId, blockId: block.id };
   const isSelected = selectedPath?.containerId === containerId && selectedPath?.blockId === block.id;
@@ -168,14 +214,21 @@ function EditableBlock({
   const Render = def.Render;
   const isEmptyContainer = isContainer && block.children.length === 0;
 
+  // This container is the current drop target (whether inserting between
+  // two of its existing children, or appending at the end) whenever
+  // dropPlan's containerId is this block's own id — regardless of the
+  // resolved index, both cases mean "lands inside me."
+  const isDropTarget = isContainer && dropPlan?.containerId === block.id;
+
   // Built entirely by the editor (never by the real guest page-renderer,
   // which constructs its own renderedChildren with no drop zones) — safe to
   // include an extra drop-target element alongside the actual child blocks.
   const renderedChildren: ReactNode[] | undefined =
     isContainer && !isEmptyContainer
       ? [
+          <StartOfListDropZone key="start" containerId={block.id} />,
           <SortableContext key="children" items={block.children.map((c) => c.id)} strategy={verticalListSortingStrategy}>
-            {block.children.map((child) => (
+            {block.children.map((child, i) => (
               <EditableBlock
                 key={child.id}
                 block={child}
@@ -193,6 +246,8 @@ function EditableBlock({
                 onHover={onHover}
                 onHoverEnd={onHoverEnd}
                 device={device}
+                dropPlan={dropPlan}
+                showInsertionBefore={isDropTarget && dropPlan!.index === i}
               />
             ))}
           </SortableContext>,
@@ -226,13 +281,14 @@ function EditableBlock({
           "pointer-events-none absolute -inset-1.5 rounded-xl ring-2 transition-all",
           isSelected
             ? "ring-accent"
-            : isContainer && isOver
+            : isDropTarget
               ? "ring-2 ring-dashed ring-accent/60"
               : isHovered
                 ? "ring-accent/30"
                 : "ring-transparent"
         )}
       />
+      {showInsertionBefore && <InsertionBar orientation={parentLayoutMode === "row" ? "row" : "column"} />}
       <div
         style={{ zIndex: controlsZIndex }}
         className={cn(
@@ -380,7 +436,14 @@ export function EmptyDropZone({ containerId, onClick }: { containerId: string | 
       ref={setNodeRef}
       onClick={onClick}
       className={cn(
-        "rounded-xl border border-dashed p-6 text-center text-sm transition-colors",
+        // w-full: matches every other block type's own Render output
+        // (container.tsx etc.), which is what lets a parent's row-share
+        // sizing (layoutWrapperStyle) actually show through. Safe now that
+        // that file's wrapper uses flexBasis: 0% + minWidth instead of
+        // flexBasis: auto for the default row share — auto is what made a
+        // w-full descendant circularly resolve to "claim the whole line";
+        // 0% is a definite value so there's nothing to circularly resolve.
+        "w-full rounded-xl border border-dashed p-6 text-center text-sm transition-colors",
         onClick && "cursor-pointer",
         isOver ? "border-accent bg-accent/5 text-foreground" : "border-border text-muted"
       )}
@@ -403,6 +466,40 @@ function EndOfListDropZone({ containerId }: { containerId: string | null }) {
   return (
     <div
       ref={setNodeRef}
+      // flexBasis: "100%" is the standard trick for forcing a flex-wrap item
+      // onto its own line — without it, this strip is a genuine third flex
+      // sibling next to a row container's real children. It has no explicit
+      // flex-grow, so it still claims its own (small) slice of the row's
+      // width; since its border/text are transparent except while actively
+      // hovered, that slice rendered as unexplained blank space eating into
+      // the row's real columns (editor-only — the real guest page and
+      // Preview mode render through PageRenderer, which has no such
+      // element, so neither ever showed this).
+      style={{ flexBasis: "100%" }}
+      className={cn(
+        "flex h-6 items-center justify-center rounded-md border border-dashed text-[10px] font-medium uppercase tracking-wide transition-colors",
+        isOver ? "border-accent bg-accent/5 text-accent" : "border-transparent text-transparent"
+      )}
+    >
+      Drop here
+    </div>
+  );
+}
+
+// The symmetric counterpart, rendered BEFORE the children — without this,
+// landing something at the very top of a container meant precisely hovering
+// its current first child's own (often small) row; hovering the
+// container's own box always resolves to "append at the end" (see
+// page-builder.tsx's resolveInsertionPoint), so there was no reliable,
+// easy-to-hit target for "insert first" — especially dragging a brand-new
+// block in from the palette, arriving from a completely different part of
+// the screen with no existing sibling row to aim for yet.
+function StartOfListDropZone({ containerId }: { containerId: string | null }) {
+  const { setNodeRef, isOver } = useDroppable({ id: startListId(containerId) });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ flexBasis: "100%" }}
       className={cn(
         "flex h-6 items-center justify-center rounded-md border border-dashed text-[10px] font-medium uppercase tracking-wide transition-colors",
         isOver ? "border-accent bg-accent/5 text-accent" : "border-transparent text-transparent"
@@ -423,6 +520,7 @@ export function EditableCanvas({
   onMoveTo,
   containerOptions,
   device,
+  dropPlan,
 }: {
   blocks: BlockInstance[];
   ctx: PageRenderContext;
@@ -433,6 +531,7 @@ export function EditableCanvas({
   onMoveTo: (path: BlockPath, destContainerId: string | null) => void;
   containerOptions: ContainerOption[];
   device: DeviceWidth;
+  dropPlan: DropPlan;
 }) {
   // Tracks the single deepest block currently under the pointer — see the
   // note on EditableBlock's `hoveredPath` prop for why this replaced CSS
@@ -446,10 +545,13 @@ export function EditableCanvas({
     return <EmptyDropZone containerId={null} />;
   }
 
+  const isTopLevelDropTarget = dropPlan?.containerId === null;
+
   return (
     <SortableContext items={blocks.map((b) => b.id)} strategy={verticalListSortingStrategy}>
       <div className="flex flex-col gap-10 py-4" onMouseLeave={() => setHoveredPath(null)}>
-        {blocks.map((block) => (
+        <StartOfListDropZone containerId={null} />
+        {blocks.map((block, i) => (
           <EditableBlock
             key={block.id}
             block={block}
@@ -465,6 +567,8 @@ export function EditableCanvas({
             onHover={setHoveredPath}
             onHoverEnd={onHoverEnd}
             device={device}
+            dropPlan={dropPlan}
+            showInsertionBefore={isTopLevelDropTarget && dropPlan!.index === i}
           />
         ))}
         <EndOfListDropZone containerId={null} />

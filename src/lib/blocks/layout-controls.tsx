@@ -73,14 +73,15 @@ export function parseInlineStyle(text: string | undefined): CSSProperties {
 // makes "centered up to a max-width" work) — but inside a "row" container,
 // forcing every child to 100% width makes each one claim the whole row by
 // itself, so nothing ever actually sits side-by-side no matter how many
-// children there are. Row children instead size to their own content (up to
-// their width preset as a cap), which is what lets them sit next to each
-// other and wrap only when they don't fit — unless `flexGrow` is set (see
-// BlockLayout), in which case the child instead takes a proportional *share*
-// of the row (e.g. 2/1/1 across three children), same idea as CSS
-// `flex-grow`, for hosts who want deliberate column ratios rather than
-// content-sized columns. `gridSpan` is the grid-mode equivalent: how many
-// grid columns this one child occupies.
+// children there are. Row children instead default to an equal proportional
+// *share* of the row (like "3 even columns") via `flexGrow` (see
+// BlockLayout) — unset behaves as a share of 1, same as every sibling that
+// also hasn't set one, so a fresh row splits evenly with zero configuration.
+// A different positive number gives that child a bigger/smaller ratio (e.g.
+// 2/1/1 across three children); an explicit 0 is the deliberate opt-out back
+// to "size to my own content" (up to the Width preset as a cap), for hosts
+// who want content-sized columns instead of even ones. `gridSpan` is the
+// grid-mode equivalent: how many grid columns this one child occupies.
 //
 // This file stays server-safe (no hooks/client components) since
 // page-renderer.tsx (a Server Component) imports it for the public guest
@@ -93,16 +94,38 @@ export function layoutWrapperStyle(
   const resolved = resolveBlockLayout(layout);
   const inRow = parentLayoutMode === "row";
   const inGrid = parentLayoutMode === "grid";
-  const hasRowRatio = inRow && resolved.flexGrow && resolved.flexGrow > 0;
+  // Unset defaults to an equal share so a fresh row splits evenly with no
+  // configuration; an explicit 0 opts back out to content-sized (see the
+  // comment above and the Row share field in layout-controls-ui.tsx).
+  //
+  // Both the explicit-ratio and default-share cases use flexBasis: 0% (not
+  // "auto") — every block type's own Render output is `w-full` internally
+  // (hero/text/image/container/etc. — see e.g. container.tsx), and
+  // flexBasis: auto on THIS wrapper would defer its sizing to that `w-full`
+  // *descendant*, which in turn depends on this wrapper's own (not-yet-
+  // resolved) size — a circular dependency that real browsers resolve by
+  // just making the item claim the entire line, so every row child ended up
+  // one-per-line regardless of how many would actually fit. flexBasis: 0%
+  // sidesteps the circularity entirely (it's a definite value, not derived
+  // from content), and pairing it with an explicit `minWidth` is what still
+  // gets correct multi-column wrapping: flex-wrap's line-breaking respects
+  // minWidth as a floor once items can't shrink further, so a row keeps
+  // adding equally-shared columns until they'd have to shrink below that
+  // floor, then wraps — instead of either ignoring child count entirely
+  // (the w-full bug) or refusing to wrap until content is literally 0-width.
+  const explicitRowShare = inRow && Boolean(resolved.flexGrow && resolved.flexGrow > 0);
+  const defaultRowShare = inRow && resolved.flexGrow === undefined;
+  const hasRowRatio = explicitRowShare || defaultRowShare;
 
   return {
     display: "flex",
     justifyContent: ALIGN_TO_JUSTIFY[resolved.align],
     width: inRow && !hasRowRatio ? "auto" : "100%",
-    // A ratio turns this from "size to my own content" into "take this share
-    // of the row's remaining space" — flexBasis: 0 is what makes flex-grow
-    // distribute proportionally rather than starting from content size.
-    ...(hasRowRatio ? { flex: `${resolved.flexGrow} 1 0%` } : {}),
+    ...(explicitRowShare
+      ? { flex: `${resolved.flexGrow} 1 0%` }
+      : defaultRowShare
+        ? { flex: "1 1 0%", minWidth: "200px" }
+        : {}),
     ...(inGrid && resolved.gridSpan && resolved.gridSpan > 1 ? { gridColumn: `span ${resolved.gridSpan}` } : {}),
     maxWidth: hasRowRatio || inGrid ? undefined : resolved.width === "full" ? "none" : `${BLOCK_WIDTH_PX[resolved.width]}px`,
     minHeight: resolved.minHeightPx && resolved.minHeightPx > 0 ? `${Math.min(resolved.minHeightPx, 4000)}px` : undefined,
@@ -180,8 +203,20 @@ export function blockResponsiveCss(blockId: string, layout: BlockLayout | undefi
     const decls = breakpointDeclarations(layout.mobile);
     if (decls) rules.push(`@media (max-width: ${MOBILE_MAX_PX}px) { ${selector} { ${decls} } }`);
   }
-  if (layout.tablet) {
-    const decls = breakpointDeclarations(layout.tablet);
+  if (layout.tablet || layout.mobile) {
+    // Field-by-field merge, not "use tablet if the whole object is set,
+    // else mobile": a tablet field that IS set always wins, but any field a
+    // host left unset on tablet falls back to the *mobile* override rather
+    // than the desktop base layout. This range (768-1023px — a tablet held
+    // "short side down", portrait) is meant to default to looking like
+    // mobile with zero configuration, the same way landscape tablets
+    // (1024px+, "long side down") already default to looking like desktop
+    // with zero configuration (they're outside this media query entirely) —
+    // so a host only has to set "hide on mobile" (say) once and it covers
+    // phones and portrait tablets both, instead of needing an identical
+    // duplicate tablet override.
+    const effectiveTablet: BreakpointOverride = { ...layout.mobile, ...layout.tablet };
+    const decls = breakpointDeclarations(effectiveTablet);
     if (decls) {
       rules.push(
         `@media (min-width: ${MOBILE_MAX_PX + 1}px) and (max-width: ${TABLET_MAX_PX}px) { ${selector} { ${decls} } }`

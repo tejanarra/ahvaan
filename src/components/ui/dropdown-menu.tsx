@@ -54,9 +54,14 @@ export function DropdownMenu({
             align === "end" ? "right-0" : "left-0"
           )}
         >
-          {items.map((item) => (
+          {items.map((item, i) => (
             <button
-              key={item.label}
+              // Callers build labels from user-editable names (e.g. a
+              // container's "Move to" list, page-builder.tsx's
+              // collectContainerOptions) — several containers can share the
+              // same default label until named, so the label alone isn't a
+              // safe React key.
+              key={`${item.label}-${i}`}
               type="button"
               role="menuitem"
               onClick={() => {

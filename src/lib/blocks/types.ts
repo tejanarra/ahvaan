@@ -69,10 +69,13 @@ export type BreakpointOverride = {
 
 export const DEFAULT_BLOCK_LAYOUT: BlockLayout = { align: "center", width: "medium" };
 
+// Scaled down from an earlier 400/576/768 pass (still ~1.5x/1.33x steps
+// between each size, just smaller overall) per host feedback that even the
+// smallest preset still read as too wide.
 export const BLOCK_WIDTH_PX: Record<Exclude<BlockWidth, "full">, number> = {
-  small: 320,
-  medium: 576,
-  large: 768,
+  small: 300,
+  medium: 450,
+  large: 600,
 };
 
 // Matches Tailwind's own md/lg breakpoints (docs/05 "Breakpoints: Tailwind

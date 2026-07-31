@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition, type CSSProperties } from "react";
 import Link from "next/link";
 import {
   DndContext,
@@ -11,7 +11,9 @@ import {
   useSensor,
   useSensors,
   type CollisionDetection,
+  type DragCancelEvent,
   type DragEndEvent,
+  type DragOverEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
@@ -30,10 +32,11 @@ import { JsonSchemaEditor, type EditableSchema } from "./json-schema-editor";
 import { BlockCard } from "./block-card";
 import { EditableCanvas, type BlockPath } from "./editable-canvas";
 import { OutlinePanel } from "./outline-panel";
+import { PreviewFrame } from "./preview-frame";
 import { PageRenderer } from "@/lib/blocks/page-renderer";
 import type { CustomComponentMap } from "@/lib/blocks/context";
 import type { CustomComponentRecord } from "@/lib/data/custom-components";
-import { EMPTY_LIST_PREFIX } from "./dnd-ids";
+import { EMPTY_LIST_PREFIX, START_LIST_PREFIX, type DropPlan } from "./dnd-ids";
 import { ArrowLeftIcon, CodeBracketsIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
@@ -123,6 +126,25 @@ function collectContainerIds(block: BlockInstance): string[] {
   return [block.id, ...block.children.flatMap(collectContainerIds)];
 }
 
+// Matches lib/schemas/page-schema.ts's own nesting cap (duplicated there and
+// in json-schema-editor.tsx, same reasoning as those: cheap to keep in sync
+// by hand, and importing the zod schema module here just to read one number
+// would pull server-only validation code into this client component).
+const MAX_CONTAINER_DEPTH = 8;
+
+// How many containers deep `containerId` sits (0 = top level) — used to stop
+// a drag from nesting a container past the schema's own depth cap.
+function containerDepth(blocks: BlockInstance[], containerId: string, depth = 0): number | null {
+  for (const b of blocks) {
+    if (b.id === containerId) return depth;
+    if ("children" in b) {
+      const found = containerDepth(b.children, containerId, depth + 1);
+      if (found !== null) return found;
+    }
+  }
+  return null;
+}
+
 // All containers anywhere in the tree, indented by depth so a nested
 // container's place in the hierarchy is visible in any destination list.
 function collectContainerOptions(blocks: BlockInstance[], depth = 0): { id: string; label: string }[] {
@@ -137,16 +159,77 @@ function collectContainerOptions(blocks: BlockInstance[], depth = 0): { id: stri
   return options;
 }
 
-// pointerWithin resolves overlapping/nested droppables correctly (which
-// container vs. which list you're actually over); it falls back to
-// rectIntersection when the pointer isn't within any droppable rect yet
-// (e.g. right at a drag's start) — plain closestCenter degrades once
-// droppable zones vary in size or nest, which this layout does throughout.
-const collisionDetection: CollisionDetection = (args) => {
-  const pointerCollisions = pointerWithin(args);
-  if (pointerCollisions.length > 0) return pointerCollisions;
-  return rectIntersection(args);
-};
+// Resolves `overId` (whatever dnd-kit's collision detection currently
+// considers "under the pointer") to a single, unambiguous drop point: which
+// list (containerId) and which index within it. A container's own box and
+// its end-of-list strip both mean the same thing — "append inside this
+// container" — so both simply resolve to index === that container's current
+// child count; there's no separate "nest" case to keep in sync with sibling
+// insertion. The start-of-list strip is the one explicit exception: it
+// always means index 0 of that same list, regardless of child count.
+function resolveInsertionPoint(blocks: BlockInstance[], overId: string): { containerId: string | null; index: number } | null {
+  if (overId.startsWith(EMPTY_LIST_PREFIX)) {
+    const raw = overId.slice(EMPTY_LIST_PREFIX.length);
+    const containerId = raw === "root" ? null : raw;
+    return { containerId, index: getBlockList(blocks, containerId).length };
+  }
+  if (overId.startsWith(START_LIST_PREFIX)) {
+    const raw = overId.slice(START_LIST_PREFIX.length);
+    return { containerId: raw === "root" ? null : raw, index: 0 };
+  }
+  const overContainer = findContainerBlock(blocks, overId);
+  if (overContainer) return { containerId: overContainer.id, index: overContainer.children.length };
+  const target = listContaining(overId, blocks);
+  if (!target) return null;
+  const list = getBlockList(blocks, target.containerId);
+  const index = list.findIndex((b) => b.id === overId);
+  if (index === -1) return null;
+  return { containerId: target.containerId, index };
+}
+
+// The single source of truth for "where would this drag land right now" —
+// used identically for the live preview (onDragOver, drives the insertion
+// indicator in editable-canvas.tsx) and the actual commit (onDragEnd), so
+// what the user sees while dragging is guaranteed to match what happens on
+// drop. Returns null for geometrically-unresolvable or business-rule-invalid
+// targets (e.g. nesting a container inside itself) — callers treat that as
+// "no valid drop here" (no indicator shown; onDragEnd no-ops).
+function computeDropPlan(
+  blocks: BlockInstance[],
+  activeId: string,
+  overId: string
+): { containerId: string | null; index: number } | null {
+  if (activeId === overId) return null;
+
+  if (activeId.startsWith(PALETTE_DRAG_PREFIX)) {
+    const type = activeId.slice(PALETTE_DRAG_PREFIX.length) as BlockType;
+    const point = resolveInsertionPoint(blocks, overId);
+    if (!point) return null;
+    // A brand-new container CAN be dropped straight into an existing one
+    // (nested layouts are a first-class case — see the depth-cap comment on
+    // MAX_CONTAINER_DEPTH above) — only refuse it once nesting one more
+    // level would exceed the schema's own cap.
+    if (type === "container" && point.containerId !== null) {
+      const depth = containerDepth(blocks, point.containerId) ?? 0;
+      if (depth + 1 >= MAX_CONTAINER_DEPTH) return null;
+    }
+    return point;
+  }
+
+  const activeList = listContaining(activeId, blocks);
+  if (!activeList) return null;
+  const movingBlock = getBlockList(blocks, activeList.containerId).find((b) => b.id === activeId);
+  if (!movingBlock) return null;
+  const movingIsContainer = "children" in movingBlock;
+
+  const point = resolveInsertionPoint(blocks, overId);
+  if (!point) return null;
+
+  // Refuse to drop a container inside itself or one of its own descendants.
+  if (movingIsContainer && collectContainerIds(movingBlock).includes(point.containerId ?? "")) return null;
+
+  return point;
+}
 
 const ZOOM_MIN = 50;
 const ZOOM_MAX = 150;
@@ -198,6 +281,19 @@ export type DeviceWidth = "desktop" | "tablet" | "mobile";
 // how big that already-reflowed layout appears.
 const DEVICE_WIDTH_PX: Record<DeviceWidth, number | undefined> = {
   desktop: undefined,
+  tablet: 768,
+  mobile: 390,
+};
+
+// Preview mode's device widths, for PreviewFrame — unlike DEVICE_WIDTH_PX
+// above (a max-width cap on a div still laid out in the dashboard's real
+// window), these size an actual iframe viewport, so real `@media` per-device
+// overrides (blockResponsiveCss) evaluate correctly there. "desktop" needs a
+// concrete number here (an iframe can't have an "uncapped" width) — 1280px
+// comfortably clears TABLET_MAX_PX (1023, see lib/blocks/types.ts) so it
+// reliably lands in the real guest page's desktop range.
+const PREVIEW_FRAME_WIDTH: Record<DeviceWidth, number> = {
+  desktop: 1280,
   tablet: 768,
   mobile: 390,
 };
@@ -323,6 +419,28 @@ export function PageBuilder({
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [dropPlan, setDropPlan] = useState<DropPlan>(null);
+
+  // Preview mode's iframe (PreviewFrame) is a fixed, real pixel width per
+  // device — unlike Edit mode's content, which just reflows to whatever
+  // space the pane has, that fixed width doesn't auto-shrink to fit a
+  // narrower pane (e.g. this dashboard's own 300px palette column eating
+  // into it). Left at 100% zoom, a 1280px-wide Desktop preview would
+  // overflow/look oversized in a pane that has much less room — so this
+  // measures the pane and picks a starting zoom that fits it, once per
+  // mode/device switch (not continuously, so it doesn't fight a zoom level
+  // the user deliberately picked afterward).
+  const previewPaneRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (canvasMode !== "preview" || customPage.enabled) return;
+    const el = previewPaneRef.current;
+    if (!el) return;
+    const available = el.clientWidth - 48; // px-6 padding on both sides
+    const frameWidth = PREVIEW_FRAME_WIDTH[device];
+    const fit = Math.min(100, Math.round((available / frameWidth) * 100 / ZOOM_STEP) * ZOOM_STEP);
+    setZoom(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, fit)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canvasMode, device, customPage.enabled]);
 
   // Guards the debounced save's state updates below, not the save itself —
   // the pending `updateEvent` call still needs to fire and persist even if
@@ -334,7 +452,34 @@ export function PageBuilder({
     isMountedRef.current = false;
   }, []);
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+
+  // pointerWithin already prefers the smallest/most-nested droppable rect
+  // under the pointer (it ranks candidates by intersection ratio, so a
+  // container's own — always-larger — rect naturally loses to any child rect
+  // the pointer is genuinely inside), falling back to rectIntersection only
+  // when the pointer isn't within any droppable yet (e.g. right at a drag's
+  // start).
+  //
+  // An earlier version added "stickiness" here — keep the previous winner
+  // as long as it was still ranked near the top — to smooth boundary jitter
+  // between a container and its child. That consistently backfired instead:
+  // loosest version ("still present anywhere") broke nesting a sibling
+  // container into another sibling, since an outer parent's rect contains
+  // every descendant for the whole drag, so it never stopped being
+  // "present". A tighter "top two" version still let a stale target keep
+  // winning well after the pointer moved away from it — in the Outline
+  // panel especially, where an expanded container's own sortable rect spans
+  // the full height of everything nested inside it, so a row the pointer
+  // passed over earlier in the drag could stay ranked #2 indefinitely (the
+  // drop indicator kept showing a totally different, stale location —
+  // hovering a deeply nested row showed the drop landing at the top level,
+  // several rows away). Plain pointerWithin, unmodified, doesn't have that
+  // failure mode: it always reflects the current pointer position.
+  const collisionDetection = useCallback<CollisionDetection>((args) => {
+    const pointerCollisions = pointerWithin(args);
+    return pointerCollisions.length > 0 ? pointerCollisions : rectIntersection(args);
+  }, []);
 
   const persistEvent = (next: EventRecord) => {
     if (eventSaveTimer.current) clearTimeout(eventSaveTimer.current);
@@ -487,144 +632,90 @@ export function PageBuilder({
     setCodeMode(false);
   };
 
-  const handleDragStart = (e: DragStartEvent) => setActiveDragId(String(e.active.id));
+  const handleDragStart = (e: DragStartEvent) => {
+    setActiveDragId(String(e.active.id));
+    setDropPlan(null);
+  };
+
+  // Recomputes the live drop preview on every pointer move during a drag —
+  // this is what drives the insertion-line indicator in editable-canvas.tsx.
+  // Uses the exact same resolution function handleDragEnd commits with, so
+  // the indicator the user sees is never a lie about what dropping will do.
+  const handleDragOver = (e: DragOverEvent) => {
+    const { active, over } = e;
+    if (!over) {
+      setDropPlan(null);
+      return;
+    }
+    setDropPlan(computeDropPlan(blocks, String(active.id), String(over.id)));
+  };
+
+  const handleDragCancel = (_e: DragCancelEvent) => {
+    setActiveDragId(null);
+    setDropPlan(null);
+  };
 
   const handleDragEnd = (e: DragEndEvent) => {
     setActiveDragId(null);
     const { active, over } = e;
+    setDropPlan(null);
     if (!over) return;
     const activeId = String(active.id);
     const overId = String(over.id);
-    if (activeId === overId) return;
+    const plan = computeDropPlan(blocks, activeId, overId);
+    if (!plan) return;
 
     if (activeId.startsWith(PALETTE_DRAG_PREFIX)) {
       const type = activeId.slice(PALETTE_DRAG_PREFIX.length) as BlockType;
       const newBlock = makeBlockInstance(type);
-
-      // Dropped directly onto an empty list's placeholder.
-      if (overId.startsWith(EMPTY_LIST_PREFIX)) {
-        const raw = overId.slice(EMPTY_LIST_PREFIX.length);
-        const targetContainerId = raw === "root" ? null : raw;
-        setBlocks(setBlockList(blocks, targetContainerId, [...getBlockList(blocks, targetContainerId), newBlock]));
-        return;
-      }
-
-      // Dropped directly onto a container's own box (coarse target, works
-      // anywhere over its rendered area, not just a specific child) — append
-      // into its children rather than inserting next to it. Recursive (via
-      // findContainerBlock), not just a top-level lookup — a `blocks.find`
-      // here previously only matched a *top-level* container's own box, so
-      // dropping onto a nested container's exposed padding silently fell
-      // through to sibling-insertion instead of nesting inside it.
-      if (type !== "container") {
-        const overContainer = findContainerBlock(blocks, overId);
-        if (overContainer) {
-          setBlocks(setBlockList(blocks, overContainer.id, [...getBlockList(blocks, overContainer.id), newBlock]));
-          return;
-        }
-      }
-
-      // Otherwise insert at the hovered position within whichever list `over` belongs to.
-      const target = listContaining(overId, blocks);
-      if (!target) return;
-      // Containers can't be nested inside another container — enforced here
-      // too, not just by the palette UI, since a container could in
-      // principle be dragged and dropped at a position inside a nested list.
-      if (type === "container" && target.containerId !== null) return;
-      const list = getBlockList(blocks, target.containerId);
-      const index = list.findIndex((b) => b.id === overId);
+      const list = getBlockList(blocks, plan.containerId);
+      const index = Math.min(plan.index, list.length);
       const nextList = [...list.slice(0, index), newBlock, ...list.slice(index)];
-      setBlocks(setBlockList(blocks, target.containerId, nextList));
+      setBlocks(setBlockList(blocks, plan.containerId, nextList));
       return;
     }
 
     // Moving an existing block — within the same list (reorder), or across
     // lists entirely (drag out of/into a container, or between containers).
-    // Mirrors the palette-insert resolution above: dropping directly onto a
-    // different container's own box appends into it; dropping at a specific
-    // position within a different (already-visible) list inserts it there;
-    // dropping within the same list reorders as before. The "Position"
-    // control in a block's modal remains as a non-drag alternative.
+    // The "Position" control in a block's modal remains as a non-drag
+    // alternative for when a precise drag target is fiddly to hit.
     const activeList = listContaining(activeId, blocks);
     if (!activeList) return;
-    const movingBlock = getBlockList(blocks, activeList.containerId).find((b) => b.id === activeId);
+    const sourceList = getBlockList(blocks, activeList.containerId);
+    const movingBlock = sourceList.find((b) => b.id === activeId);
     if (!movingBlock) return;
-    const movingIsContainer = "children" in movingBlock;
 
-    // Dropped onto a list's placeholder — either the "totally empty"
-    // placeholder or the always-present end-of-list drop strip, both using
-    // the same id scheme (see EndOfListDropZone in editable-canvas.tsx).
-    // This case was previously unhandled entirely for moving an *existing*
-    // block: that id never matches any real block id, so every check below
-    // fell through to a silent no-op. That's the exact "can't drag an
-    // existing block into a nested/empty container" bug. A moving
-    // container is allowed here too (nested layouts), guarded against
-    // dropping into itself or one of its own descendants.
-    if (overId.startsWith(EMPTY_LIST_PREFIX)) {
-      const raw = overId.slice(EMPTY_LIST_PREFIX.length);
-      const targetContainerId = raw === "root" ? null : raw;
-      const wouldCycle = movingIsContainer && collectContainerIds(movingBlock).includes(targetContainerId ?? "");
-      if (targetContainerId !== activeList.containerId && !wouldCycle) {
-        const withoutBlock = setBlockList(
-          blocks,
-          activeList.containerId,
-          getBlockList(blocks, activeList.containerId).filter((b) => b.id !== activeId)
-        );
-        setBlocks(
-          setBlockList(withoutBlock, targetContainerId, [...getBlockList(withoutBlock, targetContainerId), movingBlock])
-        );
-      }
-      return;
-    }
-
-    if (!movingIsContainer) {
-      // Same fix as the palette-insert case above: recursive so dropping
-      // onto a nested container's own box (not just a top-level one) also
-      // nests the moved block inside it instead of silently placing it as a
-      // sibling.
-      const overContainer = overId !== activeId ? findContainerBlock(blocks, overId) : null;
-      if (overContainer && overContainer.id !== activeList.containerId) {
-        const withoutBlock = setBlockList(
-          blocks,
-          activeList.containerId,
-          getBlockList(blocks, activeList.containerId).filter((b) => b.id !== activeId)
-        );
-        setBlocks(
-          setBlockList(withoutBlock, overContainer.id, [...getBlockList(withoutBlock, overContainer.id), movingBlock])
-        );
-        return;
-      }
-    }
-
-    const overList = listContaining(overId, blocks);
-    if (!overList) return;
-    // A container CAN be dropped inside another container (nested layouts,
-    // e.g. two column-containers inside a row-container) — the schema has
-    // always allowed this depth (see lib/schemas/page-schema.ts's depth
-    // cap) and hosts already build it via the JSON code editor; the drag
-    // path just needs to refuse creating a cycle, i.e. never let a
-    // container land inside itself or one of its own descendants.
-    if (movingIsContainer && collectContainerIds(movingBlock).includes(overList.containerId ?? "")) return;
-
-    if (activeList.containerId === overList.containerId) {
-      const list = getBlockList(blocks, activeList.containerId);
-      const oldIndex = list.findIndex((b) => b.id === activeId);
-      const newIndex = list.findIndex((b) => b.id === overId);
-      setBlocks(setBlockList(blocks, activeList.containerId, arrayMove(list, oldIndex, newIndex)));
+    if (activeList.containerId === plan.containerId) {
+      // Reorder within the same list `plan.index` was computed against
+      // (which still contains movingBlock at its old position, so
+      // plan.index is the hovered target's own pre-move array index).
+      // arrayMove's `to` argument is the item's desired index in the
+      // *already-shifted* (post-removal) array, not a raw pre-move index —
+      // when dragging *forward* (oldIndex < plan.index), the target itself
+      // shifts back by one once the moving item is spliced out ahead of it,
+      // so passing plan.index unadjusted to arrayMove always lands the
+      // moved item one slot too far — immediately *after* the hovered
+      // target instead of before it. Dragging *backward* isn't affected
+      // (removal happens after the target's index, so it never shifts) —
+      // which is exactly the reported asymmetry: reordering upward landed
+      // correctly, but forward reorders could only ever drop "below," never
+      // "on top of," whatever was hovered.
+      const oldIndex = sourceList.findIndex((b) => b.id === activeId);
+      let newIndex = plan.index;
+      if (oldIndex < newIndex) newIndex -= 1;
+      newIndex = Math.min(Math.max(newIndex, 0), sourceList.length - 1);
+      if (oldIndex === newIndex) return;
+      setBlocks(setBlockList(blocks, activeList.containerId, arrayMove(sourceList, oldIndex, newIndex)));
       return;
     }
 
     // Cross-list move to a specific position: remove from the old list,
-    // insert at the hovered index in the new one.
-    const withoutBlock = setBlockList(
-      blocks,
-      activeList.containerId,
-      getBlockList(blocks, activeList.containerId).filter((b) => b.id !== activeId)
-    );
-    const destList = getBlockList(withoutBlock, overList.containerId);
-    const index = destList.findIndex((b) => b.id === overId);
+    // insert at the resolved index in the new one.
+    const withoutBlock = setBlockList(blocks, activeList.containerId, sourceList.filter((b) => b.id !== activeId));
+    const destList = getBlockList(withoutBlock, plan.containerId);
+    const index = Math.min(plan.index, destList.length);
     const nextDestList = [...destList.slice(0, index), movingBlock, ...destList.slice(index)];
-    setBlocks(setBlockList(withoutBlock, overList.containerId, nextDestList));
+    setBlocks(setBlockList(withoutBlock, plan.containerId, nextDestList));
   };
 
   const activeDrag =
@@ -691,24 +782,29 @@ export function PageBuilder({
       onMoveTo={moveBlock}
       onRename={handleRenameBlock}
       containerOptions={containerOptions}
+      dropPlan={dropPlan}
     />
   ) : canvasMode === "preview" ? (
-    // Renders through the exact component the guest sees (PageRenderer,
-    // the same one /e/[slug]/page.tsx uses) with zero editor chrome — the
+    // Renders through the exact component the guest sees (PageRenderer, the
+    // same one /e/[slug]/page.tsx uses) with zero editor chrome — the
     // definitive answer to "does my 0-padding layout actually look right,"
     // since there's no second implementation to drift from the real page.
     //
-    // One known gap: per-device (mobile/tablet) layout overrides are real
-    // `@media` CSS on the live page (blockResponsiveCss), which evaluates
-    // against the actual browser window — not this simulated device-width
-    // box (see DEVICE_WIDTH_PX below). Toggling Tablet/Mobile here resizes
-    // the box correctly but won't trigger a narrower @media rule if this
-    // window itself is wide. Edit mode's device toggle IS accurate for
-    // those overrides (editable-canvas.tsx swaps the effective layout
-    // directly instead of relying on @media) — this Preview mode should be
-    // trusted for confirming those specifically on a real narrow window/
-    // device instead.
-    <PageRenderer schema={{ version: 1, blocks, pageStyle, themeOverrides, fontFamily, customPage }} ctx={canvasCtx} />
+    // Rendered inside a real iframe (PreviewFrame), not just a max-width-
+    // capped div: per-device (mobile/tablet) layout overrides are real
+    // `@media` CSS (blockResponsiveCss), which only ever evaluates against
+    // an actual viewport width — a div still sitting inside the dashboard's
+    // own (usually much wider) window never triggered those rules
+    // correctly. An iframe is a genuinely separate viewport sized to
+    // PREVIEW_FRAME_WIDTH[device], so they do. Theme CSS vars are set on
+    // the wrapper *inside* the portal (mirroring /e/[slug]/page.tsx's own
+    // root div) since the iframe is a separate document — inheriting them
+    // from an ancestor outside it isn't possible.
+    <PreviewFrame width={PREVIEW_FRAME_WIDTH[device]}>
+      <div className={cn("min-h-dvh bg-[var(--t-bg)]", themeFonts.bodyClassName, themeFonts.displayClassName)} style={canvasThemeStyle}>
+        <PageRenderer schema={{ version: 1, blocks, pageStyle, themeOverrides, fontFamily, customPage }} ctx={canvasCtx} />
+      </div>
+    </PreviewFrame>
   ) : (
     <div style={{ fontFamily: fontFamily || undefined }}>
       <EditableCanvas
@@ -721,12 +817,20 @@ export function PageBuilder({
         containerOptions={containerOptions}
         onMoveTo={moveBlock}
         device={device}
+        dropPlan={dropPlan}
       />
     </div>
   );
 
   const canvas = (
-    <DndContext sensors={sensors} collisionDetection={collisionDetection} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={collisionDetection}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
+    >
       {/* Individually-scrollable columns so selecting a block near the
           bottom of a long page never hides the palette above or requires
           scrolling a separate settings panel into view — editing now opens
@@ -753,6 +857,7 @@ export function PageBuilder({
             <div className="min-h-0 flex-1 overflow-auto bg-background">{paneContent}</div>
           ) : (
             <div
+              ref={previewPaneRef}
               className={cn(
                 "min-h-0 flex-1 overflow-auto bg-[var(--t-bg)] px-6 py-4",
                 themeFonts.bodyClassName,
@@ -760,16 +865,36 @@ export function PageBuilder({
               )}
               style={canvasThemeStyle}
             >
-              {/* Device width caps how wide the content is allowed to reflow
-                  (a real breakpoint test); zoom is a pure visual scale of
-                  whatever that reflowed layout looks like — the two combine
-                  without fighting because zoom wraps the device-width box
-                  rather than the other way around. */}
-              <div style={{ transform: `scale(${zoom / 100})`, transformOrigin: "top center" }}>
-                <div style={{ maxWidth: DEVICE_WIDTH_PX[device] ? `${DEVICE_WIDTH_PX[device]}px` : undefined, margin: "0 auto" }}>
-                  {paneContent}
+              {canvasMode === "preview" ? (
+                // PreviewFrame is a fixed-size iframe (real px, doesn't
+                // reflow), so it needs a different wrapping than Edit mode's
+                // reflowable content below: `justify-center` here centers
+                // based on the scale wrapper's own box, which — with no
+                // width of its own — shrinks to exactly the iframe's true
+                // width. Centering the scale wrapper FIRST and transforming
+                // it SECOND (rather than the other way — see the else
+                // branch) is what keeps transform-origin's "center"
+                // anchored to the iframe's actual center: getting this
+                // backwards (scaling an ambiguously-sized box, then
+                // centering) let the iframe overflow that box to one side,
+                // so scaling shrank it around the wrong point and the whole
+                // preview visibly leaned right with a dead gap on the left.
+                <div className="flex justify-center">
+                  <div style={{ transform: `scale(${zoom / 100})`, transformOrigin: "top center" }}>{paneContent}</div>
                 </div>
-              </div>
+              ) : (
+                // Device width caps how wide Edit mode's real, reflowable
+                // content is allowed to reflow (a real breakpoint test);
+                // zoom is a pure visual scale of whatever that reflowed
+                // layout looks like — the two combine without fighting
+                // because zoom wraps the device-width box rather than the
+                // other way around.
+                <div style={{ transform: `scale(${zoom / 100})`, transformOrigin: "top center" }}>
+                  <div style={{ maxWidth: DEVICE_WIDTH_PX[device] ? `${DEVICE_WIDTH_PX[device]}px` : undefined, margin: "0 auto" }}>
+                    {paneContent}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
