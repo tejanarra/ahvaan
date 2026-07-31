@@ -75,8 +75,8 @@ export function ScheduleEdit({
         label="Direction"
         hint={
           style === "timeline"
-            ? "Vertical: items alternate left/right of a centered line. Horizontal: items alternate above/below."
-            : "Horizontal scrolls as a row — useful for a long schedule in a narrow block."
+            ? "Vertical: items alternate left/right of a centered line. Horizontal: items alternate above/below, sharing the row's width — text truncates rather than scrolling."
+            : "Horizontal lays items out as a row sharing the block's width — text truncates to fit rather than scrolling."
         }
       >
         <ToggleGroup
@@ -225,19 +225,21 @@ function Dot() {
 function ItemText({
   item,
   align,
-  clampDescription,
+  compact,
 }: {
   item: ScheduleItem;
   align?: "left" | "right" | "center";
-  // Horizontal timeline items sit in a fixed-width column (see
-  // TimelineHorizontal) — an unclamped long description there just makes
-  // the whole row taller without bound, which is what made it look broken
-  // rather than merely "scrolls a bit further."
-  clampDescription?: boolean;
+  // Horizontal rows give every item an equal, unfixed share of the block's
+  // own width (flex-1) instead of a fixed column width that forced a
+  // horizontal scrollbar — so instead of scrolling to read a long label or
+  // description, it truncates to fit whatever share of the width this item
+  // actually got: a single ellipsized line for the label, two clamped
+  // lines for the description.
+  compact?: boolean;
 }) {
   const textAlign = align ?? "left";
   return (
-    <div style={{ textAlign }}>
+    <div style={{ textAlign }} className={compact ? "min-w-0 w-full" : undefined}>
       {item.time && (
         <p
           className="text-xs font-semibold uppercase tracking-wide"
@@ -246,11 +248,14 @@ function ItemText({
           {item.time}
         </p>
       )}
-      <p className="mt-0.5 text-lg text-[var(--t-fg)]" style={{ fontFamily: "var(--t-font-display)" }}>
+      <p
+        className={`mt-0.5 text-lg text-[var(--t-fg)] ${compact ? "truncate" : ""}`}
+        style={{ fontFamily: "var(--t-font-display)" }}
+      >
         {item.label}
       </p>
       {item.description && (
-        <p className={`mt-0.5 text-sm text-[var(--t-fg)]/70 ${clampDescription ? "line-clamp-3" : ""}`}>
+        <p className={`mt-0.5 text-sm text-[var(--t-fg)]/70 ${compact ? "line-clamp-2" : ""}`}>
           {item.description}
         </p>
       )}
@@ -343,46 +348,55 @@ function TimelineVertical({ items, gapPx }: { items: ScheduleItem[]; gapPx: numb
 }
 
 // Horizontal "flip": the same alternating idea, rotated 90° — a horizontal
-// line with items alternating above/below it, in a horizontally-scrolling
-// row (min-width per item rather than JS measurement, so short blocks still
-// scroll cleanly instead of squeezing every item unreadably narrow).
+// line with items alternating above/below it. A 3-row CSS grid (top content
+// / dots+line / bottom content) rather than independent flex columns: CSS
+// Grid sizes every cell in a row to that row's tallest cell *automatically*,
+// so `alignSelf: "end"` on the top row reliably pulls every item's text down
+// flush against the dot regardless of how much taller one item's text is
+// than its neighbors — a flex-column-per-item version could only
+// approximate this with matching min-heights, which left short items'
+// text stranded near the top of the (stretched-tall) column instead of
+// hugging the dot whenever a neighboring item's text was much longer.
+// Columns are `minmax(0, 1fr)` (not bare `1fr`) so one long word can't force
+// a column wider than its share — combined with ItemText's own `compact`
+// truncation, that's what keeps every item fitting without a scrollbar.
 function TimelineHorizontal({ items, gapPx }: { items: ScheduleItem[]; gapPx: number }) {
+  const lineColor = "var(--schedule-line-color, color-mix(in oklab, var(--t-accent) 35%, transparent))";
   return (
-    <div className="flex items-stretch overflow-x-auto pb-2" style={{ gap: gapPx }}>
-      {items.map((item, index) => {
-        const isTop = index % 2 === 0;
-        const isFirst = index === 0;
-        const isLast = index === items.length - 1;
-        return (
-          <div key={item.id} className="flex w-64 shrink-0 flex-col items-center">
-            <div className="flex min-h-24 flex-1 items-end justify-center">
-              {isTop && <ItemText item={item} align="center" clampDescription />}
-            </div>
-            <div className="flex w-full items-center py-1">
-              <div
-                className="h-px flex-1"
-                style={{ background: isFirst ? "transparent" : "var(--schedule-line-color, color-mix(in oklab, var(--t-accent) 35%, transparent))" }}
-              />
-              <Dot />
-              <div
-                className="h-px flex-1"
-                style={{ background: isLast ? "transparent" : "var(--schedule-line-color, color-mix(in oklab, var(--t-accent) 35%, transparent))" }}
-              />
-            </div>
-            <div className="flex min-h-24 flex-1 items-start justify-center">
-              {!isTop && <ItemText item={item} align="center" clampDescription />}
-            </div>
-          </div>
-        );
-      })}
+    <div style={{ display: "grid", gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))`, columnGap: gapPx }}>
+      {items.map((item, index) => (
+        <div key={`line-${item.id}`} className="flex items-center" style={{ gridColumn: index + 1, gridRow: 2, alignSelf: "center" }}>
+          <div className="h-px flex-1" style={{ background: index === 0 ? "transparent" : lineColor }} />
+          <div className="h-px flex-1" style={{ background: index === items.length - 1 ? "transparent" : lineColor }} />
+        </div>
+      ))}
+      {items.map((item, index) => (
+        <div key={`top-${item.id}`} className="min-w-0 pb-2" style={{ gridColumn: index + 1, gridRow: 1, alignSelf: "end" }}>
+          {index % 2 === 0 && <ItemText item={item} align="center" compact />}
+        </div>
+      ))}
+      {items.map((item, index) => (
+        <div
+          key={`dot-${item.id}`}
+          className="relative z-10 flex justify-center"
+          style={{ gridColumn: index + 1, gridRow: 2, alignSelf: "center" }}
+        >
+          <Dot />
+        </div>
+      ))}
+      {items.map((item, index) => (
+        <div key={`bottom-${item.id}`} className="min-w-0 pt-2" style={{ gridColumn: index + 1, gridRow: 3, alignSelf: "start" }}>
+          {index % 2 !== 0 && <ItemText item={item} align="center" compact />}
+        </div>
+      ))}
     </div>
   );
 }
 
-function Card({ item, align, clampDescription }: { item: ScheduleItem; align: ScheduleAlign; clampDescription?: boolean }) {
+function Card({ item, align, compact }: { item: ScheduleItem; align: ScheduleAlign; compact?: boolean }) {
   return (
     <div
-      className="shrink-0"
+      className={compact ? "min-w-0 flex-1" : undefined}
       style={{
         borderRadius: "var(--schedule-radius, 12px)",
         border: "1px solid var(--schedule-card-border, color-mix(in oklab, var(--t-fg) 10%, transparent))",
@@ -402,14 +416,14 @@ function Card({ item, align, clampDescription }: { item: ScheduleItem; align: Sc
         </span>
       )}
       <p
-        className="mt-2 text-lg text-[var(--t-fg)]"
+        className={`mt-2 text-lg text-[var(--t-fg)] ${compact ? "truncate" : ""}`}
         style={{ fontFamily: "var(--t-font-display)", textAlign: align }}
       >
         {item.label}
       </p>
       {item.description && (
         <p
-          className={`mt-1 text-sm text-[var(--t-fg)]/70 ${clampDescription ? "line-clamp-4" : ""}`}
+          className={`mt-1 text-sm text-[var(--t-fg)]/70 ${compact ? "line-clamp-2" : ""}`}
           style={{ textAlign: align }}
         >
           {item.description}
@@ -419,14 +433,16 @@ function Card({ item, align, clampDescription }: { item: ScheduleItem; align: Sc
   );
 }
 
+// Horizontal: every card gets an equal (flex-1, min-w-0) share of the
+// block's width — no fixed card width, no scroll container — so N cards
+// always fit side by side, with Card's own `compact` truncating content
+// that doesn't fit that share instead of the row overflowing.
 function CardsLayout({ items, direction, align, gapPx }: { items: ScheduleItem[]; direction: ScheduleDirection; align: ScheduleAlign; gapPx: number }) {
   if (direction === "horizontal") {
     return (
-      <div className="flex overflow-x-auto pb-2" style={{ gap: gapPx }}>
+      <div className="flex items-stretch" style={{ gap: gapPx }}>
         {items.map((item) => (
-          <div key={item.id} className="w-56 shrink-0">
-            <Card item={item} align={align} clampDescription />
-          </div>
+          <Card key={item.id} item={item} align={align} compact />
         ))}
       </div>
     );
@@ -444,18 +460,18 @@ function MinimalLayout({ items, direction, align, gapPx }: { items: ScheduleItem
   const dividerColor = "var(--schedule-line-color, color-mix(in oklab, var(--t-fg) 10%, transparent))";
   if (direction === "horizontal") {
     return (
-      <div className="flex overflow-x-auto pb-2">
+      <div className="flex items-stretch">
         {items.map((item, index) => (
           <div
             key={item.id}
-            className="w-56 shrink-0"
+            className="min-w-0 flex-1"
             style={{
               paddingLeft: index === 0 ? 0 : gapPx,
               paddingRight: index === items.length - 1 ? 0 : gapPx,
               borderLeft: index === 0 ? undefined : `1px solid ${dividerColor}`,
             }}
           >
-            <ItemText item={item} align={align} clampDescription />
+            <ItemText item={item} align={align} compact />
           </div>
         ))}
       </div>
