@@ -17,9 +17,13 @@ export default async function DashboardLayout({
       <div className="flex h-screen flex-col bg-background">
         <LockBodyScroll />
         <header className="shrink-0 border-b border-border">
-          <div className="mx-auto flex max-w-[1600px] items-center justify-between px-4 py-3 sm:px-6 lg:px-10">
+          <div className="mx-auto flex max-w-[1600px] items-center justify-between px-4 py-1 sm:px-6 lg:px-10">
             <Link href="/dashboard">
-              <BrandLockup markClassName="h-4 w-4" textClassName="text-base" />
+              <BrandLockup
+                markSrc="/mark-black.svg"
+                markClassName="h-10 w-10"
+                textClassName="text-2xl"
+              />
             </Link>
             <AccountMenu email={host.email ?? ""} />
           </div>

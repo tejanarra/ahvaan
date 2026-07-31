@@ -7,7 +7,11 @@ import { cn } from "@/lib/cn";
 // the Studio, marketing pages, and any guest theme it ever appears on.
 export function BrandMark({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className={cn("h-5 w-5", className)}>
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className={cn("h-5 w-5", className)}
+    >
       <g transform="rotate(-8 12 12)">
         <rect
           x="4.5"
@@ -34,17 +38,31 @@ export function BrandLockup({
   className,
   markClassName,
   textClassName,
+  markSrc,
 }: {
   className?: string;
   markClassName?: string;
   textClassName?: string;
+  markSrc?: string;
 }) {
   return (
-    <span className={cn("inline-flex items-center gap-2 text-foreground", className)}>
-      <BrandMark className={markClassName} />
+    <span
+      className={cn(
+        "inline-flex items-center gap-2 text-foreground",
+        className,
+      )}
+    >
+      {markSrc ? (
+        <img src={markSrc} alt="" className={cn("h-5 w-5", markClassName)} />
+      ) : (
+        <BrandMark className={markClassName} />
+      )}
       <span
         style={wordmarkStyle}
-        className={cn("text-lg font-semibold uppercase leading-none font-display", textClassName)}
+        className={cn(
+          "text-lg font-semibold leading-none font-display",
+          textClassName,
+        )}
       >
         ahvan
       </span>

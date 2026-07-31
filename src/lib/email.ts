@@ -52,7 +52,8 @@ const DISPLAY_FONT_STACK = "Georgia, 'Times New Roman', serif";
 const BODY_FONT_STACK = "Arial, Helvetica, sans-serif";
 
 function emailShell(event: EventRecord, invite: InviteEmailTarget, heading: string, body: string) {
-  const link = buildInviteLink(event.slug, invite.id, requireEnv("NEXT_PUBLIC_SITE_URL"));
+  const siteUrl = requireEnv("NEXT_PUBLIC_SITE_URL");
+  const link = buildInviteLink(event.slug, invite.id, siteUrl);
   const dateLine = eventDateLine(event);
 
   return `
@@ -80,7 +81,16 @@ function emailShell(event: EventRecord, invite: InviteEmailTarget, heading: stri
         Or copy this link: ${link}
       </p>
       <hr style="margin-top: 24px; border: none; border-top: 1px solid ${BORDER};" />
-      <p style="margin-top: 12px; font-size: 11px; color: ${MUTED_FOREGROUND};">Sent via Ahvan</p>
+      <table role="presentation" style="margin-top: 16px;">
+        <tr>
+          <td style="vertical-align: middle; padding-right: 6px;">
+            <a href="${siteUrl}"><img src="${siteUrl}/icon.png" width="18" height="18" alt="Ahvan" style="display: block;" /></a>
+          </td>
+          <td style="vertical-align: middle;">
+            <a href="${siteUrl}" style="font-size: 12px; color: ${MUTED}; text-decoration: none;">Sent via Ahvan — create your own invite</a>
+          </td>
+        </tr>
+      </table>
     </div>
   `;
 }

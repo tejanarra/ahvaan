@@ -146,6 +146,13 @@ export default async function PublicEventPage({
             customComponents,
           }}
         />
+        <Link
+          href="/"
+          className="fixed bottom-4 right-4 z-10 flex items-center gap-2 rounded-full border border-[#E7E4DD] bg-white/95 px-4 py-2 text-sm font-medium tracking-wide text-[#211E19]/80 shadow-md backdrop-blur hover:text-[#211E19]"
+        >
+          <img src="/mark-black.svg" alt="" className="h-5 w-5" />
+          Made with Ahvan
+        </Link>
       </>
     );
   }
@@ -178,12 +185,14 @@ export default async function PublicEventPage({
           customComponents,
         }}
       />
-      <p className="pb-6 text-center text-[11px] tracking-wide text-[var(--t-fg)]/40">
+      <Link
+        href="/"
+        className="flex items-center justify-center gap-2 pb-8 text-sm tracking-wide text-[var(--t-fg)]/60 hover:text-[var(--t-fg)]/90"
+      >
+        <img src="/mark-black.svg" alt="" className="h-5 w-5 opacity-70" />
         Made with{" "}
-        <Link href="/" className="underline decoration-dotted underline-offset-2 hover:text-[var(--t-fg)]/70">
-          Ahvan
-        </Link>
-      </p>
+        <span className="font-display underline decoration-dotted underline-offset-2">Ahvan</span>
+      </Link>
     </div>
   );
 }
