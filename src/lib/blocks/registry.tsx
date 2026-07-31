@@ -17,6 +17,11 @@ import {
   countdownDefaultConfig,
 } from "./blocks/countdown";
 import {
+  ScheduleEdit,
+  ScheduleRender,
+  scheduleDefaultConfig,
+} from "./blocks/schedule";
+import {
   RsvpFormEdit,
   RsvpFormRender,
   rsvpFormDefaultConfig,
@@ -108,6 +113,13 @@ export const BLOCK_REGISTRY = {
     defaultConfig: countdownDefaultConfig,
     Edit: CountdownEdit,
     Render: CountdownRender,
+  },
+  schedule: {
+    type: "schedule",
+    label: "Schedule / itinerary",
+    defaultConfig: scheduleDefaultConfig,
+    Edit: ScheduleEdit,
+    Render: ScheduleRender,
   },
   "rsvp-form": {
     type: "rsvp-form",

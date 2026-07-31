@@ -20,7 +20,7 @@ export const PALETTE_DRAG_PREFIX = "palette:";
 // stack of collapsible bordered panels.
 const CATEGORIES: { label: string; types: BlockType[] }[] = [
   { label: "Layout", types: ["container"] },
-  { label: "Content", types: ["hero", "text", "image", "carousel", "spacer", "countdown"] },
+  { label: "Content", types: ["hero", "text", "image", "carousel", "spacer", "countdown", "schedule"] },
   { label: "Guest interaction", types: ["rsvp-form", "venue-map"] },
   { label: "Advanced", types: ["custom-html"] },
 ];

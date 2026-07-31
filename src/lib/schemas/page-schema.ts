@@ -16,6 +16,7 @@ const BLOCK_TYPES: BlockType[] = [
   "carousel",
   "spacer",
   "countdown",
+  "schedule",
   "rsvp-form",
   "venue-map",
   "custom-html",

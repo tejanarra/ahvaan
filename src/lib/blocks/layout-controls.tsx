@@ -43,8 +43,14 @@ export function parseInlineStyle(text: string | undefined): CSSProperties {
     const value = rule.slice(idx + 1).trim();
     if (!prop || !value) continue;
     if (UNSAFE_VALUE_PATTERN.test(value)) continue;
-    const camel = prop.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
-    style[camel] = value;
+    // A CSS custom property (e.g. schedule.tsx's --schedule-dot-color) must
+    // keep its literal, case-sensitive `--` name — the kebab→camelCase
+    // conversion below is only correct for real CSS properties (border-radius
+    // → borderRadius) and would otherwise mangle "--schedule-dot-color" into
+    // "-ScheduleDotColor", silently breaking every custom-property hook a
+    // block exposes this way.
+    const key = prop.startsWith("--") ? prop : prop.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+    style[key] = value;
   }
   return style as CSSProperties;
 }

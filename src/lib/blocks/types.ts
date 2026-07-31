@@ -164,6 +164,30 @@ export type CountdownConfig = {
   label?: string;
 };
 
+// `id` (not just array index) so a reorder/delete in the editor doesn't
+// shift which React key an item owns mid-edit — same reasoning as every
+// other id-keyed list in this schema (BlockInstance.id, CarouselImage has
+// no id because reordering there remounts the whole slide anyway, but a
+// schedule item can be individually mid-edit in a text field when reordered).
+export type ScheduleItem = { id: string; time?: string; label: string; description?: string };
+
+export type ScheduleStyle = "timeline" | "cards" | "minimal";
+// "timeline": vertical = alternating left/right of a centered line;
+// horizontal = alternating above/below a horizontal line (a "flip").
+// "cards": vertical = stacked; horizontal = a scrollable row.
+// "minimal" ignores this — it's always a simple vertical stack.
+export type ScheduleDirection = "vertical" | "horizontal";
+export type ScheduleAlign = "left" | "center";
+
+export type ScheduleConfig = {
+  heading?: string;
+  items: ScheduleItem[];
+  style?: ScheduleStyle;
+  direction?: ScheduleDirection;
+  align?: ScheduleAlign;
+  gapPx?: number;
+};
+
 export type RsvpFormBlockConfig = {
   heading?: string;
   helperText?: string;
@@ -250,6 +274,7 @@ export type BlockInstance =
   | (BlockBase & { type: "carousel"; config: CarouselConfig })
   | (BlockBase & { type: "spacer"; config: SpacerConfig })
   | (BlockBase & { type: "countdown"; config: CountdownConfig })
+  | (BlockBase & { type: "schedule"; config: ScheduleConfig })
   | (BlockBase & { type: "rsvp-form"; config: RsvpFormBlockConfig })
   | (BlockBase & { type: "venue-map"; config: VenueMapBlockConfig })
   | (BlockBase & { type: "custom-html"; config: CustomHtmlConfig })
