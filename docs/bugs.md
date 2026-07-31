@@ -1,4 +1,4 @@
-1. copy paste complete components with nested components 
+1. 
 
 2. 
 

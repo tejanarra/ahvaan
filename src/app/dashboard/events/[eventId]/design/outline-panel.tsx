@@ -23,7 +23,7 @@ function OutlineInsertionLine({ depth }: { depth: number }) {
 }
 import { ConfirmIconButton } from "@/components/confirm-icon-button";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
-import { DragHandleIcon, ChevronDownIcon, MoveOutIcon } from "@/components/icons";
+import { DragHandleIcon, ChevronDownIcon, MoveOutIcon, CopyIcon, ClipboardListIcon } from "@/components/icons";
 import { cn } from "@/lib/cn";
 
 // The structural counterpart to the visual canvas: every row here is a
@@ -113,6 +113,9 @@ function OutlineRow({
   onRename,
   containerOptions,
   dropPlan,
+  onCopy,
+  onPaste,
+  hasClipboard,
 }: {
   block: BlockInstance;
   containerId: string | null;
@@ -125,6 +128,9 @@ function OutlineRow({
   onRename: (path: BlockPath, name: string) => void;
   containerOptions: ContainerOption[];
   dropPlan: DropPlan;
+  onCopy: (path: BlockPath) => void;
+  onPaste: (path: BlockPath) => void;
+  hasClipboard: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: block.id,
@@ -224,6 +230,26 @@ function OutlineRow({
           />
         )}
 
+        <button
+          type="button"
+          onClick={() => onCopy(path)}
+          aria-label={`Copy ${block.name || def?.label || block.type}`}
+          title="Copy"
+          className="shrink-0 rounded p-1 text-muted hover:bg-surface hover:text-foreground"
+        >
+          <CopyIcon className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => onPaste(path)}
+          disabled={!hasClipboard}
+          aria-label="Paste below"
+          title="Paste below"
+          className="shrink-0 rounded p-1 text-muted hover:bg-surface hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
+        >
+          <ClipboardListIcon className="h-3.5 w-3.5" />
+        </button>
+
         <ConfirmIconButton
           label="Remove block"
           confirmText={`Remove "${block.name || def?.label || block.type}" from the page?`}
@@ -253,6 +279,9 @@ function OutlineRow({
                     onRename={onRename}
                     containerOptions={containerOptions}
                     dropPlan={dropPlan}
+                    onCopy={onCopy}
+                    onPaste={onPaste}
+                    hasClipboard={hasClipboard}
                   />
                 </Fragment>
               ))}
@@ -278,6 +307,9 @@ export function OutlinePanel({
   onRename,
   containerOptions,
   dropPlan,
+  onCopy,
+  onPaste,
+  hasClipboard,
 }: {
   blocks: BlockInstance[];
   selectedPath: BlockPath | null;
@@ -288,6 +320,9 @@ export function OutlinePanel({
   onRename: (path: BlockPath, name: string) => void;
   containerOptions: ContainerOption[];
   dropPlan: DropPlan;
+  onCopy: (path: BlockPath) => void;
+  onPaste: (path: BlockPath) => void;
+  hasClipboard: boolean;
 }) {
   if (blocks.length === 0) {
     return (
@@ -316,6 +351,9 @@ export function OutlinePanel({
               onRename={onRename}
               containerOptions={containerOptions}
               dropPlan={dropPlan}
+              onCopy={onCopy}
+              onPaste={onPaste}
+              hasClipboard={hasClipboard}
             />
           </Fragment>
         ))}

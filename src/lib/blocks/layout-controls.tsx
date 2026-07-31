@@ -215,7 +215,24 @@ export function blockResponsiveCss(blockId: string, layout: BlockLayout | undefi
     // so a host only has to set "hide on mobile" (say) once and it covers
     // phones and portrait tablets both, instead of needing an identical
     // duplicate tablet override.
-    const effectiveTablet: BreakpointOverride = { ...layout.mobile, ...layout.tablet };
+    //
+    // `hidden` is deliberately excluded from the blanket field-by-field
+    // merge above and handled on its own: unchecking "hide" in the editor
+    // sets the field back to `undefined`, not `false` (see
+    // layout-controls-ui.tsx's BreakpointOverrideFields), so there's no way
+    // to represent "explicitly visible on tablet" distinctly from "never
+    // configured" for that one field. Falling back to mobile's `hidden`
+    // whenever *any* tablet override exists — even a host who only set a
+    // tablet Width — silently re-hid it with no way to undo that from the
+    // UI. Falling back only when the tablet object doesn't exist at all
+    // keeps the zero-config case working (unset tablet still mirrors
+    // mobile, hidden included) while a host who's touched tablet at all
+    // keeps its own (possibly unset-meaning-visible) hidden state.
+    const effectiveTablet: BreakpointOverride = {
+      hidden: layout.tablet ? layout.tablet.hidden : layout.mobile?.hidden,
+      align: layout.tablet?.align ?? layout.mobile?.align,
+      width: layout.tablet?.width ?? layout.mobile?.width,
+    };
     const decls = breakpointDeclarations(effectiveTablet);
     if (decls) {
       rules.push(

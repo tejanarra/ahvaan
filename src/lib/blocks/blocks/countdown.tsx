@@ -1,12 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CountdownConfig } from "../types";
 import type { PageRenderContext } from "../context";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
 export const countdownDefaultConfig: CountdownConfig = { label: "Counting down to" };
+
+// The universal block Width control (S/M/L/Full, every block type) is the
+// only size control this block has. Digit/unit font sizes are derived from
+// the block's actual rendered width (via ResizeObserver, below) rather than
+// CSS container queries: this block can land inside ancestor wrappers whose
+// own width is computed by shrink-to-fit (e.g. an unstyled flex-column
+// wrapper), and `container-type` imposes size containment that makes such a
+// wrapper treat this box as zero-width when computing that shrink-to-fit
+// size — collapsing the whole block. Measuring in JS sidesteps that.
+function digitFontPx(width: number) {
+  return Math.min(48, Math.max(20, width * 0.09));
+}
+function unitFontPx(width: number) {
+  return Math.min(12, Math.max(9, width * 0.022));
+}
 
 export function CountdownEdit({
   config,
@@ -16,14 +31,16 @@ export function CountdownEdit({
   onChange: (next: CountdownConfig) => void;
 }) {
   return (
-    <Field label="Label" hint="Counts down to this event's date/time, set on the Cover/hero block.">
-      <Input
-        type="text"
-        value={config.label ?? ""}
-        onChange={(e) => onChange({ ...config, label: e.target.value })}
-        placeholder="e.g. Counting down to"
-      />
-    </Field>
+    <div className="space-y-3">
+      <Field label="Label" hint="Counts down to this event's date/time, set on the Cover/hero block.">
+        <Input
+          type="text"
+          value={config.label ?? ""}
+          onChange={(e) => onChange({ ...config, label: e.target.value })}
+          placeholder="e.g. Counting down to"
+        />
+      </Field>
+    </div>
   );
 }
 
@@ -62,25 +79,40 @@ export function CountdownRender({
     ? `${event.event_date}T${event.event_time ? toIsoTime(event.event_time) : "00:00:00"}`
     : null;
   const remaining = useCountdown(targetIso);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(320);
+
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   if (!targetIso) return null;
 
   return (
-    <div className="w-full">
+    <div ref={wrapperRef} className="w-full">
       {config.label && (
         <p className="text-xs font-semibold uppercase tracking-wide text-[var(--t-accent-dark)]">{config.label}</p>
       )}
       {remaining ? (
-        <div className="mt-2 inline-flex gap-4 text-[var(--t-fg)]">
+        <div className="mt-2 flex w-full justify-center gap-4 text-[var(--t-fg)]">
           {(["days", "hours", "minutes", "seconds"] as const).map((unit) => (
-            <div key={unit}>
+            <div key={unit} className="text-center">
               <p
-                className="text-2xl tabular-nums"
-                style={{ fontFamily: "var(--t-font-display)" }}
+                className="tabular-nums"
+                style={{ fontFamily: "var(--t-font-display)", fontSize: `${digitFontPx(width)}px` }}
               >
                 {remaining[unit]}
               </p>
-              <p className="text-[10px] uppercase tracking-wide text-[var(--t-fg)]/60">{unit}</p>
+              <p
+                className="uppercase tracking-wide text-[var(--t-fg)]/60"
+                style={{ fontSize: `${unitFontPx(width)}px` }}
+              >
+                {unit}
+              </p>
             </div>
           ))}
         </div>

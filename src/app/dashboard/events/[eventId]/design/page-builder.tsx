@@ -126,6 +126,33 @@ function collectContainerIds(block: BlockInstance): string[] {
   return [block.id, ...block.children.flatMap(collectContainerIds)];
 }
 
+// Deep-clones a block (and, for containers, every nested descendant) with a
+// fresh id at every level — every block id must be unique across the whole
+// tree (see findBlock/listContaining, which look blocks up by id and take
+// the first match), so pasting a raw copy of the original tree verbatim
+// would silently break selection/lookup for both the pasted copy and the
+// original it now collides with. `name` is dropped too: keeping it would
+// make two blocks share a human-picked label, which is exactly the
+// ambiguity a name is meant to resolve (see collectContainerOptions).
+function cloneBlockWithNewIds(block: BlockInstance): BlockInstance {
+  const { name: _name, ...rest } = block;
+  const cloned = { ...rest, id: crypto.randomUUID() } as BlockInstance;
+  return "children" in cloned ? ({ ...cloned, children: cloned.children.map(cloneBlockWithNewIds) } as BlockInstance) : cloned;
+}
+
+// How many additional container levels a block's own subtree adds — 0 for a
+// leaf or an empty container, otherwise 1 + the deepest child's own count.
+// Used to keep paste from silently exceeding the schema's own nesting cap
+// (see MAX_CONTAINER_DEPTH below): unlike a drag (computeDropPlan already
+// checks this for palette containers), a copied container can already be
+// several levels deep on its own, and pasting it into an already-nested
+// location can push the combined depth past what the schema accepts — that
+// wouldn't fail until the next Save, with no indication paste was the cause.
+function subtreeDepth(block: BlockInstance): number {
+  if (!("children" in block) || block.children.length === 0) return 0;
+  return 1 + Math.max(...block.children.map(subtreeDepth));
+}
+
 // Matches lib/schemas/page-schema.ts's own nesting cap (duplicated there and
 // in json-schema-editor.tsx, same reasoning as those: cheap to keep in sync
 // by hand, and importing the zod schema module here just to read one number
@@ -420,6 +447,13 @@ export function PageBuilder({
   useEffect(() => setMounted(true), []);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [dropPlan, setDropPlan] = useState<DropPlan>(null);
+  // The copied block itself (not just its id) — a plain in-memory clipboard
+  // scoped to this editor session, not the OS clipboard: pasting always
+  // re-clones with fresh ids (see cloneBlockWithNewIds) so copying once and
+  // pasting repeatedly never collides ids across pastes, and there's no
+  // need to serialize/deserialize or worry about stale ids if the original
+  // block is edited or deleted after being copied.
+  const [clipboardBlock, setClipboardBlock] = useState<BlockInstance | null>(null);
 
   // Preview mode's iframe (PreviewFrame) is a fixed, real pixel width per
   // device — unlike Edit mode's content, which just reflows to whatever
@@ -599,6 +633,70 @@ export function PageBuilder({
   };
 
   const handleMoveOut = (path: BlockPath) => moveBlock(path, null);
+
+  // Copy/paste, Form.io-style: copy stores the block itself (nested children
+  // included, since it's just this one BlockInstance and its own subtree);
+  // paste always clones it fresh (see cloneBlockWithNewIds) and inserts the
+  // clone directly after the block you pasted onto, in that same list —
+  // "paste below" rather than requiring a separate target-picking step.
+  // Independent of device toggle/canvas mode: it operates on `blocks`
+  // directly, the same underlying data every mode (Edit/Outline/Preview)
+  // renders, so copying while looking at one device view and pasting while
+  // looking at another works the same as staying on one the whole time.
+  const handleCopyBlock = (path: BlockPath) => {
+    const block = getBlockList(blocks, path.containerId).find((b) => b.id === path.blockId);
+    if (block) setClipboardBlock(block);
+  };
+
+  const handlePasteAfter = (path: BlockPath) => {
+    if (!clipboardBlock) return;
+    // Refuse a paste that would push the combined depth (how deep the
+    // target list already sits, plus however many levels the copied
+    // subtree itself adds) past the schema's own cap — silently, matching
+    // computeDropPlan's equivalent drag-and-drop check, rather than letting
+    // it through and only surfacing as a confusing Save failure later.
+    const targetDepth = path.containerId === null ? 0 : (containerDepth(blocks, path.containerId) ?? 0) + 1;
+    if (targetDepth + subtreeDepth(clipboardBlock) >= MAX_CONTAINER_DEPTH) return;
+    const pasted = cloneBlockWithNewIds(clipboardBlock);
+    const list = getBlockList(blocks, path.containerId);
+    const index = list.findIndex((b) => b.id === path.blockId);
+    if (index === -1) return;
+    const nextList = [...list.slice(0, index + 1), pasted, ...list.slice(index + 1)];
+    setBlocks(setBlockList(blocks, path.containerId, nextList));
+  };
+
+  // Ctrl/Cmd+C copies whatever's currently selected; Ctrl/Cmd+V pastes right
+  // after it — the keyboard-shortcut half of "just like Form.io". Ignored
+  // whenever focus is inside a real text input (name field, textarea, a
+  // block's own text content, etc.) so it doesn't hijack normal copy/paste
+  // of actual text — this only fires for the page's own block selection.
+  // Also backs off for Ctrl/Cmd+C specifically whenever the user has an
+  // actual text selection on the page: without this, selecting read-only
+  // text inside a block's edit modal (a preview snippet, a URL, an error
+  // message — anything outside an input/textarea) and pressing Ctrl/Cmd+C to
+  // copy that text to the OS clipboard instead silently copied the whole
+  // block and discarded the selection, since a text selection isn't a
+  // "text entry target" the way a focused input is.
+  useEffect(() => {
+    function isTextEntryTarget(target: EventTarget | null): boolean {
+      if (!(target instanceof HTMLElement)) return false;
+      return target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (!(e.metaKey || e.ctrlKey) || !selectedPath || isTextEntryTarget(e.target)) return;
+      if (e.key === "c" || e.key === "C") {
+        if (window.getSelection()?.toString()) return;
+        e.preventDefault();
+        handleCopyBlock(selectedPath);
+      } else if (e.key === "v" || e.key === "V") {
+        e.preventDefault();
+        handlePasteAfter(selectedPath);
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPath, blocks, clipboardBlock]);
 
   // Renaming from the Outline panel — same shape as handleChangeSelected
   // (which the block's own edit-modal header uses for the same field) but
@@ -783,6 +881,9 @@ export function PageBuilder({
       onRename={handleRenameBlock}
       containerOptions={containerOptions}
       dropPlan={dropPlan}
+      onCopy={handleCopyBlock}
+      onPaste={handlePasteAfter}
+      hasClipboard={clipboardBlock !== null}
     />
   ) : canvasMode === "preview" ? (
     // Renders through the exact component the guest sees (PageRenderer, the
@@ -818,6 +919,9 @@ export function PageBuilder({
         onMoveTo={moveBlock}
         device={device}
         dropPlan={dropPlan}
+        onCopy={handleCopyBlock}
+        onPaste={handlePasteAfter}
+        hasClipboard={clipboardBlock !== null}
       />
     </div>
   );

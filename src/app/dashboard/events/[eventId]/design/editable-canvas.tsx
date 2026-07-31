@@ -11,7 +11,7 @@ import { BLOCK_REGISTRY } from "@/lib/blocks/registry";
 import { layoutWrapperStyle } from "@/lib/blocks/layout-controls";
 import type { DeviceWidth } from "./page-builder";
 import { ConfirmIconButton } from "@/components/confirm-icon-button";
-import { DragHandleIcon, EditIcon, MoveOutIcon, ChevronDownIcon } from "@/components/icons";
+import { DragHandleIcon, EditIcon, MoveOutIcon, ChevronDownIcon, CopyIcon, ClipboardListIcon } from "@/components/icons";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { emptyListId, startListId, type DropPlan } from "./dnd-ids";
 import { cn } from "@/lib/cn";
@@ -74,16 +74,28 @@ function effectiveLayoutForDevice(
   // like mobile by default, while "long side down" (landscape, 1024px+)
   // already lands outside the tablet range entirely and matches desktop
   // with zero configuration either way.
+  //
+  // `hidden` is resolved separately from align/width, same reasoning as
+  // blockResponsiveCss's own split: unchecking "hide" always resolves back
+  // to `undefined`, not `false`, so there's no way to represent "explicitly
+  // visible on tablet" distinctly from "never configured" — falling back to
+  // mobile's hidden state whenever ANY tablet override exists would silently
+  // re-hide a block a host only meant to resize for tablet, with no way to
+  // undo it. Falling back only when the tablet object is absent entirely
+  // keeps the zero-config case (hide on mobile ⇒ hidden on tablet too by
+  // default) while a host who's touched tablet at all keeps its own state.
   const override =
     device === "mobile" ? resolved.mobile : resolved.mobile || resolved.tablet ? { ...resolved.mobile, ...resolved.tablet } : undefined;
   if (!override) return { layout: resolved, hiddenForDevice: false };
+  const hiddenForDevice =
+    device === "mobile" ? Boolean(resolved.mobile?.hidden) : Boolean((resolved.tablet ? resolved.tablet.hidden : resolved.mobile?.hidden));
   return {
     layout: {
       ...resolved,
       align: override.align ?? resolved.align,
       width: override.width ?? resolved.width,
     },
-    hiddenForDevice: Boolean(override.hidden),
+    hiddenForDevice,
   };
 }
 
@@ -113,6 +125,9 @@ function EditableBlock({
   device,
   dropPlan,
   showInsertionBefore = false,
+  onCopy,
+  onPaste,
+  hasClipboard,
 }: {
   block: BlockInstance;
   containerId: string | null;
@@ -164,6 +179,13 @@ function EditableBlock({
   // position in its own list) — draws the InsertionBar on this block's own
   // wrapper, oriented to match `parentLayoutMode`.
   showInsertionBefore?: boolean;
+  // Copies this block (nested children included — see page-builder.tsx's
+  // cloneBlockWithNewIds) into the editor's own in-memory clipboard.
+  onCopy: (path: BlockPath) => void;
+  // Pastes a fresh clone of whatever's in the clipboard directly after this
+  // block, in this block's own list — "paste below", Form.io-style.
+  onPaste: (path: BlockPath) => void;
+  hasClipboard: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: block.id,
@@ -248,6 +270,9 @@ function EditableBlock({
                 device={device}
                 dropPlan={dropPlan}
                 showInsertionBefore={isDropTarget && dropPlan!.index === i}
+                onCopy={onCopy}
+                onPaste={onPaste}
+                hasClipboard={hasClipboard}
               />
             ))}
           </SortableContext>,
@@ -346,6 +371,25 @@ function EditableBlock({
             ]}
           />
         )}
+        <button
+          type="button"
+          onClick={() => onCopy(path)}
+          aria-label={`Copy ${def.label}`}
+          title="Copy"
+          className="rounded p-1 text-muted hover:bg-surface hover:text-foreground"
+        >
+          <CopyIcon className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => onPaste(path)}
+          disabled={!hasClipboard}
+          aria-label="Paste below"
+          title="Paste below"
+          className="rounded p-1 text-muted hover:bg-surface hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
+        >
+          <ClipboardListIcon className="h-3.5 w-3.5" />
+        </button>
         <ConfirmIconButton label="Remove block" confirmText={`Remove "${def.label}" from the page?`} onConfirm={async () => onRemove(path)} />
       </div>
 
@@ -400,7 +444,18 @@ function EditableBlock({
           {/* Editor-only dashed boundary so nesting is visible at a glance
               even when a container has no background of its own set — the
               guest-facing page-renderer.tsx never adds this, only the canvas. */}
-          <div className={cn(isContainer && "rounded-lg outline-dashed outline-1 -outline-offset-1 outline-accent/30")}>
+          {/* flex-1 min-w-0: this div is a flex item of the outer
+              wrapperStyle box above (display:flex, width:100%), and without
+              its own grow/basis it defaults to flex:0 1 auto and shrink-wraps
+              to content instead of filling that 100% — starving any block
+              content that sizes itself off its own box (e.g. countdown.tsx's
+              width-driven font sizing) of the real available width. */}
+          <div
+            className={cn(
+              "min-w-0 flex-1",
+              isContainer && "rounded-lg outline-dashed outline-1 -outline-offset-1 outline-accent/30"
+            )}
+          >
             <Render config={block.config} ctx={ctx} renderedChildren={renderedChildren} />
           </div>
           {/* Only non-container blocks get a full-cover "click anywhere to
@@ -521,6 +576,9 @@ export function EditableCanvas({
   containerOptions,
   device,
   dropPlan,
+  onCopy,
+  onPaste,
+  hasClipboard,
 }: {
   blocks: BlockInstance[];
   ctx: PageRenderContext;
@@ -532,6 +590,9 @@ export function EditableCanvas({
   containerOptions: ContainerOption[];
   device: DeviceWidth;
   dropPlan: DropPlan;
+  onCopy: (path: BlockPath) => void;
+  onPaste: (path: BlockPath) => void;
+  hasClipboard: boolean;
 }) {
   // Tracks the single deepest block currently under the pointer — see the
   // note on EditableBlock's `hoveredPath` prop for why this replaced CSS
@@ -569,6 +630,9 @@ export function EditableCanvas({
             device={device}
             dropPlan={dropPlan}
             showInsertionBefore={isTopLevelDropTarget && dropPlan!.index === i}
+            onCopy={onCopy}
+            onPaste={onPaste}
+            hasClipboard={hasClipboard}
           />
         ))}
         <EndOfListDropZone containerId={null} />
