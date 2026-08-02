@@ -8,7 +8,7 @@ import { useDroppable } from "@dnd-kit/core";
 import type { BlockInstance } from "@/lib/blocks/types";
 import { BLOCK_REGISTRY } from "@/lib/blocks/registry";
 import { BlockTypeBadge } from "./block-card";
-import type { BlockPath, ContainerOption } from "./editable-canvas";
+import type { BlockPath } from "./editable-canvas";
 import { emptyListId, startListId, type DropPlan } from "./dnd-ids";
 
 // A thin accent line showing exactly where a drag would land right now —
@@ -22,8 +22,7 @@ function OutlineInsertionLine({ depth }: { depth: number }) {
   return <div aria-hidden="true" style={{ marginLeft: depth * 20 }} className="my-0.5 h-0.5 rounded-full bg-accent" />;
 }
 import { ConfirmIconButton } from "@/components/confirm-icon-button";
-import { DropdownMenu } from "@/components/ui/dropdown-menu";
-import { DragHandleIcon, ChevronDownIcon, MoveOutIcon, CopyIcon, ClipboardListIcon } from "@/components/icons";
+import { DragHandleIcon, ChevronDownIcon, CopyIcon, ClipboardListIcon } from "@/components/icons";
 import { cn } from "@/lib/cn";
 
 // The structural counterpart to the visual canvas: every row here is a
@@ -36,11 +35,6 @@ import { cn } from "@/lib/cn";
 // Renaming, selecting, reordering, and moving between containers all call
 // the exact same handlers the canvas and the block's own edit modal use —
 // this is a different presentation of the same state, not a parallel system.
-
-function descendantContainerIds(block: BlockInstance): string[] {
-  if (!("children" in block)) return [];
-  return block.children.flatMap((c) => ("children" in c ? [c.id, ...descendantContainerIds(c)] : []));
-}
 
 function OutlineEmptyDropZone({ containerId, depth }: { containerId: string; depth: number }) {
   const { setNodeRef, isOver } = useDroppable({ id: emptyListId(containerId) });
@@ -108,10 +102,7 @@ function OutlineRow({
   selectedPath,
   onSelect,
   onRemove,
-  onMoveOut,
-  onMoveTo,
   onRename,
-  containerOptions,
   dropPlan,
   onCopy,
   onPaste,
@@ -123,10 +114,7 @@ function OutlineRow({
   selectedPath: BlockPath | null;
   onSelect: (path: BlockPath) => void;
   onRemove: (path: BlockPath) => void;
-  onMoveOut: (path: BlockPath) => void;
-  onMoveTo: (path: BlockPath, destContainerId: string | null) => void;
   onRename: (path: BlockPath, name: string) => void;
-  containerOptions: ContainerOption[];
   dropPlan: DropPlan;
   onCopy: (path: BlockPath) => void;
   onPaste: (path: BlockPath) => void;
@@ -150,7 +138,7 @@ function OutlineRow({
       <div
         style={{ paddingLeft: depth * 20 }}
         className={cn(
-          "flex items-center gap-1.5 rounded-md border py-1.5 pr-1.5 transition-colors",
+          "flex flex-wrap items-center gap-1.5 rounded-md border py-1.5 pr-1.5 transition-colors sm:flex-nowrap",
           isSelected ? "border-accent bg-accent-soft" : "border-transparent hover:bg-surface-hover"
         )}
       >
@@ -193,7 +181,7 @@ function OutlineRow({
           }}
           placeholder={def?.label ?? block.type}
           aria-label="Block name"
-          className="min-w-0 flex-1 truncate rounded border border-transparent bg-transparent px-1.5 py-0.5 text-sm text-foreground hover:border-border focus:border-accent focus:bg-background focus:outline-none"
+          className="min-w-[64px] flex-1 truncate rounded border border-transparent bg-transparent px-1.5 py-0.5 text-sm text-foreground hover:border-border focus:border-accent focus:bg-background focus:outline-none"
         />
 
         {isContainer && (
@@ -202,59 +190,49 @@ function OutlineRow({
           </span>
         )}
 
-        <button
-          type="button"
-          onClick={() => onSelect(path)}
-          className="shrink-0 rounded px-2 py-1 text-xs font-medium text-accent hover:bg-accent-soft"
-        >
-          Edit
-        </button>
+        {/* Actions cluster is one flex item, not several — `basis-full`
+            forces it onto its own full-width row below the drag/expand/
+            badge/name row whenever the parent wraps (mobile only; `sm:`
+            reverts to sitting inline like before). Without this, plain
+            flex-wrap let individual buttons peel off one at a time onto a
+            second line in an arbitrary split, and — worse — starved the
+            name input down to a sliver first, since every action button
+            was `shrink-0` (fixed width) while only the name could shrink,
+            so it absorbed the entire overflow before anything wrapped. */}
+        <div className="flex basis-full items-center justify-end gap-1.5 sm:basis-auto sm:justify-normal">
+          <button
+            type="button"
+            onClick={() => onSelect(path)}
+            className="shrink-0 rounded px-2 py-1 text-xs font-medium text-accent hover:bg-accent-soft"
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            onClick={() => onCopy(path)}
+            aria-label={`Copy ${block.name || def?.label || block.type}`}
+            title="Copy"
+            className="shrink-0 rounded p-1 text-muted hover:bg-surface hover:text-foreground"
+          >
+            <CopyIcon className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => onPaste(path)}
+            disabled={!hasClipboard}
+            aria-label="Paste below"
+            title="Paste below"
+            className="shrink-0 rounded p-1 text-muted hover:bg-surface hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
+          >
+            <ClipboardListIcon className="h-3.5 w-3.5" />
+          </button>
 
-        {(containerId !== null || containerOptions.length > 0) && (
-          <DropdownMenu
-            trigger={
-              <span
-                title="Move to…"
-                aria-label="Move to a different container or the page's top level"
-                className="flex shrink-0 items-center rounded p-1 text-muted hover:bg-surface hover:text-foreground"
-              >
-                <MoveOutIcon className="h-3.5 w-3.5" />
-              </span>
-            }
-            items={[
-              ...(containerId !== null ? [{ label: "Top level (page)", onSelect: () => onMoveOut(path) }] : []),
-              ...containerOptions
-                .filter((c) => c.id !== containerId && !(isContainer && (c.id === block.id || descendantContainerIds(block).includes(c.id))))
-                .map((c) => ({ label: `Into "${c.label}"`, onSelect: () => onMoveTo(path, c.id) })),
-            ]}
+          <ConfirmIconButton
+            label="Remove block"
+            confirmText={`Remove "${block.name || def?.label || block.type}" from the page?`}
+            onConfirm={async () => onRemove(path)}
           />
-        )}
-
-        <button
-          type="button"
-          onClick={() => onCopy(path)}
-          aria-label={`Copy ${block.name || def?.label || block.type}`}
-          title="Copy"
-          className="shrink-0 rounded p-1 text-muted hover:bg-surface hover:text-foreground"
-        >
-          <CopyIcon className="h-3.5 w-3.5" />
-        </button>
-        <button
-          type="button"
-          onClick={() => onPaste(path)}
-          disabled={!hasClipboard}
-          aria-label="Paste below"
-          title="Paste below"
-          className="shrink-0 rounded p-1 text-muted hover:bg-surface hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
-        >
-          <ClipboardListIcon className="h-3.5 w-3.5" />
-        </button>
-
-        <ConfirmIconButton
-          label="Remove block"
-          confirmText={`Remove "${block.name || def?.label || block.type}" from the page?`}
-          onConfirm={async () => onRemove(path)}
-        />
+        </div>
       </div>
 
       {isContainer && expanded && (
@@ -274,10 +252,7 @@ function OutlineRow({
                     selectedPath={selectedPath}
                     onSelect={onSelect}
                     onRemove={onRemove}
-                    onMoveOut={onMoveOut}
-                    onMoveTo={onMoveTo}
                     onRename={onRename}
-                    containerOptions={containerOptions}
                     dropPlan={dropPlan}
                     onCopy={onCopy}
                     onPaste={onPaste}
@@ -302,10 +277,7 @@ export function OutlinePanel({
   selectedPath,
   onSelect,
   onRemove,
-  onMoveOut,
-  onMoveTo,
   onRename,
-  containerOptions,
   dropPlan,
   onCopy,
   onPaste,
@@ -315,10 +287,7 @@ export function OutlinePanel({
   selectedPath: BlockPath | null;
   onSelect: (path: BlockPath) => void;
   onRemove: (path: BlockPath) => void;
-  onMoveOut: (path: BlockPath) => void;
-  onMoveTo: (path: BlockPath, destContainerId: string | null) => void;
   onRename: (path: BlockPath, name: string) => void;
-  containerOptions: ContainerOption[];
   dropPlan: DropPlan;
   onCopy: (path: BlockPath) => void;
   onPaste: (path: BlockPath) => void;
@@ -346,10 +315,7 @@ export function OutlinePanel({
               selectedPath={selectedPath}
               onSelect={onSelect}
               onRemove={onRemove}
-              onMoveOut={onMoveOut}
-              onMoveTo={onMoveTo}
               onRename={onRename}
-              containerOptions={containerOptions}
               dropPlan={dropPlan}
               onCopy={onCopy}
               onPaste={onPaste}

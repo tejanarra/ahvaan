@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -11,8 +11,7 @@ import { BLOCK_REGISTRY } from "@/lib/blocks/registry";
 import { layoutWrapperStyle } from "@/lib/blocks/layout-controls";
 import type { DeviceWidth } from "./page-builder";
 import { ConfirmIconButton } from "@/components/confirm-icon-button";
-import { DragHandleIcon, EditIcon, MoveOutIcon, ChevronDownIcon, CopyIcon, ClipboardListIcon } from "@/components/icons";
-import { DropdownMenu } from "@/components/ui/dropdown-menu";
+import { DragHandleIcon, EditIcon, CopyIcon, ClipboardListIcon } from "@/components/icons";
 import { emptyListId, startListId, type DropPlan } from "./dnd-ids";
 import { cn } from "@/lib/cn";
 
@@ -42,14 +41,6 @@ function InsertionBar({ orientation }: { orientation: "row" | "column" }) {
 
 export type BlockPath = { containerId: string | null; blockId: string };
 export type ContainerOption = { id: string; label: string };
-
-// Every container id nested inside this block (not including the block's
-// own id) — used to keep a container from being offered as a "Move to…"
-// destination for itself.
-function descendantContainerIds(block: BlockInstance): string[] {
-  if (!("children" in block)) return [];
-  return block.children.flatMap((c) => ("children" in c ? [c.id, ...descendantContainerIds(c)] : []));
-}
 
 // The real guest page enforces mobile/tablet/hiddenOnDesktop overrides via
 // actual `@media` CSS (see blockResponsiveCss) since the server can't know
@@ -115,9 +106,6 @@ function EditableBlock({
   selectedPath,
   onSelect,
   onRemove,
-  onMoveOut,
-  onMoveTo,
-  containerOptions,
   depth = 0,
   hoveredPath,
   onHover,
@@ -136,20 +124,6 @@ function EditableBlock({
   selectedPath: BlockPath | null;
   onSelect: (path: BlockPath) => void;
   onRemove: (path: BlockPath) => void;
-  // A guaranteed, drag-free way to pull a block back out to the page's top
-  // level — only rendered (in the toolbar below) when this block is
-  // actually nested (containerId !== null). Dragging works too (see the
-  // always-present end-of-list drop zone), but drag targets can be fiddly
-  // to hit precisely; this button is the reliable fallback (host feedback:
-  // "unable to move to outer").
-  onMoveOut: (path: BlockPath) => void;
-  // The general case: move this block into a specific container (or the
-  // top level) regardless of where it currently lives — a one-click,
-  // drag-free way to relocate between two different containers, which drag
-  // alone struggled with (host feedback: "unable to move components into a
-  // nested -> nested component", "unable to stack two ... into one").
-  onMoveTo: (path: BlockPath, destContainerId: string | null) => void;
-  containerOptions: ContainerOption[];
   // How many containers deep this block sits (0 = top level). Controls in
   // deeper blocks get a higher z-index than their ancestors' own chrome
   // (name chips, hover rings) — without this, every block's toolbar used
@@ -203,6 +177,16 @@ function EditableBlock({
   // container's contents away makes a deeply-nested layout scannable
   // instead of one long scroll of every nested block's full render.
   const [collapsed, setCollapsed] = useState(false);
+  // Set on this block's own onTouchStart, read (and cleared) by the
+  // full-cover edit button's onClick below — distinguishes "this tap is a
+  // touch, and this is the block's first tap" from a mouse click. Mouse
+  // always opens the editor on one click, unchanged. Touch has no hover to
+  // reveal the toolbar first, so a first tap only selects/reveals it
+  // instead — otherwise the very same tap's `click` opens the modal a
+  // moment after `touchstart` shows the toolbar, covering it before it's
+  // ever reachable. A second tap, now that the block is already selected,
+  // opens the editor same as a click would.
+  const wasTouch = useRef(false);
 
   const { layout: effectiveLayout, hiddenForDevice } = effectiveLayoutForDevice(block.layout, device);
 
@@ -260,9 +244,6 @@ function EditableBlock({
                 selectedPath={selectedPath}
                 onSelect={onSelect}
                 onRemove={onRemove}
-                onMoveOut={onMoveOut}
-                onMoveTo={onMoveTo}
-                containerOptions={containerOptions}
                 depth={depth + 1}
                 hoveredPath={hoveredPath}
                 onHover={onHover}
@@ -295,6 +276,7 @@ function EditableBlock({
       // matter what's tapped, since `isHovered` would always be false.
       onTouchStart={(e) => {
         e.stopPropagation();
+        wasTouch.current = true;
         onHover(path);
       }}
       className={cn(
@@ -348,7 +330,7 @@ function EditableBlock({
             aria-label={collapsed ? "Expand this container" : "Collapse this container"}
             title={collapsed ? "Expand" : "Collapse"}
             className={cn(
-              "flex max-w-full items-center gap-1 overflow-hidden rounded-full border border-accent/40 bg-background px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-accent transition-opacity hover:bg-accent-soft",
+              "flex max-w-full items-center gap-1 overflow-hidden rounded-full border border-accent/40 bg-background px-1.5 py-1.5 text-[10px] font-medium uppercase tracking-wide text-accent transition-opacity hover:bg-accent-soft sm:py-0.5",
               isSelected || isHovered || collapsed ? "opacity-100" : "pointer-events-none opacity-0"
             )}
           >
@@ -386,7 +368,7 @@ function EditableBlock({
             role="button"
             tabIndex={0}
             aria-label="Drag to reorder"
-            className="cursor-grab touch-none rounded p-1 text-muted hover:bg-surface hover:text-foreground active:cursor-grabbing"
+            className="cursor-grab touch-none rounded p-2 text-muted hover:bg-surface hover:text-foreground active:cursor-grabbing sm:p-1"
           >
             <DragHandleIcon className="h-3.5 w-3.5" />
           </span>
@@ -394,39 +376,16 @@ function EditableBlock({
             type="button"
             onClick={() => onSelect(path)}
             aria-label={`Edit ${def.label}`}
-            className="rounded p-1 text-muted hover:bg-surface hover:text-foreground"
+            className="rounded p-2 text-muted hover:bg-surface hover:text-foreground sm:p-1"
           >
             <EditIcon className="h-3.5 w-3.5" />
           </button>
-          {(containerId !== null || containerOptions.length > 0) && (
-            <DropdownMenu
-              trigger={
-                <span
-                  title="Move to…"
-                  aria-label="Move to a different container or the page's top level"
-                  className="flex items-center gap-0.5 rounded p-1 text-muted hover:bg-surface hover:text-foreground"
-                >
-                  <MoveOutIcon className="h-3.5 w-3.5" />
-                  <ChevronDownIcon className="h-2.5 w-2.5" />
-                </span>
-              }
-              items={[
-                ...(containerId !== null ? [{ label: "Top level (page)", onSelect: () => onMoveOut(path) }] : []),
-                ...containerOptions
-                  // Exclude the block's current container plus — when moving a
-                  // container itself — its own id and every nested descendant,
-                  // so it can never be dropped inside itself.
-                  .filter((c) => c.id !== containerId && !(isContainer && (c.id === block.id || descendantContainerIds(block).includes(c.id))))
-                  .map((c) => ({ label: `Into "${c.label}"`, onSelect: () => onMoveTo(path, c.id) })),
-              ]}
-            />
-          )}
           <button
             type="button"
             onClick={() => onCopy(path)}
             aria-label={`Copy ${def.label}`}
             title="Copy"
-            className="rounded p-1 text-muted hover:bg-surface hover:text-foreground"
+            className="rounded p-2 text-muted hover:bg-surface hover:text-foreground sm:p-1"
           >
             <CopyIcon className="h-3.5 w-3.5" />
           </button>
@@ -436,7 +395,7 @@ function EditableBlock({
             disabled={!hasClipboard}
             aria-label="Paste below"
             title="Paste below"
-            className="rounded p-1 text-muted hover:bg-surface hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
+            className="rounded p-2 text-muted hover:bg-surface hover:text-foreground disabled:pointer-events-none disabled:opacity-30 sm:p-1"
           >
             <ClipboardListIcon className="h-3.5 w-3.5" />
           </button>
@@ -487,7 +446,22 @@ function EditableBlock({
           {!isContainer && (
             <button
               type="button"
-              onClick={() => onSelect(path)}
+              onClick={() => {
+                // First touch on a not-yet-selected block only selects it
+                // (reveals the ring + toolbar, same as a mouse hover would)
+                // instead of also opening the editor — otherwise this same
+                // tap's `click` (right after the `touchstart` that reveals
+                // the toolbar) opened the modal before the toolbar was ever
+                // reachable. A second tap, with the block already selected,
+                // opens the editor exactly like a click does.
+                const isFirstTouchTap = wasTouch.current && !isSelected;
+                wasTouch.current = false;
+                if (isFirstTouchTap) {
+                  onHover(path);
+                  return;
+                }
+                onSelect(path);
+              }}
               aria-label={`Edit ${def.label}`}
               className="absolute inset-0 z-10 cursor-pointer"
             />
@@ -600,9 +574,6 @@ export function EditableCanvas({
   selectedPath,
   onSelect,
   onRemove,
-  onMoveOut,
-  onMoveTo,
-  containerOptions,
   device,
   dropPlan,
   onCopy,
@@ -614,9 +585,6 @@ export function EditableCanvas({
   selectedPath: BlockPath | null;
   onSelect: (path: BlockPath) => void;
   onRemove: (path: BlockPath) => void;
-  onMoveOut: (path: BlockPath) => void;
-  onMoveTo: (path: BlockPath, destContainerId: string | null) => void;
-  containerOptions: ContainerOption[];
   device: DeviceWidth;
   dropPlan: DropPlan;
   onCopy: (path: BlockPath) => void;
@@ -650,9 +618,6 @@ export function EditableCanvas({
             selectedPath={selectedPath}
             onSelect={onSelect}
             onRemove={onRemove}
-            onMoveOut={onMoveOut}
-            onMoveTo={onMoveTo}
-            containerOptions={containerOptions}
             hoveredPath={hoveredPath}
             onHover={setHoveredPath}
             onHoverEnd={onHoverEnd}

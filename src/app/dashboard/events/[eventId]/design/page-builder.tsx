@@ -260,7 +260,14 @@ function computeDropPlan(
   return point;
 }
 
-const ZOOM_MIN = 50;
+// ZOOM_MIN used to be 50 as a manual-control-only "UX floor," separate from
+// a lower auto-fit-only floor — that split stranded mobile users: fitting a
+// 1280px Desktop simulation into a phone-width pane can genuinely need
+// ~20-25% zoom, and once the manual +/- control (which respects this same
+// ZOOM_MIN) pushed zoom back up past that, "−" hit its floor at 50% and
+// could never return to the auto-fit value again — "zoomed in with no way
+// back out." One low floor for both auto-fit and manual control fixes it.
+const ZOOM_MIN = 10;
 const ZOOM_MAX = 150;
 const ZOOM_STEP = 25;
 
@@ -304,23 +311,21 @@ function ZoomControl({ zoom, onChange }: { zoom: number; onChange: (next: number
 
 export type DeviceWidth = "desktop" | "tablet" | "mobile";
 
-// Caps the canvas content's own width so it actually reflows the way a real
-// phone/tablet visitor would see it (the guest page has real breakpoints —
-// see rsvp-form.tsx/venue-map.tsx) — independent of zoom, which only affects
-// how big that already-reflowed layout appears.
-const DEVICE_WIDTH_PX: Record<DeviceWidth, number | undefined> = {
-  desktop: undefined,
-  tablet: 768,
-  mobile: 390,
-};
-
-// Preview mode's device widths, for PreviewFrame — unlike DEVICE_WIDTH_PX
-// above (a max-width cap on a div still laid out in the dashboard's real
-// window), these size an actual iframe viewport, so real `@media` per-device
-// overrides (blockResponsiveCss) evaluate correctly there. "desktop" needs a
-// concrete number here (an iframe can't have an "uncapped" width) — 1280px
-// comfortably clears TABLET_MAX_PX (1023, see lib/blocks/types.ts) so it
-// reliably lands in the real guest page's desktop range.
+// Real pixel width the content reflows at for each simulated device — used
+// both to size Preview's actual iframe viewport (so real `@media` per-device
+// overrides in blockResponsiveCss evaluate correctly there) and, since the
+// fix below, to give Edit mode's content a genuine fixed width too rather
+// than a max-width cap. A max-width cap can only ever make content
+// *narrower* than its actual pane, never wider — on a builder pane already
+// narrower than 768/1280px (e.g. this app's own mobile layout, or a
+// dashboard palette column eating into the canvas), selecting Tablet/Desktop
+// used to visibly do nothing, since the content was already capped below
+// those widths by its parent. A real fixed width paired with the auto-fit
+// zoom below (which actually shrinks the view to match, with no artificial
+// floor) is what makes the simulation genuine at any pane size. "desktop"
+// needs a concrete number for the same reason — 1280px comfortably clears
+// TABLET_MAX_PX (1023, see lib/blocks/types.ts) so it reliably lands in the
+// real guest page's desktop range.
 const PREVIEW_FRAME_WIDTH: Record<DeviceWidth, number> = {
   desktop: 1280,
   tablet: 768,
@@ -434,6 +439,32 @@ export function PageBuilder({
   const [zoom, setZoom] = useState(100);
   const [device, setDevice] = useState<DeviceWidth>("desktop");
   const [canvasMode, setCanvasMode] = useState<CanvasMode>("edit");
+  // Canvas mode, device, and zoom all live in the URL (`?view=&device=&zoom=`)
+  // instead of component state alone, so all three survive a refresh and
+  // work identically on desktop/tablet/mobile — no storage API needed, and
+  // it's the same mechanism every other piece of shareable UI state in this
+  // app already uses (e.g. `?preview=1`). Written via the raw History API,
+  // NOT next/navigation's router: a router.replace() re-runs this route's
+  // server component on every click of a toggle, which is both wasted work
+  // and a visible flash for what's purely local UI state. `replaceState`
+  // updates the address bar with zero re-render, re-fetch, or navigation.
+  const setBuilderUrlParams = (patch: Record<string, string>) => {
+    const params = new URLSearchParams(window.location.search);
+    for (const [key, value] of Object.entries(patch)) params.set(key, value);
+    window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
+  };
+  const setCanvasModeWithUrl = (next: CanvasMode) => {
+    setCanvasMode(next);
+    setBuilderUrlParams({ view: next });
+  };
+  const setDeviceWithUrl = (next: DeviceWidth) => {
+    setDevice(next);
+    setBuilderUrlParams({ device: next });
+  };
+  const setZoomWithUrl = (next: number) => {
+    setZoom(next);
+    setBuilderUrlParams({ zoom: String(next) });
+  };
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -459,7 +490,73 @@ export function PageBuilder({
   // entirely; this is an authenticated editor with no SEO/SSR content
   // value, so a static list for one paint is a fine trade.
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  // Below `xl`, the palette and canvas can no longer sit side by side (not
+  // enough width for either to be genuinely usable at once) — this switches
+  // which single pane is showing instead of cramming both into a fraction
+  // of the screen. Unused at `xl`+, where both are always visible (see the
+  // canvas JSX below).
+  const [mobilePane, setMobilePane] = useState<"components" | "canvas">("canvas");
+  // Whether the person is actually ON a desktop-sized screen right now —
+  // NOT the same thing as `device === "desktop"` (that's which width the
+  // canvas is simulating). Edit mode's Desktop option skips simulating a
+  // width at all (see the auto-fit effect and JSX below) ONLY when this is
+  // true: on a real desktop, the canvas pane is typically narrower than
+  // 1280px anyway (it's a fraction of the window, palette column included),
+  // so simulating it just auto-zoomed the default view out for no reason.
+  // But on an actual phone, selecting "Desktop" is someone deliberately
+  // asking "how would this look on a real desktop from here" — skipping
+  // simulation there instead just shows mobile-width content, silently
+  // ignoring the toggle. Same real-viewport check as the device guess
+  // below, so the two stay consistent.
+  const [isRealDesktopViewport, setIsRealDesktopViewport] = useState(true);
+  useEffect(() => {
+    setMounted(true);
+    // Per-block mobile/tablet layout overrides (hidden/align/width) are
+    // resolved from this `device` toggle in JS, not from the canvas's
+    // actual rendered width (see effectiveLayoutForDevice in
+    // editable-canvas.tsx — the real guest page uses actual `@media`
+    // queries, but the canvas can't, since it needs to simulate a device
+    // width independent of its own container). Defaulting to "desktop"
+    // regardless of the real device meant a host actually building a page
+    // on their phone saw *desktop* per-block overrides squeezed into a
+    // phone-width canvas — wrong content, not just a cramped layout. Guess
+    // once from the real viewport at mount instead; the Device toggle (still
+    // available at `xl`+, and reachable via the mobile toolbar too) can
+    // always override it afterward.
+    // Restore canvas mode/device from the URL (see setBuilderUrlParams above)
+    // before falling back to a fresh guess — plain useState alone resets
+    // both on every load, which is jarring mid-session (refreshing while
+    // reviewing Outline/Preview, or a manually-picked Tablet simulation,
+    // silently reverts with no warning). Read here rather than in each
+    // initializer: `window` isn't available during this component's SSR
+    // pass, so computing it there would render one value on the server and
+    // a possibly-different one on the client's first render — the exact
+    // hydration mismatch `mounted` (above) exists to avoid for the dnd tree.
+    // A one-frame correction after mount is the safe trade instead.
+    //
+    // `zoom` is deliberately NOT restored here — it's restored inside the
+    // auto-fit effect below instead, once `device`/`canvasMode` have
+    // actually settled to these restored values. Doing it here raced with
+    // that effect: both fire in the same initial commit, and the auto-fit
+    // effect would immediately recompute and overwrite this restored value
+    // (using the still-stale default device, no less) before the user ever
+    // saw it.
+    const params = new URLSearchParams(window.location.search);
+    const viewParam = params.get("view");
+    if (viewParam === "edit" || viewParam === "outline" || viewParam === "preview") setCanvasMode(viewParam);
+
+    setIsRealDesktopViewport(window.innerWidth >= 1024);
+
+    const deviceParam = params.get("device");
+    if (deviceParam === "desktop" || deviceParam === "tablet" || deviceParam === "mobile") {
+      setDevice(deviceParam);
+    } else if (window.innerWidth < 640) {
+      setDevice("mobile");
+    } else if (window.innerWidth < 1024) {
+      setDevice("tablet");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [dropPlan, setDropPlan] = useState<DropPlan>(null);
   // The copied block itself (not just its id) — a plain in-memory clipboard
@@ -470,26 +567,77 @@ export function PageBuilder({
   // block is edited or deleted after being copied.
   const [clipboardBlock, setClipboardBlock] = useState<BlockInstance | null>(null);
 
-  // Preview mode's iframe (PreviewFrame) is a fixed, real pixel width per
-  // device — unlike Edit mode's content, which just reflows to whatever
-  // space the pane has, that fixed width doesn't auto-shrink to fit a
-  // narrower pane (e.g. this dashboard's own 300px palette column eating
-  // into it). Left at 100% zoom, a 1280px-wide Desktop preview would
-  // overflow/look oversized in a pane that has much less room — so this
+  // Edit mode's Tablet/Mobile options and Preview's iframe (PreviewFrame) are
+  // a fixed, real pixel width per device (PREVIEW_FRAME_WIDTH above) — that
+  // doesn't auto-shrink to fit a narrower pane on its own (e.g. this app's
+  // own mobile layout, or a dashboard palette column eating into the
+  // canvas). Left at 100% zoom, a 1280px-wide Desktop simulation would
+  // overflow/get clipped in a pane that has much less room — so this
   // measures the pane and picks a starting zoom that fits it, once per
   // mode/device switch (not continuously, so it doesn't fight a zoom level
-  // the user deliberately picked afterward).
+  // the user deliberately picked afterward). `Math.floor` (not `Math.round`)
+  // so the computed zoom never rounds up past what actually fits — this
+  // whole effect exists to guarantee a fit, and rounding to the *nearest*
+  // 25% can still overflow by up to ~12% of the frame width.
   const previewPaneRef = useRef<HTMLDivElement>(null);
+  // Tracks the pane's available width for the centering fix below (see the
+  // Edit/Preview JSX) — kept in state, not just read inside this effect,
+  // because centering needs it on every render, including window resizes
+  // that don't otherwise change canvasMode/device/zoom.
+  const [paneWidth, setPaneWidth] = useState(0);
+  // Consumed at most once — see the URL-restore branch below. Without this,
+  // a `?zoom=` from the URL would be immediately overwritten: this effect
+  // and the mount-restore effect above both fire in the same initial React
+  // commit, so a naive "always restore zoom here too" would race this
+  // effect's own auto-fit computation and lose.
+  const hasConsumedUrlZoomRef = useRef(false);
   useEffect(() => {
-    if (canvasMode !== "preview" || customPage.enabled) return;
+    if (canvasMode === "outline" || customPage.enabled) return;
     const el = previewPaneRef.current;
     if (!el) return;
     const available = el.clientWidth - 48; // px-6 padding on both sides
+    setPaneWidth(available);
+
+    if (!hasConsumedUrlZoomRef.current) {
+      const params = new URLSearchParams(window.location.search);
+      const deviceParam = params.get("device");
+      // Only trust a saved zoom once `device` has actually settled to
+      // whatever the URL asked for (or there's no device param to wait on)
+      // — otherwise this is still the stale first-commit pass, before the
+      // mount effect's device restore has landed, and using it here would
+      // just get discarded by the very next invocation anyway.
+      if (!deviceParam || deviceParam === device) {
+        hasConsumedUrlZoomRef.current = true;
+        const zoomParam = Number(params.get("zoom"));
+        if (Number.isFinite(zoomParam) && zoomParam >= ZOOM_MIN && zoomParam <= ZOOM_MAX) {
+          setZoom(zoomParam);
+          return;
+        }
+      }
+    }
+
+    // Edit mode's Desktop option has no simulated width at all (see the JSX
+    // below) ONLY when actually viewed from a real desktop-sized screen
+    // (see `isRealDesktopViewport` above) — it just fills whatever room the
+    // pane naturally has there, same as before this feature existed;
+    // there's nothing to "fit," so zoom is left exactly where the user/URL
+    // set it instead of being forced. On an actual phone, Desktop still
+    // means a genuine 1280px simulation, auto-fit zoomed like every other
+    // combination — otherwise the toggle would silently do nothing there.
+    if (canvasMode === "edit" && device === "desktop" && isRealDesktopViewport) return;
+
     const frameWidth = PREVIEW_FRAME_WIDTH[device];
-    const fit = Math.min(100, Math.round((available / frameWidth) * 100 / ZOOM_STEP) * ZOOM_STEP);
-    setZoom(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, fit)));
+    const fit = Math.floor((available / frameWidth) * 100 / ZOOM_STEP) * ZOOM_STEP;
+    const clampedFit = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, fit));
+    setZoom(clampedFit);
+    // Keeps `?zoom=` matching what's actually on screen — without this, an
+    // auto-fit-driven change (e.g. switching Edit/Outline/Preview tabs, or
+    // Device) updated the visible zoom but never touched the URL, so a
+    // refresh (or a shared/bookmarked link) would silently restore the
+    // *previous* zoom instead of the one the tab switch just computed.
+    setBuilderUrlParams({ zoom: String(clampedFit) });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canvasMode, device, customPage.enabled]);
+  }, [canvasMode, device, customPage.enabled, isRealDesktopViewport]);
 
   // Guards the debounced save's state updates below, not the save itself —
   // the pending `updateEvent` call still needs to fire and persist even if
@@ -625,6 +773,7 @@ export function PageBuilder({
     const nextList = list.filter((b) => b.id !== selectedPath.blockId);
     setBlocks(setBlockList(blocks, selectedPath.containerId, nextList));
     setSelectedPath(null);
+    setEditingBlockOpen(false);
   };
 
   const handleRemoveBlock = (path: BlockPath) => {
@@ -639,15 +788,16 @@ export function PageBuilder({
     // gracefully, but stale state all the same).
     if (selectedPath && !findBlock(nextBlocks, selectedPath)) {
       setSelectedPath(null);
+      setEditingBlockOpen(false);
     }
   };
 
-  // Shared move logic: "Position" dropdown (moves whatever's currently
-  // selected) and the canvas toolbar's one-click "Move out" button (moves a
-  // specific block by path, independent of selection) both relocate a block
-  // between containers/the top level without depending on drag-and-drop —
-  // precise drag targets can be fiddly to hit (host feedback: "unable to
-  // move to outer").
+  // Relocates a block between containers/the top level without depending on
+  // drag-and-drop — precise drag targets can be fiddly to hit (host
+  // feedback: "unable to move to outer"). Used by the Properties Panel's
+  // "Position" dropdown (via handleMoveSelected below), the only place a
+  // host can move a block now — the canvas/outline toolbars' own inline
+  // "Move to…" icon was removed as redundant with it.
   const moveBlock = (path: BlockPath, destContainerId: string | null) => {
     if (destContainerId === path.containerId) return;
     const block = getBlockList(blocks, path.containerId).find((b) => b.id === path.blockId);
@@ -663,8 +813,6 @@ export function PageBuilder({
     if (!selectedPath) return;
     moveBlock(selectedPath, destContainerId);
   };
-
-  const handleMoveOut = (path: BlockPath) => moveBlock(path, null);
 
   // Copy/paste, Form.io-style: copy stores the block itself (nested children
   // included, since it's just this one BlockInstance and its own subtree);
@@ -718,11 +866,15 @@ export function PageBuilder({
       // Selection now deliberately survives closing a block's modal (see
       // closeModal) so touch users can still reach its canvas toolbar
       // afterward — but that means `selectedPath` can be "stale" (pointing
-      // at a block with no visible selection cue) once the Code editor or
-      // Preview mode is active, neither of which render any selection ring.
-      // Without this guard, Ctrl/Cmd+V there would silently mutate `blocks`
-      // with no on-screen indication anything happened.
-      if (codeMode || canvasMode === "preview") return;
+      // at a block with no visible selection cue) whenever the Code editor,
+      // Preview mode, or (below `xl`) the mobile "Add" pane is showing —
+      // none of those render any selection ring, since the canvas itself
+      // is either replaced or CSS-hidden (`mobilePane === "components"`
+      // only toggles `hidden` on the canvas pane; it stays mounted with
+      // `selectedPath` untouched). Without this guard, Ctrl/Cmd+V there
+      // would silently mutate `blocks` with no on-screen indication
+      // anything happened.
+      if (codeMode || canvasMode === "preview" || mobilePane === "components") return;
       if (!(e.metaKey || e.ctrlKey) || !selectedPath || isTextEntryTarget(e.target)) return;
       if (e.key === "c" || e.key === "C") {
         if (window.getSelection()?.toString()) return;
@@ -736,7 +888,7 @@ export function PageBuilder({
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedPath, blocks, clipboardBlock, codeMode, canvasMode]);
+  }, [selectedPath, blocks, clipboardBlock, codeMode, canvasMode, mobilePane]);
 
   // Renaming from the Outline panel — same shape as handleChangeSelected
   // (which the block's own edit-modal header uses for the same field) but
@@ -880,6 +1032,26 @@ export function PageBuilder({
     fontFamily: "var(--t-font-body)",
   } as CSSProperties;
 
+  // Centers the simulated-device frame in the canvas/preview pane (see the
+  // JSX below) — but only when the scaled frame actually fits. Perfectly
+  // centering something WIDER than its container requires equal overflow on
+  // both sides, and the "before" (left) side of a transform-caused overflow
+  // is not reachable by scrolling in any browser (scrollLeft can't go
+  // negative) — only the "after" (right) side is. Left uncorrected, zooming
+  // in past what fits reproduced exactly that: the left side permanently
+  // cropped with no way to scroll to it. `naturalCenterOffsetPx` is the true
+  // centering offset (safe whenever the frame already fits, independent of
+  // zoom — see the JSX comment); `flushLeftFloorPx` is the largest offset
+  // that still keeps the frame's left edge at/after the pane's own left
+  // edge. Taking the larger (less negative) of the two means: centered
+  // whenever that's safe, flush-left with all overflow reachable on the
+  // right otherwise.
+  const deviceFrameWidth = PREVIEW_FRAME_WIDTH[device];
+  const deviceFrameScale = zoom / 100;
+  const naturalCenterOffsetPx = (paneWidth - deviceFrameWidth) / 2;
+  const flushLeftFloorPx = (deviceFrameWidth / 2) * (deviceFrameScale - 1);
+  const deviceFrameOffsetPx = Math.max(naturalCenterOffsetPx, flushLeftFloorPx);
+
   // Keyed by name (how <custom-component name="..."> looks them up) — built
   // once here, not re-derived per tag substitution.
   const customComponentsMap: CustomComponentMap = Object.fromEntries(
@@ -926,10 +1098,7 @@ export function PageBuilder({
       selectedPath={selectedPath}
       onSelect={openBlock}
       onRemove={handleRemoveBlock}
-      onMoveOut={handleMoveOut}
-      onMoveTo={moveBlock}
       onRename={handleRenameBlock}
-      containerOptions={containerOptions}
       dropPlan={dropPlan}
       onCopy={handleCopyBlock}
       onPaste={handlePasteAfter}
@@ -964,9 +1133,6 @@ export function PageBuilder({
         selectedPath={selectedPath}
         onSelect={openBlock}
         onRemove={handleRemoveBlock}
-        onMoveOut={handleMoveOut}
-        containerOptions={containerOptions}
-        onMoveTo={moveBlock}
         device={device}
         dropPlan={dropPlan}
         onCopy={handleCopyBlock}
@@ -990,36 +1156,76 @@ export function PageBuilder({
           scrolling a separate settings panel into view — editing now opens
           in a modal (below) instead of a persistent third column.
 
-          Below `xl` (this three-pane layout is a power tool that doesn't
-          reflow to a single phone column — see docs/07/report), the palette
-          and canvas stack instead of sitting side by side. Stacking them
-          into implicit auto-height grid rows (the old behavior) let the
-          palette claim the row's whole 1fr height while the canvas row
-          grew to fit its *content* with no cap — on a long page that's
-          hundreds of vertical pixels, forcing the whole dashboard page to
-          scroll instead of just this panel. Giving the palette a bounded
-          row height and the canvas the rest (both already `min-h-0
-          overflow-y-auto` internally) keeps both individually scrollable
-          and the outer page scroll-free, matching desktop's behavior. */}
-      <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(140px,220px)_1fr] gap-5 xl:grid-cols-[300px_1fr] xl:grid-rows-[1fr]">
-        <div className="flex min-h-0 flex-col rounded-lg border border-border bg-surface">
+          Below `xl`: a two-tab switcher (Add / Canvas) instead of the
+          side-by-side columns — showing both at once left neither with
+          enough width or height to actually use (a squeezed palette above a
+          few hundred px of canvas). Only one pane renders at full available
+          height at a time; picking a component from Add switches straight
+          back to Canvas so the result is immediately visible. This is the
+          same single `ComponentPalette`/canvas column as the `xl`+ layout
+          below (not a second copy) — each just gets `hidden` swapped for
+          `flex` depending on `mobilePane`, since dnd-kit requires every
+          draggable id to be unique within one DndContext and duplicating
+          the palette would register `palette:hero` etc. twice. */}
+      <div className="flex shrink-0 lg:hidden">
+        <ToggleGroup
+          aria-label="Builder panel"
+          options={[
+            { value: "components", label: "Add" },
+            { value: "canvas", label: "Canvas" },
+          ]}
+          value={mobilePane}
+          onChange={(v) => setMobilePane(v as "components" | "canvas")}
+          fullWidth
+        />
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col gap-3 lg:grid lg:grid-cols-[300px_1fr] lg:grid-rows-[1fr] lg:gap-5">
+        <div
+          className={cn(
+            "min-h-0 flex-col rounded-lg border border-border bg-surface lg:flex",
+            mobilePane === "components" ? "flex" : "hidden"
+          )}
+        >
           <p className="shrink-0 border-b border-border px-4 py-2.5 text-xs font-medium uppercase tracking-wide text-muted">Components</p>
           <div className="min-h-0 flex-1 overflow-y-auto p-3">
             <ComponentPalette
-              onAdd={(type) => setBlocks((prev) => [...prev, makeBlockInstance(type)])}
-              onAddLayout={(id) => setBlocks((prev) => [...prev, makeStarterLayout(id)])}
+              onAdd={(type) => {
+                setBlocks((prev) => [...prev, makeBlockInstance(type)]);
+                setMobilePane("canvas");
+              }}
+              onAddLayout={(id) => {
+                setBlocks((prev) => [...prev, makeStarterLayout(id)]);
+                setMobilePane("canvas");
+              }}
             />
           </div>
         </div>
 
-        <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-border">
+        <div
+          className={cn(
+            "min-h-0 flex-col overflow-hidden rounded-lg border border-border lg:flex",
+            mobilePane === "canvas" ? "flex" : "hidden"
+          )}
+        >
           <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-background px-4 py-2">
             {!customPage.enabled && (
-              <ToggleGroup options={CANVAS_MODE_OPTIONS} value={canvasMode} onChange={(v) => setCanvasMode(v as CanvasMode)} />
+              <ToggleGroup
+                options={CANVAS_MODE_OPTIONS}
+                value={canvasMode}
+                onChange={(v) => setCanvasModeWithUrl(v as CanvasMode)}
+                fullWidth="mobile"
+              />
             )}
-            <div className="flex items-center gap-2">
-              <ToggleGroup options={DEVICE_OPTIONS} value={device} onChange={(v) => setDevice(v as DeviceWidth)} />
-              <ZoomControl zoom={zoom} onChange={setZoom} />
+            {/* Kept visible on mobile too — it's not just "what's my own
+                device", it's "how does this look on desktop/tablet from
+                here," which is exactly as useful from a phone as from a
+                desktop. The parent row's `flex-wrap` (plus CanvasMode's own
+                `fullWidth="mobile"` claiming the full row above) pushes this
+                onto its own line on narrow screens instead of needing a
+                breakpoint-gated `hidden` here. */}
+            <div className="flex flex-wrap items-center gap-2">
+              <ToggleGroup options={DEVICE_OPTIONS} value={device} onChange={(v) => setDeviceWithUrl(v as DeviceWidth)} />
+              <ZoomControl zoom={zoom} onChange={setZoomWithUrl} />
             </div>
           </div>
           {canvasMode === "outline" && !customPage.enabled ? (
@@ -1034,34 +1240,35 @@ export function PageBuilder({
               )}
               style={canvasThemeStyle}
             >
-              {canvasMode === "preview" ? (
-                // PreviewFrame is a fixed-size iframe (real px, doesn't
-                // reflow), so it needs a different wrapping than Edit mode's
-                // reflowable content below: `justify-center` here centers
-                // based on the scale wrapper's own box, which — with no
-                // width of its own — shrinks to exactly the iframe's true
-                // width. Centering the scale wrapper FIRST and transforming
-                // it SECOND (rather than the other way — see the else
-                // branch) is what keeps transform-origin's "center"
-                // anchored to the iframe's actual center: getting this
-                // backwards (scaling an ambiguously-sized box, then
-                // centering) let the iframe overflow that box to one side,
-                // so scaling shrank it around the wrong point and the whole
-                // preview visibly leaned right with a dead gap on the left.
-                <div className="flex justify-center">
-                  <div style={{ transform: `scale(${zoom / 100})`, transformOrigin: "top center" }}>{paneContent}</div>
-                </div>
+              {canvasMode === "edit" && device === "desktop" && isRealDesktopViewport ? (
+                // No simulated width at all here (see the auto-fit effect
+                // above) — content just fills whatever room the pane
+                // naturally has, same as before device simulation existed.
+                // Nothing to center against, so this is just the scale
+                // (which only matters if the user manually zoomed).
+                <div style={{ transform: `scale(${zoom / 100})`, transformOrigin: "top center" }}>{paneContent}</div>
               ) : (
-                // Device width caps how wide Edit mode's real, reflowable
-                // content is allowed to reflow (a real breakpoint test);
-                // zoom is a pure visual scale of whatever that reflowed
-                // layout looks like — the two combine without fighting
-                // because zoom wraps the device-width box rather than the
-                // other way around.
-                <div style={{ transform: `scale(${zoom / 100})`, transformOrigin: "top center" }}>
-                  <div style={{ maxWidth: DEVICE_WIDTH_PX[device] ? `${DEVICE_WIDTH_PX[device]}px` : undefined, margin: "0 auto" }}>
-                    {paneContent}
-                  </div>
+                // Both PreviewFrame (a fixed-size iframe) and Edit mode's
+                // now-fixed-width content (see PREVIEW_FRAME_WIDTH above)
+                // need this same centering — `deviceFrameOffsetPx` (see
+                // above, near canvasThemeStyle) computes it, clamped so
+                // zooming in past what fits can never crop the left side.
+                // `width` is set on THIS same div (not just an inner
+                // wrapper) — `transformOrigin: "top center"` resolves
+                // against the width of the element it sits on, and a plain
+                // block div with no explicit width of its own defaults to
+                // filling its *parent's* width (the pane), not its child's
+                // — so without this, "center" meant 50% of the pane, not
+                // 50% of the frame, landing content off-screen rather than
+                // merely off-center.
+                <div
+                  style={{
+                    width: `${deviceFrameWidth}px`,
+                    transform: `translateX(${deviceFrameOffsetPx}px) scale(${deviceFrameScale})`,
+                    transformOrigin: "top center",
+                  }}
+                >
+                  {paneContent}
                 </div>
               )}
             </div>
@@ -1135,7 +1342,7 @@ export function PageBuilder({
       ) : mounted ? (
         canvas
       ) : (
-        <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(140px,220px)_1fr] gap-5 xl:grid-cols-[300px_1fr] xl:grid-rows-[1fr]">
+        <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(140px,220px)_1fr] gap-5 lg:grid-cols-[300px_1fr] lg:grid-rows-[1fr]">
           <div className="rounded-lg border border-border bg-surface" />
           <div className="rounded-lg border border-border" />
         </div>
