@@ -28,6 +28,10 @@ export function AccountMenu({ email }: { email: string }) {
           onSelect: () => router.push("/dashboard/profile"),
         },
         {
+          label: "Docs",
+          onSelect: () => router.push("/docs"),
+        },
+        {
           // logout() is a server action with no arguments and always
           // redirect()s — calling it directly from onSelect is simpler than
           // wrapping the whole trigger in a <form>.

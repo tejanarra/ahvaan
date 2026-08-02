@@ -22,6 +22,9 @@ export function PublicFooter() {
         </div>
         <p className="text-center text-xs text-muted">© {new Date().getFullYear()} ahvaan</p>
         <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-sm sm:justify-self-end">
+          <Link href="/docs" className="inline-flex h-10 items-center text-muted hover:text-foreground">
+            Docs
+          </Link>
           <Link href="/privacy" className="inline-flex h-10 items-center text-muted hover:text-foreground">
             Privacy
           </Link>

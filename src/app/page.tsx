@@ -102,11 +102,36 @@ const FAQS = [
   ["Can I add my own code to the page?", "Yes, at the block or whole-page level. It runs sandboxed, so it can't touch your account or anyone else's."],
 ] as const;
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+
+// Organization + WebSite JSON-LD — the marketing home page's one shot at
+// entity/brand structured data (docs pages get their own BreadcrumbList +
+// Article/TechArticle data, see components/docs/docs-ui.tsx's DocsArticle).
+const homeJsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      name: "ahvaan",
+      url: siteUrl,
+      logo: `${siteUrl}/icon.png`,
+    },
+    {
+      "@type": "WebSite",
+      name: "ahvaan",
+      url: siteUrl,
+      description:
+        "Design a beautiful invitation page for any event, share one link with your guests, and track every RSVP in one place.",
+    },
+  ],
+};
+
 export default async function Home() {
   const user = await getSessionUser();
 
   return (
     <div className="min-h-dvh bg-background">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(homeJsonLd) }} />
       {/* Navbar */}
       <header className="sticky top-0 z-40 border-b border-border/70 bg-background/85 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">

@@ -1400,3 +1400,66 @@ updated checklist for exactly what's still unchecked and why).
 Layout fix for the mobile header verified structurally (build + careful
 CSS reasoning) but not in an actual browser — no test credentials
 available to log in and screenshot the live page in this environment.
+
+## Status: Public /docs site — guides, developer reference, live examples (2026-08-02)
+
+User-directed, outside `01-product-definition.md`'s original v1 feature
+matrix (same category as the generic multi-form system and public host
+profile) — a new public, no-auth surface (Studio / Stage / **Docs**), scoped
+first in `docs/10-docs-site.md` before implementation.
+
+**What shipped**: `/docs` — 12 Guides pages (getting started, PWA install,
+events, one page per page-builder block type (12), layout controls, styling,
+custom code/sandboxing, themes, RSVP form, custom forms, guests, email,
+profile, images, account/security) and 9 Reference pages for
+developers/contributors (architecture, the `host_id` invariant, JSONB
+validation, adding a block type, the sandboxing model, rate limiting, design
+tokens, testing/CI, caching) — every fact cross-checked against current
+`src/` (not written from memory), each Reference page citing real file:line
+locations. A persistent multi-level `DocsNav` (deliberately not `SideNav` —
+that component's own doc comment is explicit it never nests a second level;
+Docs is a different surface with a different job). Shared content
+primitives in `components/docs/docs-ui.tsx` (`DocsArticle`, `Callout`,
+`Screenshot`, `CodeBlock`, `FileRef`, `DocsPrevNext`).
+
+**Live examples** (`/docs/examples`): three real, published, anonymous-mode
+events under a generic `docs-demo@example.com` account (never the real host's
+email/name) — Sunlit Garden Brunch (Garden Party theme, side-by-side
+container layout, elegant-timeline schedule, embedded custom "Song Requests"
+form), Midnight Gala (Midnight Elegant theme, card-style schedule), Playful
+Backyard Bash (Playful Pastel theme, 3-column grid, embedded "Guestbook"
+form) — demonstrating multiple block types, layouts, themes, and the generic
+forms system on genuinely working pages anyone can open and try.
+
+**Screenshots**: `scripts/seed-docs-demo-user.mjs` (creates/confirms the demo
+host via the Supabase Admin API — real signup requires email confirmation
+this environment can't complete), `scripts/docs-screenshots.mjs` and
+`scripts/docs-block-screenshots.mjs` (Playwright, captures every dashboard
+surface and a clean "Edit block" modal — settings next to a live Preview
+pane — for all 12 block types) into `public/docs/screenshots/`.
+
+**SEO**: unique title + meta description on all 38 pages; `sitemap.ts`
+extended to include every docs page (derived from the same nav-data list
+`DocsNav` renders, so it can't drift); Open Graph/Twitter images — 22 pages
+use their own real screenshot, the ~15 screenshot-less conceptual pages get
+a per-page dynamically-generated branded card (`src/app/docs/og/route.tsx`,
+`next/og` `ImageResponse`) instead of one repeated image; every docs page
+emits `BreadcrumbList` + `Article`/`TechArticle` JSON-LD (baked into
+`DocsArticle` itself, keyed off the same `current` href already passed to
+`DocsPrevNext`, so no page hand-authors structured data). Marketing home
+page gained `Organization`/`WebSite` JSON-LD (the one gap found there).
+"Docs" linked from `PublicFooter` (every public page) and the dashboard
+`AccountMenu`.
+
+**Bug found and fixed live, unrelated to docs**: `component-palette.tsx`'s
+`GuestInteractionCategory` — confirmed via a live Playwright pass — was a
+pre-existing Turbopack HMR-staleness scare, not a real bug (full dev-server
+restart cleared it); the actual bug found was in this session's own seed
+scripts (a URL regex matching `/dashboard/events/new` before its redirect
+completed), not app code.
+
+`npm run build`, `npm run lint`, and `npm test` all clean throughout (57
+static pages including the full docs tree). Verified live in a real browser
+via Playwright throughout (not just build-checked) — screenshots, OG image
+output, JSON-LD script tags, and the three live example pages were all
+fetched and visually inspected during the session.
