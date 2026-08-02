@@ -176,3 +176,17 @@ export function makeBlockInstance(type: BlockType): BlockInstance {
   const base = { id: crypto.randomUUID(), type, config: defaultConfigFor(type) };
   return (type === "container" ? { ...base, children: [] } : base) as BlockInstance;
 }
+
+// A "form" block pre-bound to a specific saved form — used when the
+// palette lists the host's actual forms by name (component-palette.tsx)
+// instead of one generic "Form" entry that needs a follow-up "which form?"
+// step in the Properties Panel. Kept separate from makeBlockInstance
+// (rather than a generic config-override param) since only this one block
+// type has a meaningful "create it already pointed at something" case.
+export function makeFormBlockInstance(formId: string): BlockInstance {
+  return {
+    id: crypto.randomUUID(),
+    type: "form",
+    config: { ...formDefaultConfig, formId },
+  } as BlockInstance;
+}

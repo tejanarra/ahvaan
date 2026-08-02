@@ -22,13 +22,13 @@ import { updateEvent } from "../../../actions";
 import type { EventRecord } from "@/lib/data/events";
 import type { FormSchema } from "@/lib/schemas/form-schema";
 import type { BlockInstance, BlockType, PageSchema } from "@/lib/blocks/types";
-import { BLOCK_REGISTRY, makeBlockInstance } from "@/lib/blocks/registry";
+import { BLOCK_REGISTRY, makeBlockInstance, makeFormBlockInstance } from "@/lib/blocks/registry";
 import { makeStarterLayout } from "@/lib/blocks/starter-layouts";
 import { getTheme, resolveThemeColors, THEMES, type ThemeId, type ThemeColorOverrides } from "@/lib/themes";
 import { resolveThemeFonts } from "@/lib/theme-fonts";
 import { CustomPageFrame } from "@/lib/blocks/custom-page-frame";
 import { PropertiesPanel, PageSettings, type CustomPageConfig } from "./properties-panel";
-import { ComponentPalette, PALETTE_DRAG_PREFIX } from "./component-palette";
+import { ComponentPalette, parsePaletteDragId } from "./component-palette";
 import { JsonSchemaEditor, type EditableSchema } from "./json-schema-editor";
 import { BlockCard } from "./block-card";
 import { EditableCanvas, type BlockPath } from "./editable-canvas";
@@ -231,15 +231,15 @@ function computeDropPlan(
 ): { containerId: string | null; index: number } | null {
   if (activeId === overId) return null;
 
-  if (activeId.startsWith(PALETTE_DRAG_PREFIX)) {
-    const type = activeId.slice(PALETTE_DRAG_PREFIX.length) as BlockType;
+  const paletteDrag = parsePaletteDragId(activeId);
+  if (paletteDrag) {
     const point = resolveInsertionPoint(blocks, overId);
     if (!point) return null;
     // A brand-new container CAN be dropped straight into an existing one
     // (nested layouts are a first-class case — see the depth-cap comment on
     // MAX_CONTAINER_DEPTH above) — only refuse it once nesting one more
     // level would exceed the schema's own cap.
-    if (type === "container" && point.containerId !== null) {
+    if (paletteDrag.type === "container" && point.containerId !== null) {
       const depth = containerDepth(blocks, point.containerId) ?? 0;
       if (depth + 1 >= MAX_CONTAINER_DEPTH) return null;
     }
@@ -959,9 +959,9 @@ export function PageBuilder({
     const plan = computeDropPlan(blocks, activeId, overId);
     if (!plan) return;
 
-    if (activeId.startsWith(PALETTE_DRAG_PREFIX)) {
-      const type = activeId.slice(PALETTE_DRAG_PREFIX.length) as BlockType;
-      const newBlock = makeBlockInstance(type);
+    const paletteDrag = parsePaletteDragId(activeId);
+    if (paletteDrag) {
+      const newBlock = paletteDrag.formId ? makeFormBlockInstance(paletteDrag.formId) : makeBlockInstance(paletteDrag.type);
       const list = getBlockList(blocks, plan.containerId);
       const index = Math.min(plan.index, list.length);
       const nextList = [...list.slice(0, index), newBlock, ...list.slice(index)];
@@ -1012,12 +1012,17 @@ export function PageBuilder({
     setBlocks(setBlockList(withoutBlock, plan.containerId, nextDestList));
   };
 
-  const activeDrag =
-    activeDragId && activeDragId.startsWith(PALETTE_DRAG_PREFIX)
-      ? { type: activeDragId.slice(PALETTE_DRAG_PREFIX.length) as BlockType, label: BLOCK_REGISTRY[activeDragId.slice(PALETTE_DRAG_PREFIX.length) as BlockType]?.label ?? "" }
-      : activeDragId
-        ? blockTypeAndLabelForId(blocks, activeDragId)
-        : null;
+  const activePaletteDrag = activeDragId ? parsePaletteDragId(activeDragId) : null;
+  const activeDrag = activePaletteDrag
+    ? {
+        type: activePaletteDrag.type,
+        label: activePaletteDrag.formId
+          ? (availableForms.find((f) => f.id === activePaletteDrag.formId)?.name ?? BLOCK_REGISTRY.form.label)
+          : (BLOCK_REGISTRY[activePaletteDrag.type]?.label ?? ""),
+      }
+    : activeDragId
+      ? blockTypeAndLabelForId(blocks, activeDragId)
+      : null;
 
   const modalOpen = (editingBlockOpen && Boolean(selectedBlock)) || pageSettingsOpen;
   const modalTitle =
@@ -1193,8 +1198,13 @@ export function PageBuilder({
           <p className="shrink-0 border-b border-border px-4 py-2.5 text-xs font-medium uppercase tracking-wide text-muted">Components</p>
           <div className="min-h-0 flex-1 overflow-y-auto p-3">
             <ComponentPalette
+              availableForms={availableForms}
               onAdd={(type) => {
                 setBlocks((prev) => [...prev, makeBlockInstance(type)]);
+                setMobilePane("canvas");
+              }}
+              onAddForm={(formId) => {
+                setBlocks((prev) => [...prev, makeFormBlockInstance(formId)]);
                 setMobilePane("canvas");
               }}
               onAddLayout={(id) => {
