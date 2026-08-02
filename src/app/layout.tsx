@@ -34,22 +34,25 @@ export const viewport: Viewport = {
 const description =
   "Design a beautiful invitation page for any event, share one link with your guests, and track every RSVP in one place.";
 
+// Titles are the bare "ahvaan" (no tagline suffix) so they literally match
+// the OAuth consent screen's App name field — Google's branding
+// verification compares the two and flags anything beyond an exact match.
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "ahvaan — RSVP made easy",
+    default: "ahvaan",
     template: "%s · ahvaan",
   },
   description,
   openGraph: {
     type: "website",
     siteName: "ahvaan",
-    title: "ahvaan — RSVP made easy",
+    title: "ahvaan",
     description,
   },
   twitter: {
     card: "summary_large_image",
-    title: "ahvaan — RSVP made easy",
+    title: "ahvaan",
     description,
   },
   appleWebApp: {
