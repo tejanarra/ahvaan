@@ -33,7 +33,8 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
-  const isAuthPage = pathname === "/login" || pathname === "/signup";
+  const isAuthPage =
+    pathname === "/login" || pathname === "/signup" || pathname === "/forgot-password";
 
   if (!user && !isAuthPage) {
     const loginUrl = new URL("/login", request.url);
@@ -52,10 +53,11 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // /dashboard and everything nested under it require a session; /login and
-  // /signup are the inverse — they require the *absence* of one. Both
-  // directions have to be checked in the same place so a session change
-  // (sign in, sign out) is reflected on the very next navigation rather than
-  // only in the one direction that used to be covered.
-  matcher: ["/dashboard", "/dashboard/:path*", "/login", "/signup"],
+  // /dashboard and everything nested under it require a session; /login,
+  // /signup, and /forgot-password are the inverse — they require the
+  // *absence* of one. Both directions have to be checked in the same place
+  // so a session change (sign in, sign out) is reflected on the very next
+  // navigation rather than only in the one direction that used to be
+  // covered.
+  matcher: ["/dashboard", "/dashboard/:path*", "/login", "/signup", "/forgot-password"],
 };

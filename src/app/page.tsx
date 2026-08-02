@@ -5,6 +5,7 @@ import { BrandLockup } from "@/components/brand";
 import { PublicFooter } from "@/components/public-footer";
 import { ThemeDemo } from "@/components/marketing/theme-demo";
 import { Reveal } from "@/components/marketing/reveal";
+import { getSessionUser } from "@/lib/supabase/auth-server";
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
   return (
@@ -98,7 +99,9 @@ const FAQS = [
   ["Can I answer for a guest?", "Yes — if someone RSVPs by phone or text, you can add or edit their response yourself and your counts stay accurate."],
 ] as const;
 
-export default function Home() {
+export default async function Home() {
+  const user = await getSessionUser();
+
   return (
     <div className="min-h-dvh bg-background">
       {/* Navbar */}
@@ -108,17 +111,25 @@ export default function Home() {
             <BrandLockup />
           </Link>
           <nav className="flex items-center gap-1.5 sm:gap-3">
-            <Link href="/login">
-              <Button variant="ghost" size="md">
-                Sign in
-              </Button>
-            </Link>
-            <Link href="/signup">
-              <Button size="md">
-                <span className="sm:hidden">Get started</span>
-                <span className="hidden sm:inline">Get started free</span>
-              </Button>
-            </Link>
+            {user ? (
+              <Link href="/dashboard">
+                <Button size="md">Dashboard</Button>
+              </Link>
+            ) : (
+              <>
+                <Link href="/login">
+                  <Button variant="ghost" size="md">
+                    Sign in
+                  </Button>
+                </Link>
+                <Link href="/signup">
+                  <Button size="md">
+                    <span className="sm:hidden">Get started</span>
+                    <span className="hidden sm:inline">Get started free</span>
+                  </Button>
+                </Link>
+              </>
+            )}
           </nav>
         </div>
       </header>

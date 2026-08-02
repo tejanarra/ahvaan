@@ -10,6 +10,10 @@ export type AuthState = {
 
 const MIN_PASSWORD_LENGTH = 8;
 
+function siteUrl() {
+  return process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+}
+
 export async function login(
   _prevState: AuthState,
   formData: FormData
@@ -49,7 +53,11 @@ export async function signup(
   }
 
   const supabase = await createAuthServerClient();
-  const { data, error } = await supabase.auth.signUp({ email, password });
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { emailRedirectTo: `${siteUrl()}/auth/callback?next=/dashboard` },
+  });
 
   if (error) {
     return { status: "error", message: error.message };
@@ -75,6 +83,26 @@ export async function logout() {
   redirect("/login");
 }
 
+export async function signInWithGoogle() {
+  const supabase = await createAuthServerClient();
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: `${siteUrl()}/auth/callback?next=/dashboard`,
+    },
+  });
+
+  if (error || !data.url) {
+    redirect(
+      `/login?error=${encodeURIComponent(
+        error?.message ?? "Could not start Google sign-in."
+      )}`
+    );
+  }
+
+  redirect(data.url);
+}
+
 export async function requestPasswordReset(
   _prevState: AuthState,
   formData: FormData
@@ -84,10 +112,9 @@ export async function requestPasswordReset(
     return { status: "error", message: "Enter your email." };
   }
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
   const supabase = await createAuthServerClient();
   await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${siteUrl}/reset-password`,
+    redirectTo: `${siteUrl()}/auth/callback?next=/reset-password`,
   });
 
   // Always the same message regardless of whether the email is on file —
