@@ -404,3 +404,41 @@ create policy "host owns their form_submissions" on public.form_submissions
   to authenticated
   using (host_id = (select auth.uid()))
   with check (host_id = (select auth.uid()));
+
+-- Added 2026-08-02, user-directed, outside this file's original phase plan
+-- (see docs/01 "Keep as-is" and SAAS_PLAN.md's dated entry): a host's
+-- public-facing display name/bio/avatar, shown discreetly at the bottom of
+-- their events' guest pages alongside a data-disclaimer. One row per host,
+-- keyed directly by auth.users(id) (not its own uuid pk) since it's a
+-- strict 1:1 extension of the host record, not an independent entity.
+create table if not exists public.host_profiles (
+  host_id uuid primary key references auth.users(id) on delete cascade,
+  display_name text,
+  bio text,
+  avatar_url text,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.host_profiles enable row level security;
+
+drop policy if exists "host owns their profile" on public.host_profiles;
+create policy "host owns their profile" on public.host_profiles
+  for all
+  to authenticated
+  using (host_id = (select auth.uid()))
+  with check (host_id = (select auth.uid()));
+
+-- Public-read bucket for host avatar photos — same "service-role write,
+-- RLS as backstop only" model as event-images above.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'host-avatars',
+  'host-avatars',
+  true,
+  5242880,
+  array['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+)
+on conflict (id) do update set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;

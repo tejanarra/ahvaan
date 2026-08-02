@@ -1,10 +1,13 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { logout } from "@/lib/auth-actions";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { UserIcon, ChevronDownIcon } from "@/components/icons";
 
 export function AccountMenu({ email }: { email: string }) {
+  const router = useRouter();
+
   return (
     <DropdownMenu
       trigger={
@@ -20,6 +23,10 @@ export function AccountMenu({ email }: { email: string }) {
         </span>
       }
       items={[
+        {
+          label: "Edit profile",
+          onSelect: () => router.push("/dashboard/profile"),
+        },
         {
           // logout() is a server action with no arguments and always
           // redirect()s — calling it directly from onSelect is simpler than

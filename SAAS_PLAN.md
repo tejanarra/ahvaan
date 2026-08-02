@@ -1143,3 +1143,46 @@ server-side per-field validation confirmed independent of client-side
 (bypassed native `type=email` checking); Data-tab schema evolution (a
 column added after an earlier submission renders blank, doesn't break);
 CSV export. `npm run build` clean throughout.
+
+## Status: Public host profile + legal disclaimer (2026-08-02)
+
+User-directed addition, outside doc 07's original phase plan (see docs/01's
+matching dated feature-matrix entry). Also fixed, same session: broken
+auth flows (missing `/auth/callback` PKCE handler — the root cause of a
+dead password-reset link — plus Google OAuth sign-in and auth-aware
+marketing nav) and two Google OAuth-verification branding rejections
+(homepage purpose copy, `<title>`/og/twitter metadata trimmed to the bare
+"ahvaan" so it literally matches the OAuth consent screen's App name).
+
+**New table**: `host_profiles` (`host_id` primary key referencing
+`auth.users(id)`, `display_name`, `bio`, `avatar_url`, `updated_at`) —
+`supabase/schema-saas.sql`, run manually against the live project (not from
+this session). RLS mirrors every other table's `host_id = auth.uid()`
+policy. New public-read `host-avatars` Storage bucket, same model as
+`event-images`.
+
+**Data layer** (`src/lib/data/host-profile.ts`): `getHostProfile` (host-
+scoped, dashboard), `getHostProfilePublic` (cached like
+`getEventBySlugPublic`, narrow columns only), two independent partial-
+update functions (`updateHostProfileFields`, `setHostAvatarUrl`) rather
+than one combined upsert — the avatar upload/clear flow doesn't carry the
+name/bio fields, and a combined upsert would have silently blanked
+whatever the host had already saved on every photo change.
+
+**Dashboard**: new `/dashboard/profile` page (Account menu → "Edit
+profile", the menu's first entry above Sign out) — display name, bio
+(500-char cap), and a circular avatar uploader (`AvatarUploadField`, a
+generalization of `ImageUploadField` without the "paste a URL" fallback,
+new `uploadHostAvatar` in `src/lib/data/storage.ts`).
+
+**Guest pages** (`src/app/events/[slug]/page.tsx`): `PublicHostCard`
+renders above the existing "Made with ahvaan" link — host name/bio/avatar
+only if at least one is set, but the disclaimer sentence ("this page and
+any data collected here are managed solely by its host, not ahvaan")
+always renders once an event is published, independent of whether the
+host ever visited Profile. The custom-page branch (raw host HTML/CSS/JS in
+a sandboxed iframe) gets the same treatment folded into its existing
+fixed-position "Made with ahvaan" pill rather than a second floating
+element.
+
+`npm run build` clean throughout.

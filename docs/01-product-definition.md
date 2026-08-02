@@ -111,6 +111,13 @@ place in the UI. Where two mechanisms overlap today, they are consolidated
 - Host-configurable post-submit behavior (message/redirect/custom HTML) for
   both RSVP (Guests → Actions) and every custom form (added alongside the
   above, same date) — previously hardcoded to always show the venue map.
+- Public host profile (added 2026-08-02, user-directed, outside this
+  matrix's original scope — see `SAAS_PLAN.md`'s dated entry): a host-
+  editable display name/bio/avatar (Dashboard → account menu → "Edit
+  profile"), shown discreetly at the bottom of that host's published event
+  pages next to a fixed disclaimer that the page and any data it collects
+  are the host's own responsibility, not ahvaan's. Renders even for a host
+  who never set one up (disclaimer only, no name/photo block).
 
 ### Consolidate (same power, less surface — Phase 1–2 work)
 - **Styling surfaces**: block `customCss`, container `customStyle`, page
