@@ -143,8 +143,9 @@ export default async function Home() {
               Design the <em className="text-accent">invitation</em>. Share one link. Watch the RSVPs arrive.
             </h1>
             <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-muted lg:mx-0">
-              ahvaan gives every event a beautiful, fully-customizable page — with built-in
-              RSVPs your guests can answer in seconds.
+              ahvaan is a free app for building and sending event invitations. Create a
+              custom invitation page for your event, share one link with your guests, and
+              track every RSVP in one dashboard — no guest accounts, no spreadsheets.
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
               <Link href="/signup">
