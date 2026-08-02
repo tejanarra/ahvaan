@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { submitCustomFormFromFormData } from "@/lib/form-submit";
+import { submitCustomFormFromFormData, verifyFormSubmissionCode } from "@/lib/form-submit";
 
 // Public, unauthenticated write endpoint — mirrors src/app/api/rsvp/route.ts
 // exactly (same rationale: Server Actions can't be posted to from inside a
@@ -27,12 +27,37 @@ export async function POST(request: Request, { params }: { params: Promise<{ for
   const { formId } = await params;
   const formData = await request.formData();
   formData.set("formId", formId);
-  const result = await submitCustomFormFromFormData(formData);
   const wantsJson = request.headers.get("accept")?.includes("application/json");
+
+  // See the matching comment in src/app/api/rsvp/route.ts — a hand-embedded
+  // HTML form has no client JS to hold state between requests, so the
+  // code-entry follow-up form posts back to this same endpoint with these
+  // two fields instead of the form's real fields.
+  const otpVerificationId = String(formData.get("otpVerificationId") ?? "").trim();
+  const otpCode = String(formData.get("otpCode") ?? "").trim();
+  const result = otpVerificationId
+    ? await verifyFormSubmissionCode(otpVerificationId, otpCode)
+    : await submitCustomFormFromFormData(formData);
 
   if (result.status === "error") {
     if (wantsJson) return NextResponse.json({ ok: false, error: result.message, fieldErrors: result.fieldErrors }, { status: 400 });
     return htmlPage("Response not saved", escapeHtml(result.message), 400);
+  }
+
+  if (result.status === "verification_sent") {
+    if (wantsJson) {
+      return NextResponse.json({ ok: true, verificationRequired: true, verificationId: result.verificationId, email: result.email });
+    }
+    return htmlPage(
+      "Check your email",
+      `We sent a verification code to ${escapeHtml(result.email)}. Enter it below to finish your response.` +
+        `<form method="post" style="margin-top:1.5rem;display:flex;gap:0.5rem;justify-content:center;">` +
+        `<input type="hidden" name="otpVerificationId" value="${escapeHtml(result.verificationId)}" />` +
+        `<input type="text" name="otpCode" placeholder="6-digit code" required style="padding:0.5rem;font-size:1rem;" />` +
+        `<button type="submit" style="padding:0.5rem 1rem;">Verify</button>` +
+        `</form>`,
+      200
+    );
   }
 
   if (wantsJson) return NextResponse.json({ ok: true, responses: result.responses });

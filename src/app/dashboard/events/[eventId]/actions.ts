@@ -7,14 +7,18 @@ import {
   updateFormSchema as updateFormSchemaData,
   updatePageSchema as updatePageSchemaData,
   updateRsvpActions as updateRsvpActionsData,
+  updateSubmissionMode as updateSubmissionModeData,
 } from "@/lib/data/events";
-import { parsePostSubmitAction } from "@/lib/schemas/post-submit-actions";
+import { parsePostSubmitActionStrict } from "@/lib/schemas/post-submit-actions";
 import type { PostSubmitAction } from "@/lib/schemas/post-submit-actions";
+import { parseSubmissionMode } from "@/lib/schemas/submission-mode";
 import * as invitesData from "@/lib/data/invites";
 import * as rsvpsData from "@/lib/data/rsvps";
+import * as formsData from "@/lib/data/forms";
+import { ensureCustomFormEmailField } from "@/lib/forms/registry";
 import { logEmailSend } from "@/lib/data/email-log";
 import { NotFoundError } from "@/lib/data/errors";
-import { resolveFormSchema, deriveLegacyScalars, enforceRoleLock } from "@/lib/schemas/form-schema";
+import { resolveFormSchema, deriveLegacyScalars, enforceRoleLock, ensureEmailField } from "@/lib/schemas/form-schema";
 import type { FormSchema, Responses } from "@/lib/schemas/form-schema";
 import { sanitizeResponses, validateResponses, assertResponsesWithinSizeBudget } from "@/lib/schemas/responses";
 import { parsePageSchema } from "@/lib/schemas/page-schema";
@@ -82,11 +86,19 @@ export async function updateFormSchema(eventId: string, rawSchema: FormSchema) {
     if (!field.label.trim()) {
       throw new Error("Every field needs a label.");
     }
-    if (
-      (field.type === "select" || field.type === "radio" || field.type === "checkbox") &&
-      (!field.options || field.options.length === 0)
-    ) {
-      throw new Error(`"${field.label}" needs at least one option.`);
+    if (field.type === "select" || field.type === "radio" || field.type === "checkbox") {
+      // Every option must be non-empty and distinct — both a rendering
+      // correctness issue (option components key off the option string
+      // itself; a blank or duplicate value collides with another option or
+      // the select's own placeholder) and a data-integrity one (two
+      // identically-valued options are indistinguishable once saved).
+      const trimmed = (field.options ?? []).map((o) => o.trim());
+      if (trimmed.length === 0 || trimmed.some((o) => !o)) {
+        throw new Error(`"${field.label}" needs every option to be non-empty.`);
+      }
+      if (new Set(trimmed).size !== trimmed.length) {
+        throw new Error(`"${field.label}" has duplicate options.`);
+      }
     }
   }
 
@@ -202,8 +214,42 @@ export async function updatePageSchema(eventId: string, schema: PageSchema) {
 
 export async function updateRsvpActionsAction(eventId: string, rawAction: PostSubmitAction) {
   const host = await requireHost();
-  const action = parsePostSubmitAction(rawAction);
+  const action = parsePostSubmitActionStrict(rawAction);
   await updateRsvpActionsData(host.id, eventId, action);
+}
+
+// One event-wide setting (events.submission_mode) governing BOTH the RSVP
+// form and every generic Forms form under this event — not a separate
+// per-form choice (see src/lib/data/forms.ts's comment on why Forms
+// dropped its own independent submission_mode column).
+export async function updateSubmissionModeAction(eventId: string, rawMode: unknown) {
+  const host = await requireHost();
+  const mode = parseSubmissionMode(rawMode);
+  await updateSubmissionModeData(host.id, eventId, mode);
+
+  // 'email_verified' needs a trustworthy email value to dedup/key
+  // submissions by — seed one into RSVP's schema, and into every form on
+  // this event, if missing, so switching modes is a single click rather
+  // than a manual "now add an Email field" step repeated per form (see
+  // ensureEmailField/ensureCustomFormEmailField's own comments).
+  if (mode === "email_verified") {
+    const event = await getEventFull(host.id, eventId);
+    if (event) {
+      const schema = resolveFormSchema(event.form_schema);
+      const updated = ensureEmailField(schema);
+      if (updated !== schema) {
+        await updateFormSchemaData(host.id, eventId, updated);
+      }
+    }
+
+    const forms = await formsData.listForms(host.id, eventId);
+    for (const form of forms) {
+      const updated = ensureCustomFormEmailField(form.schema);
+      if (updated !== form.schema) {
+        await formsData.updateFormSchema(host.id, eventId, form.id, updated);
+      }
+    }
+  }
 }
 
 function findNamedCustomHtmlBlocks(blocks: BlockInstance[]): { name: string; html: string; css: string; js: string }[] {

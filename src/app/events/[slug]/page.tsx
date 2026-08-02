@@ -18,7 +18,14 @@ import { PageRenderer } from "@/lib/blocks/page-renderer";
 import { CustomPageFrame } from "@/lib/blocks/custom-page-frame";
 import { listComponentsForEventPublic } from "@/lib/data/custom-components";
 import { listFormsForEventPublic } from "@/lib/data/forms";
-import type { CustomComponentMap, CustomFormMap } from "@/lib/blocks/context";
+import { listSubmissionsForInvitePublic, listSubmissionsForEmailPublic } from "@/lib/data/form-submissions";
+import { getVerifiedRsvpResponses, getResponsesForEmail } from "@/lib/rsvp-submit";
+import { getVerifiedFormResponses } from "@/lib/form-submit";
+import { getVerifiedGuestEmail } from "@/lib/guest-session";
+import { parseSubmissionMode } from "@/lib/schemas/submission-mode";
+import { VerificationBroadcaster } from "./verification-broadcaster";
+import { GuestIdentityFooter } from "./guest-identity-footer";
+import type { CustomComponentMap, CustomFormMap, CustomFormResponsesMap } from "@/lib/blocks/context";
 
 // <custom-component> tags can appear in any custom-html block's HTML, at
 // any nesting depth — this only decides whether the extra component-library
@@ -67,7 +74,7 @@ export async function generateMetadata({
   // Storage URL, so takes precedence untouched; otherwise this event's own
   // route segment doubles as the fallback image endpoint (see the sibling
   // opengraph-image.tsx file, which Next serves at this same path).
-  const image = event.cover_image_url || `/e/${slug}/opengraph-image`;
+  const image = event.cover_image_url || `/events/${slug}/opengraph-image`;
 
   return {
     title,
@@ -94,10 +101,10 @@ export default async function PublicEventPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ i?: string; preview?: string }>;
+  searchParams: Promise<{ i?: string; preview?: string; verified?: string; vtype?: string; vform?: string; verifyError?: string }>;
 }) {
   const { slug } = await params;
-  const { i: invite, preview } = await searchParams;
+  const { i: invite, preview, verified, vtype, vform, verifyError } = await searchParams;
 
   const event = await getEventBySlugPublic(slug);
   if (!event) {
@@ -141,6 +148,38 @@ export default async function PublicEventPage({
     }
   }
 
+  // A no-invite guest who's already passed the page-level "verify your
+  // email once for this event" gate (src/lib/guest-session.ts's cookie,
+  // set by src/lib/guest-verification.ts on success) — every RSVP/Forms
+  // block treats this exactly like having an invite for identity
+  // purposes, prefilled the same way. Only trusted while the event is
+  // still in 'email_verified' mode: a host can switch modes after a guest
+  // already verified, and the cookie (valid up to 30 days) would otherwise
+  // outlive that choice — e.g. under 'anonymous' mode every submit is a
+  // fresh insert (see rsvp-submit.ts/form-submit.ts), so prefilling from a
+  // stale verified email here would show one guest's old answers as if
+  // they were about to edit them in place, while the actual submit path
+  // silently inserts a brand-new row instead of updating it.
+  const submissionMode = parseSubmissionMode(event.submission_mode);
+  const verifiedEmail = inviteId || submissionMode !== "email_verified" ? null : await getVerifiedGuestEmail(event.id);
+  if (!initialResponses && verifiedEmail) {
+    initialResponses = await getResponsesForEmail(schema, event.id, verifiedEmail);
+  }
+
+  // Fallback path (rare): a guest verified via the older per-form
+  // submit-with-payload flow (no page-level gate cookie involved — used
+  // only by the no-JS embedded-HTML-form API route, see
+  // rsvp-submit.ts's OTP-with-payload branch) and just clicked that magic
+  // link (redirected back here with `?verified=<id>`). getVerifiedRsvpResponses
+  // re-checks the verification actually was consumed before trusting this,
+  // so a guest can't just paste a random id into the URL.
+  if (!initialResponses && verified && vtype === "rsvp") {
+    const responses = await getVerifiedRsvpResponses(schema, event.id, verified);
+    if (responses) {
+      initialResponses = responses;
+    }
+  }
+
   // Older events created before the page builder existed (or a schema that
   // fails validation) have no usable page_schema — fall back to the same
   // default layout (hero + RSVP form + venue map) a brand-new event is
@@ -157,9 +196,31 @@ export default async function PublicEventPage({
     ? Object.fromEntries((await listComponentsForEventPublic(event.id)).map((c) => [c.name, { html: c.html, css: c.css, js: c.js }]))
     : {};
 
-  const customForms: CustomFormMap = hasFormBlock(pageSchema.blocks)
+  const needsForms = hasFormBlock(pageSchema.blocks);
+  const customForms: CustomFormMap = needsForms
     ? Object.fromEntries((await listFormsForEventPublic(event.id)).map((f) => [f.id, f]))
     : {};
+  // 'private'-mode prefill-on-return, batched across every form on the
+  // page in one query — only meaningful once we know who the guest is.
+  const customFormResponses: CustomFormResponsesMap =
+    needsForms && inviteId ? await listSubmissionsForInvitePublic(event.id, inviteId) : {};
+
+  // Same page-level verified-email prefill as RSVP above, batched across
+  // every form on the page in one query.
+  if (needsForms && verifiedEmail) {
+    Object.assign(customFormResponses, await listSubmissionsForEmailPublic(event.id, verifiedEmail));
+  }
+
+  // Fallback path (rare) mirroring the RSVP one above, for whichever one
+  // specific form the guest verified against via the older per-form
+  // submit-with-payload flow (vform) — a page can embed several forms,
+  // only one of which that particular link was ever about.
+  if (needsForms && verified && vtype === "form" && vform) {
+    const responses = await getVerifiedFormResponses(vform, verified);
+    if (responses) {
+      customFormResponses[vform] = responses;
+    }
+  }
 
   const draftBanner = isDraftPreview && (
     <p className="bg-[color-mix(in_oklab,var(--warning)_15%,transparent)] py-1.5 text-center text-xs font-medium text-[var(--warning)]">
@@ -210,6 +271,12 @@ export default async function PublicEventPage({
       }
     >
       {draftBanner}
+      {verifyError && (
+        <p className="bg-[color-mix(in_oklab,var(--warning)_15%,transparent)] py-1.5 text-center text-xs font-medium text-[var(--warning)]">
+          {verifyError}
+        </p>
+      )}
+      <VerificationBroadcaster verificationId={verified ?? null} />
       <PageRenderer
         schema={pageSchema}
         ctx={{
@@ -220,8 +287,11 @@ export default async function PublicEventPage({
           initialResponses,
           customComponents,
           customForms,
+          customFormResponses,
+          verifiedEmail,
         }}
       />
+      {verifiedEmail && <GuestIdentityFooter eventId={event.id} email={verifiedEmail} />}
       <Link
         href="/"
         className="flex items-center justify-center gap-2 pb-8 text-sm tracking-wide text-[var(--t-fg)]/60 hover:text-[var(--t-fg)]/90"

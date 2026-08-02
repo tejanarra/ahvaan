@@ -2,6 +2,7 @@
 
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { PublicField, PublicInput } from "@/app/events/[slug]/public-field-ui";
 import { BaseConfigFields } from "../field-config-fields";
 import type { EmailFieldConfig } from "../types";
 
@@ -21,8 +22,8 @@ export function EmailFieldInput({
   error?: string | null;
 }) {
   return (
-    <Field label={config.label} required={config.required} error={error ?? undefined} hint={config.helpText}>
-      <Input
+    <PublicField label={config.label} required={config.required} error={error ?? undefined} hint={config.helpText}>
+      <PublicInput
         type="email"
         name={config.id}
         value={value ?? ""}
@@ -30,6 +31,6 @@ export function EmailFieldInput({
         placeholder={config.placeholder || "name@example.com"}
         invalid={Boolean(error)}
       />
-    </Field>
+    </PublicField>
   );
 }

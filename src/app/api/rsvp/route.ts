@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { submitRsvpFromFormData } from "@/lib/rsvp-submit";
+import { submitRsvpFromFormData, verifyRsvpEmailCode } from "@/lib/rsvp-submit";
 
 // Public, unauthenticated write endpoint — same trust model as the
 // submitRsvp server action (the invite id is the real access control, not
@@ -27,12 +27,38 @@ function htmlPage(title: string, body: string, status: number) {
 
 export async function POST(request: Request) {
   const formData = await request.formData();
-  const result = await submitRsvpFromFormData(formData);
   const wantsJson = request.headers.get("accept")?.includes("application/json");
+
+  // A hand-embedded HTML form has no client JS to hold a "code sent, please
+  // enter it" state between requests — this second field, present only on
+  // the code-entry follow-up form, tells this same endpoint to verify
+  // instead of submit, so the two-phase email_verified flow still works
+  // without any script (see the "check your email" page below).
+  const otpVerificationId = String(formData.get("otpVerificationId") ?? "").trim();
+  const otpCode = String(formData.get("otpCode") ?? "").trim();
+  const result = otpVerificationId
+    ? await verifyRsvpEmailCode(otpVerificationId, otpCode)
+    : await submitRsvpFromFormData(formData);
 
   if (result.status === "error") {
     if (wantsJson) return NextResponse.json({ ok: false, error: result.message }, { status: 400 });
     return htmlPage("RSVP not saved", escapeHtml(result.message), 400);
+  }
+
+  if (result.status === "verification_sent") {
+    if (wantsJson) {
+      return NextResponse.json({ ok: true, verificationRequired: true, verificationId: result.verificationId, email: result.email });
+    }
+    return htmlPage(
+      "Check your email",
+      `We sent a verification code to ${escapeHtml(result.email)}. Enter it below to finish your RSVP.` +
+        `<form method="post" style="margin-top:1.5rem;display:flex;gap:0.5rem;justify-content:center;">` +
+        `<input type="hidden" name="otpVerificationId" value="${escapeHtml(result.verificationId)}" />` +
+        `<input type="text" name="otpCode" placeholder="6-digit code" required style="padding:0.5rem;font-size:1rem;" />` +
+        `<button type="submit" style="padding:0.5rem 1rem;">Verify</button>` +
+        `</form>`,
+      200
+    );
   }
 
   if (wantsJson) return NextResponse.json({ ok: true, responses: result.responses });

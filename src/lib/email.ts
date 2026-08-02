@@ -141,3 +141,60 @@ export async function deliverReminderEmail(event: EventRecord, invite: InviteEma
     throw new Error(error.message);
   }
 }
+
+// Guest-facing verification for the 'email_verified' submission mode (RSVP
+// and generic Forms both send through this one function) — deliberately
+// not built on emailShell/InviteEmailTarget above, since there's no invite
+// (no invite-link CTA makes sense here, and the recipient may not have one
+// at all in email_verified mode). Leads with a clickable magic link (see
+// src/app/events/[slug]/verify/route.ts) — clicking it finishes
+// verification directly, no code to type — but the raw code is also shown
+// as text, both as a fallback for email clients that strip links/buttons
+// and for the no-JS embedded-form path (src/app/api/rsvp/route.ts,
+// src/app/api/forms/[formId]/route.ts), which has no way to auto-detect a
+// clicked link and asks the guest to type the code instead.
+export async function deliverVerificationEmail(email: string, verifyUrl: string, code: string, subjectTitle: string) {
+  const resend = getResendClient();
+  const from = requireEnv("RESEND_FROM_EMAIL");
+  const siteUrl = requireEnv("NEXT_PUBLIC_SITE_URL");
+
+  const html = `
+    <div style="font-family: ${BODY_FONT_STACK}; max-width: 480px; margin: 0 auto; color: ${INK};">
+      <h1 style="font-family: ${DISPLAY_FONT_STACK}; font-weight: normal; font-size: 22px; margin: 4px 0 16px;">
+        ${subjectTitle}
+      </h1>
+      <p style="font-size: 16px; line-height: 1.5;">Click below to verify your email and finish:</p>
+      <p style="margin-top: 16px;">
+        <a href="${verifyUrl}" style="display: inline-block; background: ${ACCENT}; color: ${ACCENT_FOREGROUND}; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em;">
+          Verify email
+        </a>
+      </p>
+      <p style="font-size: 14px; color: ${MUTED};">Or enter this code where you started: <strong style="letter-spacing: 0.1em;">${code}</strong></p>
+      <p style="font-size: 14px; color: ${MUTED};">This expires in 10 minutes. If you didn't request this, you can ignore this email.</p>
+      <hr style="margin-top: 24px; border: none; border-top: 1px solid ${BORDER};" />
+      <table role="presentation" style="margin-top: 16px;">
+        <tr>
+          <td style="vertical-align: middle; padding-right: 6px;">
+            <a href="${siteUrl}"><img src="${siteUrl}/icon.png" width="18" height="18" alt="Ahvan" style="display: block;" /></a>
+          </td>
+          <td style="vertical-align: middle;">
+            <a href="${siteUrl}" style="font-size: 12px; color: ${MUTED}; text-decoration: none;">Sent via Ahvan</a>
+          </td>
+        </tr>
+      </table>
+    </div>
+  `;
+  const text = `${subjectTitle}\n\nVerify: ${verifyUrl}\n\nOr enter this code where you started: ${code}\n\nThis expires in 10 minutes. If you didn't request this, you can ignore this email.`;
+
+  const { error } = await resend.emails.send({
+    from,
+    to: email,
+    subject: "Verify your email to finish",
+    html,
+    text,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}

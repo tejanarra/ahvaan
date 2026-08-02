@@ -3,9 +3,9 @@
 import { requireHost } from "@/lib/supabase/auth-server";
 import * as formsData from "@/lib/data/forms";
 import { deleteSubmission } from "@/lib/data/form-submissions";
-import { parseCustomFormSchema } from "@/lib/schemas/custom-form-schema";
+import { parseCustomFormSchemaStrict } from "@/lib/schemas/custom-form-schema";
 import type { CustomFormSchema } from "@/lib/forms/types";
-import type { PostSubmitAction } from "@/lib/schemas/post-submit-actions";
+import { parsePostSubmitActionStrict, type PostSubmitAction } from "@/lib/schemas/post-submit-actions";
 
 export async function createFormAction(eventId: string, name: string) {
   const host = await requireHost();
@@ -40,18 +40,25 @@ export async function updateCustomFormSchemaAction(eventId: string, formId: stri
     if (!field.label.trim()) {
       throw new Error("Every field needs a label.");
     }
-    if ("options" in field && (!field.options || field.options.length === 0)) {
-      throw new Error(`"${field.label}" needs at least one option.`);
+    if ("options" in field) {
+      const trimmed = (field.options ?? []).map((o) => o.trim());
+      if (trimmed.length === 0 || trimmed.some((o) => !o)) {
+        throw new Error(`"${field.label}" needs every option to be non-empty.`);
+      }
+      if (new Set(trimmed).size !== trimmed.length) {
+        throw new Error(`"${field.label}" has duplicate options.`);
+      }
     }
   }
 
-  const schema = parseCustomFormSchema(rawSchema);
+  const schema = parseCustomFormSchemaStrict(rawSchema);
   await formsData.updateFormSchema(host.id, eventId, formId, schema);
 }
 
 export async function updateFormActionsAction(eventId: string, formId: string, actions: PostSubmitAction) {
   const host = await requireHost();
-  await formsData.updateFormActions(host.id, eventId, formId, actions);
+  const parsed = parsePostSubmitActionStrict(actions);
+  await formsData.updateFormActions(host.id, eventId, formId, parsed);
 }
 
 export async function deleteSubmissionAction(formId: string, submissionId: string) {

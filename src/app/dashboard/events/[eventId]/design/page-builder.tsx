@@ -862,6 +862,8 @@ export function PageBuilder({
     initialResponses: null,
     customComponents: customComponentsMap,
     customForms: customFormsMap,
+    customFormResponses: {},
+    verifiedEmail: null,
   };
 
   // Everything that swaps in the same theme-backed content well —

@@ -1,27 +1,19 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { submitRsvp, type RsvpFormState } from "./actions";
 import { VenueMap } from "@/components/venue-map";
+import { EmailVerificationModal } from "./email-verification-modal";
+import { publicLabelClass as labelClass, publicInputClass as inputClass, publicChoiceButtonClass as choiceButtonClass } from "./public-field-ui";
 import { findFieldByRole } from "@/lib/schemas/form-schema";
 import type { FormField, FormSchema, Responses } from "@/lib/schemas/form-schema";
 import { buildSandboxSrcDoc } from "@/lib/blocks/sandbox";
 import { applyComponentShortcodes } from "@/lib/blocks/shortcodes";
 import type { PostSubmitAction } from "@/lib/schemas/post-submit-actions";
+import type { SubmissionMode } from "@/lib/schemas/submission-mode";
 
 const initialState: RsvpFormState = { status: "idle" };
-
-const labelClass = "block text-xs font-semibold uppercase tracking-wide text-[var(--t-accent-dark)]";
-
-const inputClass =
-  "mt-1.5 w-full rounded-md border border-[var(--t-accent)]/30 bg-transparent px-3 py-2 text-sm text-[var(--t-fg)] placeholder:text-[var(--t-fg)]/45 focus:border-[var(--t-accent-dark)] focus:outline-none focus:ring-2 focus:ring-[var(--t-accent)]/20";
-
-const choiceButtonClass = (active: boolean) =>
-  `cursor-pointer rounded-md border px-3.5 py-1.5 text-sm capitalize transition-colors ${
-    active
-      ? "border-[var(--t-accent-dark)] bg-[var(--t-accent-dark)] text-white"
-      : "border-[var(--t-accent)]/30 text-[var(--t-fg)]/80 hover:border-[var(--t-accent-dark)]"
-  }`;
 
 type GuestField = { key: number; value: string };
 
@@ -242,6 +234,7 @@ function DynamicField({
 export function RsvpForm({
   eventId,
   inviteId,
+  mode,
   schema,
   initialResponses,
   guestName,
@@ -249,9 +242,17 @@ export function RsvpForm({
   venueAddress,
   action,
   readOnly = false,
+  identityKnown = Boolean(inviteId),
 }: {
   eventId: string;
-  inviteId: string;
+  inviteId: string | null;
+  // Who's allowed to submit / how resubmission is handled
+  // (src/lib/schemas/submission-mode.ts) — 'private' keeps this component's
+  // original behavior (hidden inviteId); 'anonymous' just drops the invite
+  // requirement (server-side gating already handles that, this component
+  // doesn't need to branch for it); 'email_verified' with no invite
+  // renders the form `locked` (see below) until `identityKnown`.
+  mode: SubmissionMode;
   schema: FormSchema;
   initialResponses: Responses | null;
   guestName?: string;
@@ -272,43 +273,76 @@ export function RsvpForm({
   // server enforces this too (submitRsvpFromFormData), this just hides an
   // affordance that would otherwise error on click.
   readOnly?: boolean;
+  // True when this guest's identity is already established — either an
+  // invite link, or (for 'email_verified' with no invite) having already
+  // passed the page-level verification gate
+  // (src/lib/blocks/blocks/rsvp-form.tsx's RsvpFormRender computes this
+  // from ctx.inviteId/ctx.verifiedEmail). When false in 'email_verified'
+  // mode, the form renders visibly but locked (disabled, dimmed, click-to-
+  // verify) rather than being hidden outright — see `locked` below.
+  identityKnown?: boolean;
 }) {
+  const router = useRouter();
   const [state, formAction, pending] = useActionState(submitRsvp, initialState);
 
   const nameField = findFieldByRole(schema, "name");
   const prefill: Responses = nameField && guestName ? { [nameField.id]: guestName } : {};
 
   const [saved, setSaved] = useState<Responses | null>(initialResponses);
-  const [mode, setMode] = useState<"view" | "edit">(initialResponses ? "view" : "edit");
+  const [viewMode, setViewMode] = useState<"view" | "edit">(initialResponses ? "view" : "edit");
   const [values, setValues] = useState<Responses>(initialResponses ?? prefill);
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
 
   useEffect(() => {
     if (state.status === "success" && state.data) {
       setSaved(state.data.responses);
       setValues(state.data.responses);
-      setMode("view");
+      setViewMode("view");
+    } else if (state.status === "verification_sent") {
+      // Shouldn't normally happen — the locked fieldset below disables
+      // submission until `identityKnown`. The one way it can: the
+      // guest-session cookie expired in the moments between this page
+      // loading and them clicking submit. Refreshing re-runs page.tsx,
+      // which re-locks the form behind the verify modal so they can
+      // re-establish it properly, rather than leaving them stuck on a
+      // response that silently did nothing.
+      router.refresh();
     }
-  }, [state]);
+  }, [state, router]);
 
   // Hooks can't be called conditionally — this always runs, and only
-  // *acts* once a redirect action needs to fire.
+  // *acts* once a redirect action needs to fire. Guards against a blank/
+  // unusable URL (shouldn't be saveable anymore — see
+  // parsePostSubmitActionStrict — but a pre-existing bad row could still
+  // be sitting in the database): `window.location.href = ""` navigates to
+  // the current URL, which would re-run this same effect on load and
+  // reload forever.
+  const hasValidRedirectUrl = action.kind === "redirect" && /^https?:\/\//i.test(action.url);
   useEffect(() => {
-    if (mode === "view" && saved && action.kind === "redirect") {
+    if (viewMode === "view" && saved && action.kind === "redirect" && hasValidRedirectUrl) {
       window.location.href = action.url;
     }
-  }, [mode, saved, action]);
+  }, [viewMode, saved, action, hasValidRedirectUrl]);
 
   const attendingField = findFieldByRole(schema, "attending");
   const plusOnesField = findFieldByRole(schema, "plus_ones");
+  const emailField = findFieldByRole(schema, "email");
   const isDeclining = attendingField ? asString(values[attendingField.id]) === "no" : false;
+  const locked = mode === "email_verified" && !identityKnown;
 
   const venueMap = venueAddress && action.kind === "message" && action.showVenue && (
     <VenueMap venueName={venueName || "Venue"} venueAddress={venueAddress} />
   );
 
-  if (mode === "view" && saved) {
-    if (action.kind === "redirect") {
+  if (viewMode === "view" && saved) {
+    if (action.kind === "redirect" && hasValidRedirectUrl) {
       return <p className="w-full text-center text-sm text-[var(--t-fg)]/70">Redirecting…</p>;
+    }
+
+    if (action.kind === "redirect") {
+      // Unusable URL — fall back to a plain confirmation instead of
+      // navigating nowhere (see hasValidRedirectUrl above).
+      return <p className="w-full text-center text-sm text-[var(--t-fg)]">Thanks — your response has been recorded.</p>;
     }
 
     if (action.kind === "custom_html") {
@@ -362,7 +396,7 @@ export function RsvpForm({
               type="button"
               onClick={() => {
                 setValues(saved);
-                setMode("edit");
+                setViewMode("edit");
               }}
               className="mt-4 rounded-md border border-[var(--t-accent)]/30 px-4 py-1.5 text-sm text-[var(--t-accent-dark)] transition hover:border-[var(--t-accent-dark)]"
             >
@@ -378,44 +412,74 @@ export function RsvpForm({
 
   return (
     <div className="w-full space-y-6">
-      <form action={formAction} className="space-y-4">
-        <input type="hidden" name="eventId" value={eventId} />
-        <input type="hidden" name="inviteId" value={inviteId} />
+      <div className="relative">
+        <form action={formAction} className="space-y-4">
+          <input type="hidden" name="eventId" value={eventId} />
+          <input type="hidden" name="inviteId" value={inviteId ?? ""} />
 
-        {schema.fields
-          .filter((field) => !(isDeclining && plusOnesField && field.id === plusOnesField.id))
-          .map((field) => (
-            <DynamicField
-              key={field.id}
-              field={field}
-              value={values[field.id]}
-              onChange={(next) => setValues((v) => ({ ...v, [field.id]: next }))}
-            />
-          ))}
-
-        {state.status === "error" && <p className="text-sm font-medium text-red-600">{state.message}</p>}
-
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <button
-            type="submit"
-            disabled={pending}
-            className="flex-1 rounded-md bg-[var(--t-accent-dark)] px-4 py-2.5 text-sm font-medium uppercase tracking-wide text-white shadow-sm transition disabled:opacity-50"
+          <fieldset
+            disabled={locked}
+            className={`m-0 min-w-0 space-y-4 border-0 p-0 ${locked ? "opacity-60" : ""}`}
           >
-            {pending ? "Submitting..." : "Submit RSVP"}
-          </button>
-          {saved && (
-            <button
-              type="button"
-              onClick={() => setMode("view")}
-              className="rounded-md border border-[var(--t-accent)]/30 px-4 py-2.5 text-sm font-medium uppercase tracking-wide text-[var(--t-accent-dark)] transition hover:border-[var(--t-accent-dark)]"
-            >
-              Cancel
-            </button>
-          )}
-        </div>
-      </form>
+            {schema.fields
+              .filter((field) => !(isDeclining && plusOnesField && field.id === plusOnesField.id))
+              // A guest whose identity is already known (invite link, or
+              // already passed the page-level verification gate — see
+              // `identityKnown`) never needs the auto-seeded email field;
+              // it'd just be a confusing extra field to show someone who
+              // doesn't need to fill it in.
+              .filter((field) => !(identityKnown && emailField && field.id === emailField.id))
+              .map((field) => (
+                <DynamicField
+                  key={field.id}
+                  field={field}
+                  value={values[field.id]}
+                  onChange={(next) => setValues((v) => ({ ...v, [field.id]: next }))}
+                />
+              ))}
+
+            {state.status === "error" && <p className="text-sm font-medium text-red-600">{state.message}</p>}
+
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <button
+                type="submit"
+                disabled={pending}
+                className="flex-1 rounded-md bg-[var(--t-accent-dark)] px-4 py-2.5 text-sm font-medium uppercase tracking-wide text-white shadow-sm transition disabled:opacity-50"
+              >
+                {pending ? "Submitting..." : "Submit RSVP"}
+              </button>
+              {saved && (
+                <button
+                  type="button"
+                  onClick={() => setViewMode("view")}
+                  className="rounded-md border border-[var(--t-accent)]/30 px-4 py-2.5 text-sm font-medium uppercase tracking-wide text-[var(--t-accent-dark)] transition hover:border-[var(--t-accent-dark)]"
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+          </fieldset>
+        </form>
+
+        {locked && (
+          // A disabled fieldset alone won't reliably surface "why can't I
+          // click this" — this transparent overlay catches the click
+          // itself (a click landing directly on a disabled control isn't
+          // guaranteed to bubble) and opens the verify modal instead.
+          <button
+            type="button"
+            onClick={() => setShowVerifyModal(true)}
+            aria-label="Verify your email to respond"
+            className="absolute inset-0 z-10 cursor-pointer rounded-lg"
+          />
+        )}
+      </div>
 
       {saved && venueMap}
+
+      {locked && (
+        <EmailVerificationModal eventId={eventId} open={showVerifyModal} onClose={() => setShowVerifyModal(false)} />
+      )}
     </div>
   );
 }

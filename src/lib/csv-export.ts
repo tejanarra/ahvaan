@@ -6,11 +6,19 @@ const UTF8_BOM = "﻿";
 // RFC 4180: a value needs quoting if it contains the delimiter, a quote, or
 // a line break — embedded quotes double up. Everything else is left bare
 // (matches how every spreadsheet app round-trips CSV).
+//
+// Guest names/emails and free-text RSVP answers are guest-authored, not
+// host-authored — a leading `=`, `+`, `-`, or `@` (or tab/CR) is
+// interpreted as a formula prefix by Excel/Sheets when the host opens this
+// export. Prefixing a `'` neutralizes that (spreadsheet apps treat it as
+// "force text" and don't display the quote itself).
+const FORMULA_TRIGGER_CHARS = /^[=+\-@\t\r]/;
 function csvCell(value: string): string {
-  if (/[",\n\r]/.test(value)) {
-    return `"${value.replace(/"/g, '""')}"`;
+  const guarded = FORMULA_TRIGGER_CHARS.test(value) ? `'${value}` : value;
+  if (/[",\n\r]/.test(guarded)) {
+    return `"${guarded.replace(/"/g, '""')}"`;
   }
-  return value;
+  return guarded;
 }
 
 function formatCsvDate(iso: string): string {

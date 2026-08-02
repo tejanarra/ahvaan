@@ -8,9 +8,20 @@ const UTF8_BOM = "﻿";
 // small enough, and specific enough to a different row shape (submissions,
 // not guests), that duplicating this one helper reads clearer than forcing
 // the two csv builders to share it.
+//
+// Every value here originates as free-text guest input (a text/textarea/
+// select-other answer, ...), not host-authored data — a guest can type a
+// leading `=`, `+`, `-`, or `@` (or a tab/CR) that Excel/Sheets interpret
+// as a formula prefix when the host opens the exported CSV, e.g.
+// `=HYPERLINK("https://evil.example","Click")` in a text field. Prefixing
+// a `'` neutralizes that (spreadsheet apps treat it as "force text" and
+// don't display the quote itself) without changing what a normal value
+// looks like once opened.
+const FORMULA_TRIGGER_CHARS = /^[=+\-@\t\r]/;
 function csvCell(value: string): string {
-  if (/[",\n\r]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
-  return value;
+  const guarded = FORMULA_TRIGGER_CHARS.test(value) ? `'${value}` : value;
+  if (/[",\n\r]/.test(guarded)) return `"${guarded.replace(/"/g, '""')}"`;
+  return guarded;
 }
 
 function formatValue(value: unknown): string {

@@ -1,6 +1,7 @@
 import type { EventRecord } from "@/lib/data/events";
 import type { FormSchema, Responses } from "@/lib/schemas/form-schema";
 import type { FormRecord } from "@/lib/data/forms";
+import type { FormResponses } from "@/lib/forms/types";
 
 // Saved reusable components, keyed by name — built once per page render
 // (not queried per block instance). Referenced from any block's HTML via
@@ -14,11 +15,18 @@ export type CustomComponentMap = Record<string, { html: string; css: string; js:
 // each block instance querying its own. See lib/data/forms.ts.
 export type CustomFormMap = Record<string, FormRecord>;
 
+// This guest's own prior submission per form (only populated when an
+// invite is present — 'private' mode's prefill-on-return), keyed by form
+// id — the generic-forms equivalent of `initialResponses` below, which is
+// RSVP-specific. See listSubmissionsForInvitePublic in
+// lib/data/form-submissions.ts.
+export type CustomFormResponsesMap = Record<string, FormResponses>;
+
 // Threaded down to every block's Render component on the public page. Only
-// the rsvp-form block actually needs the guest-specific fields; everything
-// else just reads `event`. `customComponents`/`customForms` are required
-// (default to `{}` at every call site) rather than optional, same as
-// `schema`/`initialResponses`.
+// the rsvp-form/form blocks actually need the guest-specific fields;
+// everything else just reads `event`. `customComponents`/`customForms`/
+// `customFormResponses` are required (default to `{}` at every call site)
+// rather than optional, same as `schema`/`initialResponses`.
 export type PageRenderContext = {
   event: EventRecord;
   inviteId: string | null;
@@ -27,4 +35,13 @@ export type PageRenderContext = {
   initialResponses: Responses | null;
   customComponents: CustomComponentMap;
   customForms: CustomFormMap;
+  customFormResponses: CustomFormResponsesMap;
+  // Set once a no-invite guest has passed the page-level "verify your
+  // email once for this event" gate (src/lib/guest-session.ts's cookie,
+  // read in page.tsx) — every RSVP/Forms block treats this exactly like
+  // having an invite for identity purposes (renders unlocked, prefilled
+  // from their existing response). Null when there's an invite instead
+  // (invite always wins) or when the guest hasn't verified yet — in which
+  // case the block renders its form locked (see rsvp-form.tsx/form.tsx).
+  verifiedEmail: string | null;
 };

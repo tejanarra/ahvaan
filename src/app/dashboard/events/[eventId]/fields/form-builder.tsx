@@ -3,12 +3,20 @@
 import { useState, useTransition, type CSSProperties } from "react";
 import { updateFormSchema } from "../actions";
 import { ConfirmIconButton } from "@/components/confirm-icon-button";
-import { resolveFormSchema, DEFAULT_FORM_SCHEMA } from "@/lib/schemas/form-schema";
-import type { FieldRole, FieldType, FormField, FormSchema } from "@/lib/schemas/form-schema";
+import {
+  resolveFormSchema,
+  DEFAULT_FORM_SCHEMA,
+} from "@/lib/schemas/form-schema";
+import type {
+  FieldRole,
+  FieldType,
+  FormField,
+  FormSchema,
+} from "@/lib/schemas/form-schema";
 import type { EventRecord } from "@/lib/data/events";
 import { resolveThemeColors } from "@/lib/themes";
 import { resolveThemeFonts } from "@/lib/theme-fonts";
-import { RsvpForm } from "@/app/e/[slug]/rsvp-form";
+import { RsvpForm } from "@/app/events/[slug]/rsvp-form";
 import { DEFAULT_POST_SUBMIT_ACTION } from "@/lib/schemas/post-submit-actions";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -33,12 +41,17 @@ const ROLE_LABELS: Record<Exclude<FormField["role"], null>, string> = {
   name: "guest name",
   attending: "attendance",
   plus_ones: "plus-ones list",
+  email: "email verification",
 };
 
 // Order they appear in the default form, and the order re-add buttons show
 // up in — matters for readability, not correctness (role is never inferred
 // from position).
-const BUILT_IN_ROLES: Exclude<FieldRole, null>[] = ["name", "attending", "plus_ones"];
+const BUILT_IN_ROLES: Exclude<FieldRole, null>[] = [
+  "name",
+  "attending",
+  "plus_ones",
+];
 
 function builtInFieldDefaults(role: Exclude<FieldRole, null>): FormField {
   const template = DEFAULT_FORM_SCHEMA.fields.find((f) => f.role === role)!;
@@ -53,13 +66,22 @@ function needsOptions(type: FieldType) {
   return type === "select" || type === "radio" || type === "checkbox";
 }
 
-function FieldEditor({ field, onChange }: { field: FormField; onChange: (next: FormField) => void }) {
+function FieldEditor({
+  field,
+  onChange,
+}: {
+  field: FormField;
+  onChange: (next: FormField) => void;
+}) {
   const locked = field.role !== null;
 
   return (
     <div className="space-y-4">
       <Field label="Label">
-        <Input value={field.label} onChange={(e) => onChange({ ...field, label: e.target.value })} />
+        <Input
+          value={field.label}
+          onChange={(e) => onChange({ ...field, label: e.target.value })}
+        />
       </Field>
 
       {!locked && (
@@ -71,7 +93,9 @@ function FieldEditor({ field, onChange }: { field: FormField; onChange: (next: F
               onChange({
                 ...field,
                 type,
-                options: needsOptions(type) ? field.options ?? ["Option 1", "Option 2"] : undefined,
+                options: needsOptions(type)
+                  ? (field.options ?? ["Option 1", "Option 2"])
+                  : undefined,
               });
             }}
           >
@@ -93,7 +117,10 @@ function FieldEditor({ field, onChange }: { field: FormField; onChange: (next: F
             onChange={(e) =>
               onChange({
                 ...field,
-                options: e.target.value.split("\n").map((v) => v.trim()).filter(Boolean),
+                options: e.target.value
+                  .split("\n")
+                  .map((v) => v.trim())
+                  .filter(Boolean),
               })
             }
             rows={3}
@@ -103,21 +130,30 @@ function FieldEditor({ field, onChange }: { field: FormField; onChange: (next: F
 
       {(field.type === "text" || field.type === "textarea") && (
         <Field label="Placeholder">
-          <Input value={field.placeholder ?? ""} onChange={(e) => onChange({ ...field, placeholder: e.target.value })} />
+          <Input
+            value={field.placeholder ?? ""}
+            onChange={(e) =>
+              onChange({ ...field, placeholder: e.target.value })
+            }
+          />
         </Field>
       )}
 
       {field.type !== "plus_ones" && (
         <label className="flex items-center gap-2 text-sm text-foreground">
-          <Checkbox checked={field.required} onChange={(e) => onChange({ ...field, required: e.target.checked })} />
+          <Checkbox
+            checked={field.required}
+            onChange={(e) => onChange({ ...field, required: e.target.checked })}
+          />
           Required
         </label>
       )}
 
       {locked && (
         <p className="text-xs text-muted">
-          This field powers this event&rsquo;s {ROLE_LABELS[field.role!]} tracking, so its type is locked — you can still
-          relabel it, change whether it&rsquo;s required, or delete it entirely.
+          This field powers this event&rsquo;s {ROLE_LABELS[field.role!]}{" "}
+          tracking, so its type is locked — you can still relabel it, change
+          whether it&rsquo;s required, or delete it entirely.
         </p>
       )}
     </div>
@@ -129,7 +165,13 @@ function FieldEditor({ field, onChange }: { field: FormField; onChange: (next: F
 // hand-maintained lookalike. Submitting is harmless here — eventId/inviteId
 // are made up, so submitRsvp's invite lookup finds nothing and returns its
 // existing "invalid or expired" error state; no real data is ever touched.
-function FormPreview({ event, schema }: { event: EventRecord; schema: FormSchema }) {
+function FormPreview({
+  event,
+  schema,
+}: {
+  event: EventRecord;
+  schema: FormSchema;
+}) {
   const themeColors = resolveThemeColors(event.theme_id, undefined);
   const themeFonts = resolveThemeFonts(event.theme_id);
 
@@ -138,7 +180,7 @@ function FormPreview({ event, schema }: { event: EventRecord; schema: FormSchema
       className={cn(
         "rounded-lg border border-border p-6",
         themeFonts.bodyClassName,
-        themeFonts.displayClassName
+        themeFonts.displayClassName,
       )}
       style={
         {
@@ -157,6 +199,7 @@ function FormPreview({ event, schema }: { event: EventRecord; schema: FormSchema
       <RsvpForm
         eventId="preview"
         inviteId="preview"
+        mode="private"
         schema={schema}
         initialResponses={null}
         guestName="Guest Name"
@@ -168,9 +211,17 @@ function FormPreview({ event, schema }: { event: EventRecord; schema: FormSchema
   );
 }
 
-export function FormBuilder({ event, schema }: { event: EventRecord; schema: FormSchema }) {
+export function FormBuilder({
+  event,
+  schema,
+}: {
+  event: EventRecord;
+  schema: FormSchema;
+}) {
   const [fields, setFields] = useState<FormField[]>(schema.fields);
-  const [editingId, setEditingId] = useState<string | null>(fields[0]?.id ?? null);
+  const [editingId, setEditingId] = useState<string | null>(
+    fields[0]?.id ?? null,
+  );
   const [rightPane, setRightPane] = useState<"edit" | "preview">("edit");
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
@@ -188,7 +239,10 @@ export function FormBuilder({ event, schema }: { event: EventRecord; schema: For
 
   const addField = () => {
     const id = makeFieldId();
-    setFields((f) => [...f, { id, type: "text", label: "New question", role: null, required: false }]);
+    setFields((f) => [
+      ...f,
+      { id, type: "text", label: "New question", role: null, required: false },
+    ]);
     setEditingId(id);
   };
 
@@ -199,7 +253,7 @@ export function FormBuilder({ event, schema }: { event: EventRecord; schema: For
   };
 
   const missingBuiltInRoles = BUILT_IN_ROLES.filter(
-    (role) => !fields.some((f) => f.role === role)
+    (role) => !fields.some((f) => f.role === role),
   );
 
   const removeField = (id: string) => {
@@ -229,7 +283,9 @@ export function FormBuilder({ event, schema }: { event: EventRecord; schema: For
     <div>
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-sm font-semibold text-foreground">RSVP form fields</h2>
+          <h2 className="text-sm font-semibold text-foreground">
+            RSVP form fields
+          </h2>
           <p className="mt-0.5 text-xs text-muted">
             {fields.length === 0
               ? "No fields — guests will see a plain confirm button with no questions."
@@ -244,14 +300,17 @@ export function FormBuilder({ event, schema }: { event: EventRecord; schema: For
         </div>
       </div>
 
-      {error && <p className="mt-3 text-sm font-medium text-destructive">{error}</p>}
+      {error && (
+        <p className="mt-3 text-sm font-medium text-destructive">{error}</p>
+      )}
 
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[360px_1fr] lg:items-start">
         <div className="space-y-2">
           {fields.length === 0 && (
             <p className="rounded-lg border border-dashed border-border px-4 py-3 text-xs text-muted">
-              This form has no questions. Guests will just see a Submit button to confirm they&rsquo;ve seen the
-              invite — no name, attendance, or plus-ones tracked. Add a question below if you want to collect
+              This form has no questions. Guests will just see a Submit button
+              to confirm they&rsquo;ve seen the invite — no name, attendance, or
+              plus-ones tracked. Add a question below if you want to collect
               anything, including who&rsquo;s coming.
             </p>
           )}
@@ -261,10 +320,15 @@ export function FormBuilder({ event, schema }: { event: EventRecord; schema: For
               onClick={() => setEditingId(field.id)}
               className={cn(
                 "flex cursor-pointer items-center gap-2 rounded-lg border p-3 transition-colors",
-                editingId === field.id ? "border-accent bg-accent/5" : "border-border bg-background hover:border-border-strong"
+                editingId === field.id
+                  ? "border-accent bg-accent/5"
+                  : "border-border bg-background hover:border-border-strong",
               )}
             >
-              <div className="flex flex-col" onClick={(e) => e.stopPropagation()}>
+              <div
+                className="flex flex-col"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <button
                   type="button"
                   onClick={() => move(index, -1)}
@@ -287,9 +351,13 @@ export function FormBuilder({ event, schema }: { event: EventRecord; schema: For
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-foreground">
                   {field.label}
-                  {field.required && <span className="ml-1 text-destructive">*</span>}
+                  {field.required && (
+                    <span className="ml-1 text-destructive">*</span>
+                  )}
                 </p>
-                <p className="text-xs text-muted">{FIELD_TYPE_LABELS[field.type]}</p>
+                <p className="text-xs text-muted">
+                  {FIELD_TYPE_LABELS[field.type]}
+                </p>
               </div>
               <div onClick={(e) => e.stopPropagation()}>
                 <ConfirmIconButton
@@ -307,7 +375,9 @@ export function FormBuilder({ event, schema }: { event: EventRecord; schema: For
 
           {missingBuiltInRoles.length > 0 && (
             <div className="rounded-lg border border-border p-3">
-              <p className="text-xs font-medium text-muted">Add back a built-in question</p>
+              <p className="text-xs font-medium text-muted">
+                Add back a built-in question
+              </p>
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {missingBuiltInRoles.map((role) => (
                   <button
@@ -316,7 +386,11 @@ export function FormBuilder({ event, schema }: { event: EventRecord; schema: For
                     onClick={() => addBuiltInField(role)}
                     className="rounded-full border border-border px-3 py-1 text-xs font-medium text-foreground transition hover:border-border-strong hover:bg-surface"
                   >
-                    + {DEFAULT_FORM_SCHEMA.fields.find((f) => f.role === role)!.label}
+                    +{" "}
+                    {
+                      DEFAULT_FORM_SCHEMA.fields.find((f) => f.role === role)!
+                        .label
+                    }
                   </button>
                 ))}
               </div>
@@ -351,10 +425,15 @@ export function FormBuilder({ event, schema }: { event: EventRecord; schema: For
                     <p className="mb-4 text-xs font-medium uppercase tracking-wide text-muted">
                       Editing &ldquo;{editingField.label}&rdquo;
                     </p>
-                    <FieldEditor field={editingField} onChange={(next) => updateField(editingField.id, next)} />
+                    <FieldEditor
+                      field={editingField}
+                      onChange={(next) => updateField(editingField.id, next)}
+                    />
                   </>
                 ) : (
-                  <p className="text-sm text-muted">Select a question on the left to edit it.</p>
+                  <p className="text-sm text-muted">
+                    Select a question on the left to edit it.
+                  </p>
                 )}
               </CardBody>
             </Card>

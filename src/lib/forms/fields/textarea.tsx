@@ -2,7 +2,7 @@
 
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { PublicField, PublicTextarea } from "@/app/events/[slug]/public-field-ui";
 import { BaseConfigFields } from "../field-config-fields";
 import type { TextareaFieldConfig } from "../types";
 
@@ -40,8 +40,8 @@ export function TextareaFieldInput({
   error?: string | null;
 }) {
   return (
-    <Field label={config.label} required={config.required} error={error ?? undefined} hint={config.helpText}>
-      <Textarea
+    <PublicField label={config.label} required={config.required} error={error ?? undefined} hint={config.helpText}>
+      <PublicTextarea
         name={config.id}
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value)}
@@ -50,6 +50,6 @@ export function TextareaFieldInput({
         rows={4}
         invalid={Boolean(error)}
       />
-    </Field>
+    </PublicField>
   );
 }

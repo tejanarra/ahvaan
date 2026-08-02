@@ -60,7 +60,7 @@ export function EventLayoutShell({
             </Badge>
           </div>
           <Link
-            href={eventStatus === "draft" ? `/e/${eventSlug}?preview=1` : `/e/${eventSlug}`}
+            href={eventStatus === "draft" ? `/events/${eventSlug}?preview=1` : `/events/${eventSlug}`}
             target="_blank"
             className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground"
           >
@@ -77,7 +77,11 @@ export function EventLayoutShell({
               {
                 href: base,
                 label: "Guests",
-                isActive: pathname === base || pathname.startsWith(`${base}/fields`) || pathname.startsWith(`${base}/actions`),
+                isActive:
+                  pathname === base ||
+                  pathname.startsWith(`${base}/fields`) ||
+                  pathname.startsWith(`${base}/actions`) ||
+                  pathname.startsWith(`${base}/rsvp-settings`),
               },
               { href: `${base}/design`, label: "Invite page" },
               { href: `${base}/forms`, label: "Forms", isActive: pathname.startsWith(`${base}/forms`) },

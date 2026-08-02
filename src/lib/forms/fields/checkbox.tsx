@@ -1,6 +1,6 @@
 "use client";
 
-import { Checkbox } from "@/components/ui/checkbox";
+import { PublicCheckboxToggle } from "@/app/events/[slug]/public-field-ui";
 import { BaseConfigFields } from "../field-config-fields";
 import type { CheckboxFieldConfig } from "../types";
 
@@ -26,9 +26,9 @@ export function CheckboxFieldInput({
   error?: string | null;
 }) {
   return (
-    <div className="space-y-1.5">
-      <label className="flex items-start gap-2 text-sm text-foreground">
-        <Checkbox
+    <div>
+      <label className="flex items-start gap-2 text-sm text-[var(--t-fg)]">
+        <PublicCheckboxToggle
           className="mt-0.5"
           name={config.id}
           value="true"
@@ -37,11 +37,11 @@ export function CheckboxFieldInput({
         />
         <span>
           {config.label}
-          {config.required && <span className="ml-0.5 text-destructive">*</span>}
+          {config.required && <span className="ml-0.5 text-[var(--t-accent-dark)]">*</span>}
         </span>
       </label>
-      {config.helpText && <p className="pl-6 text-xs text-muted-foreground">{config.helpText}</p>}
-      {error && <p className="pl-6 text-xs text-destructive">{error}</p>}
+      {config.helpText && <p className="mt-1 pl-6 text-xs text-[var(--t-fg)]/60">{config.helpText}</p>}
+      {error && <p className="mt-1 pl-6 text-xs text-red-600">{error}</p>}
     </div>
   );
 }

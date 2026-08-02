@@ -1,8 +1,12 @@
-import { RsvpForm } from "@/app/e/[slug]/rsvp-form";
+import { RsvpForm } from "@/app/events/[slug]/rsvp-form";
 import type { RsvpFormBlockConfig } from "../types";
 import type { PageRenderContext } from "../context";
-import { parsePostSubmitAction, synthesizeLegacyRsvpAction } from "@/lib/schemas/post-submit-actions";
+import {
+  parsePostSubmitAction,
+  synthesizeLegacyRsvpAction,
+} from "@/lib/schemas/post-submit-actions";
 import type { PostSubmitAction } from "@/lib/schemas/post-submit-actions";
+import { parseSubmissionMode } from "@/lib/schemas/submission-mode";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,7 +15,8 @@ const DEFAULT_NO_INVITE_HEADING = "By invitation only";
 const DEFAULT_NO_INVITE_MESSAGE =
   "RSVPs are only accepted through a personal invite link. If you're expecting one, please check with the host.";
 const DEFAULT_DEADLINE_CLOSED_HEADING = "RSVPs are closed";
-const DEFAULT_DEADLINE_CLOSED_MESSAGE = "The RSVP deadline for this event has passed. Please reach out to the host directly if anything's changed.";
+const DEFAULT_DEADLINE_CLOSED_MESSAGE =
+  "The RSVP deadline for this event has passed. Please reach out to the host directly if anything's changed.";
 
 export const rsvpFormDefaultConfig: RsvpFormBlockConfig = {
   heading: "Kindly RSVP",
@@ -31,10 +36,21 @@ export function RsvpFormEdit({
   return (
     <div className="space-y-3">
       <Field label="Heading">
-        <Input type="text" value={config.heading ?? ""} onChange={(e) => onChange({ ...config, heading: e.target.value })} />
+        <Input
+          type="text"
+          value={config.heading ?? ""}
+          onChange={(e) => onChange({ ...config, heading: e.target.value })}
+        />
       </Field>
-      <Field label="Helper text" hint="Shown under the heading, above the form fields.">
-        <Textarea value={config.helperText ?? ""} onChange={(e) => onChange({ ...config, helperText: e.target.value })} rows={3} />
+      <Field
+        label="Helper text"
+        hint="Shown under the heading, above the form fields."
+      >
+        <Textarea
+          value={config.helperText ?? ""}
+          onChange={(e) => onChange({ ...config, helperText: e.target.value })}
+          rows={3}
+        />
       </Field>
 
       <div className="space-y-3 border-t border-border pt-3">
@@ -45,14 +61,18 @@ export function RsvpFormEdit({
           <Input
             type="text"
             value={config.noInviteHeading ?? ""}
-            onChange={(e) => onChange({ ...config, noInviteHeading: e.target.value })}
+            onChange={(e) =>
+              onChange({ ...config, noInviteHeading: e.target.value })
+            }
             placeholder={DEFAULT_NO_INVITE_HEADING}
           />
         </Field>
         <Field label="Message">
           <Textarea
             value={config.noInviteMessage ?? ""}
-            onChange={(e) => onChange({ ...config, noInviteMessage: e.target.value })}
+            onChange={(e) =>
+              onChange({ ...config, noInviteMessage: e.target.value })
+            }
             placeholder={DEFAULT_NO_INVITE_MESSAGE}
             rows={3}
           />
@@ -67,14 +87,18 @@ export function RsvpFormEdit({
           <Input
             type="text"
             value={config.deadlineClosedHeading ?? ""}
-            onChange={(e) => onChange({ ...config, deadlineClosedHeading: e.target.value })}
+            onChange={(e) =>
+              onChange({ ...config, deadlineClosedHeading: e.target.value })
+            }
             placeholder={DEFAULT_DEADLINE_CLOSED_HEADING}
           />
         </Field>
         <Field label="Message">
           <Textarea
             value={config.deadlineClosedMessage ?? ""}
-            onChange={(e) => onChange({ ...config, deadlineClosedMessage: e.target.value })}
+            onChange={(e) =>
+              onChange({ ...config, deadlineClosedMessage: e.target.value })
+            }
             placeholder={DEFAULT_DEADLINE_CLOSED_MESSAGE}
             rows={3}
           />
@@ -82,9 +106,10 @@ export function RsvpFormEdit({
       </div>
 
       <p className="border-t border-border pt-3 text-xs text-muted">
-        What happens right after a guest submits — the heading(s) they see, whether the venue map shows, or a full
-        custom HTML override — now lives in this event&rsquo;s <strong>Guests → Actions</strong> tab, so it&rsquo;s
-        reachable without opening the page builder.
+        What happens right after a guest submits — the heading(s) they see,
+        whether the venue map shows, or a full custom HTML override — now lives
+        in this event&rsquo;s <strong>Guests → Actions</strong> tab, so
+        it&rsquo;s reachable without opening the page builder.
       </p>
     </div>
   );
@@ -123,15 +148,23 @@ export function RsvpFormRender({
   config: RsvpFormBlockConfig;
   ctx: PageRenderContext;
 }) {
-  const { event, inviteId, guestName, schema, initialResponses } = ctx;
+  const { event, inviteId, guestName, schema, initialResponses, verifiedEmail } = ctx;
   const hasInvite = Boolean(inviteId && guestName);
-  const deadlinePassed = Boolean(event.rsvp_deadline) && new Date() > new Date(event.rsvp_deadline!);
+  const mode = parseSubmissionMode(event.submission_mode);
+  const deadlinePassed =
+    Boolean(event.rsvp_deadline) && new Date() > new Date(event.rsvp_deadline!);
 
-  if (!hasInvite) return <InviteOnlyNote config={config} />;
+  // Only 'private' requires a personal invite link — 'anonymous' renders
+  // the form regardless (submitRsvpFromFormData re-checks this
+  // server-side too, this is just the guest-facing gate). 'email_verified'
+  // with no invite renders the form itself, but locked (see RsvpForm's own
+  // `locked` state) until ctx.verifiedEmail is set.
+  if (mode === "private" && !hasInvite) return <InviteOnlyNote config={config} />;
   // A guest who already responded before the deadline can still see their
   // confirmation — the deadline only blocks new responses and further
   // edits, so it doesn't retroactively hide what they already submitted.
-  if (deadlinePassed && !initialResponses) return <DeadlineClosedNote config={config} />;
+  if (deadlinePassed && !initialResponses)
+    return <DeadlineClosedNote config={config} />;
 
   const action: PostSubmitAction = event.rsvp_actions
     ? parsePostSubmitAction(event.rsvp_actions)
@@ -145,22 +178,33 @@ export function RsvpFormRender({
         </h2>
       )}
       {config.helperText && (
-        <p className="mx-auto mt-2 max-w-sm text-center text-sm text-[var(--t-fg)]/75">{config.helperText}</p>
+        <p className="mx-auto mt-2 max-w-sm text-center text-sm text-[var(--t-fg)]/75">
+          {config.helperText}
+        </p>
       )}
       <div className="mt-4">
         <RsvpForm
+          // Forces a clean remount whenever this guest's identity changes
+          // (a different invite, a fresh verified email, or identity
+          // cleared via the "Change email" footer) — otherwise RsvpForm's
+          // own `saved`/`values` state (seeded once from `initialResponses`
+          // at mount) would keep showing the *previous* identity's answers
+          // after router.refresh() re-renders this block with new props on
+          // a component instance React would otherwise consider unchanged.
+          key={inviteId ?? verifiedEmail ?? "anon"}
           eventId={event.id}
-          inviteId={inviteId!}
-          guestName={guestName!}
+          inviteId={inviteId}
+          mode={mode}
+          guestName={guestName ?? undefined}
           schema={schema}
           initialResponses={initialResponses}
           venueName={event.venue_name}
           venueAddress={event.venue_address}
           action={action}
           readOnly={deadlinePassed}
+          identityKnown={hasInvite || Boolean(verifiedEmail)}
         />
       </div>
     </div>
   );
 }
-

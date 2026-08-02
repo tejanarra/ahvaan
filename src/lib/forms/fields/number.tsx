@@ -3,6 +3,7 @@
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { PublicField, PublicInput } from "@/app/events/[slug]/public-field-ui";
 import { BaseConfigFields } from "../field-config-fields";
 import type { NumberFieldConfig } from "../types";
 
@@ -46,8 +47,8 @@ export function NumberFieldInput({
   error?: string | null;
 }) {
   return (
-    <Field label={config.label} required={config.required} error={error ?? undefined} hint={config.helpText}>
-      <Input
+    <PublicField label={config.label} required={config.required} error={error ?? undefined} hint={config.helpText}>
+      <PublicInput
         type="number"
         name={config.id}
         value={value ?? ""}
@@ -58,6 +59,6 @@ export function NumberFieldInput({
         step={config.integer ? 1 : "any"}
         invalid={Boolean(error)}
       />
-    </Field>
+    </PublicField>
   );
 }

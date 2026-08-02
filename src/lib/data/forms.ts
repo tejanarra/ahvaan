@@ -29,7 +29,9 @@ type FormRow = {
 
 // Every raw jsonb column is re-parsed through its validator on the way out
 // — never an `as`-cast (docs/02) — so a hand-edited or since-drifted row
-// can't crash a caller that trusts FormRecord's shape.
+// can't crash a caller that trusts FormRecord's shape. Who's allowed to
+// submit is NOT stored per-form (see events.submission_mode) — every form
+// on an event follows that one event-wide setting.
 function toRecord(row: FormRow): FormRecord {
   return {
     id: row.id,
@@ -76,7 +78,13 @@ export async function createForm(hostId: string, eventId: string, name: string):
   const supabase = createServiceRoleClient();
   const { data, error } = await supabase
     .from("forms")
-    .insert({ host_id: hostId, event_id: eventId, name, schema: { fields: [] }, actions: DEFAULT_POST_SUBMIT_ACTION })
+    .insert({
+      host_id: hostId,
+      event_id: eventId,
+      name,
+      schema: { fields: [] },
+      actions: DEFAULT_POST_SUBMIT_ACTION,
+    })
     .select(COLUMNS)
     .single();
   if (error) {
@@ -138,7 +146,7 @@ export async function deleteForm(hostId: string, eventId: string, formId: string
 }
 
 // Public read for the page-builder embed block's render path (the public
-// guest page, src/app/e/[slug]/page.tsx) — no host filter, matching
+// guest page, src/app/events/[slug]/page.tsx) — no host filter, matching
 // listComponentsForEventPublic's shape. `id` alone is enough to serve
 // (forms are looked up by id from the block's own config), scoping is
 // implicit since a block can only reference a form its own event created.

@@ -1,3 +1,20 @@
+import { headers } from "next/headers";
+
+// Best-effort client identity for throttle keys that have no guest identity
+// to key off of (no invite, no verified email — an 'anonymous'-mode
+// submission). Works from both a Server Action and a Route Handler.
+// `x-forwarded-for` can list multiple hops ("client, proxy1, proxy2");
+// the first is the original client. Falls back to a constant so a request
+// with no forwarding header at all still gets *some* throttle key rather
+// than being exempt from throttling entirely (that fallback key is shared
+// across all such requests, same caveat as this module's per-instance map).
+export async function getClientIp(): Promise<string> {
+  const h = await headers();
+  const forwardedFor = h.get("x-forwarded-for");
+  if (forwardedFor) return forwardedFor.split(",")[0].trim();
+  return h.get("x-real-ip") ?? "unknown";
+}
+
 // A tiny in-memory per-key throttle for public write paths (docs/02 W9,
 // docs/08 "Public write-path limits"). Deliberately not a real rate
 // limiter: it only needs to turn a rapid-fire submit loop into a handful

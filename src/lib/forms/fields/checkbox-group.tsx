@@ -2,7 +2,7 @@
 
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
+import { PublicField, PublicChoiceOption } from "@/app/events/[slug]/public-field-ui";
 import { BaseConfigFields, OptionsListEditor } from "../field-config-fields";
 import type { CheckboxGroupFieldConfig } from "../types";
 
@@ -41,23 +41,35 @@ export function CheckboxGroupFieldInput({
   error?: string | null;
 }) {
   const selected = value ?? [];
+  // Stop the guest from checking past maxSelected client-side, rather than
+  // letting them submit an over-selection that the server then rejects —
+  // the disabled state below is only advisory (the server still enforces
+  // this for real, see CheckboxGroupValidator), but surfacing it here
+  // means a guest can't check option N+1 without first unchecking one.
+  const atMax = Boolean(config.maxSelected) && selected.length >= config.maxSelected!;
   return (
-    <Field label={config.label} required={config.required} error={error ?? undefined} hint={config.helpText}>
-      <div className="space-y-1.5">
-        {config.options.map((option) => (
-          <label key={option} className="flex items-center gap-2 text-sm text-foreground">
-            <Checkbox
+    <PublicField label={config.label} required={config.required} error={error ?? undefined} hint={config.helpText}>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {config.options.map((option) => {
+          const isSelected = selected.includes(option);
+          return (
+            <PublicChoiceOption
+              key={option}
+              active={isSelected}
+              type="checkbox"
               name={config.id}
               value={option}
-              checked={selected.includes(option)}
+              checked={isSelected}
+              disabled={atMax && !isSelected}
               onChange={(e) =>
                 onChange(e.target.checked ? [...selected, option] : selected.filter((v) => v !== option))
               }
-            />
-            {option}
-          </label>
-        ))}
+            >
+              {option}
+            </PublicChoiceOption>
+          );
+        })}
       </div>
-    </Field>
+    </PublicField>
   );
 }

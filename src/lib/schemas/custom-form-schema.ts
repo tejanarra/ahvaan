@@ -52,8 +52,24 @@ const customFormSchemaSchema = z.object({ fields: z.array(customFormFieldSchema)
 // form (a form with zero fields is a legitimate, if unusual, shape — same
 // "empty is honored, only structurally-broken is corrupt" rule
 // resolveFormSchema uses for the RSVP engine) rather than throwing and
-// taking down the page-builder or the public page.
+// taking down the page-builder or the public page. Only for READS of an
+// already-stored row — see parseCustomFormSchemaStrict for writes, where
+// silently substituting the empty schema would wipe the host's fields.
 export function parseCustomFormSchema(raw: unknown): CustomFormSchema {
   const result = customFormSchemaSchema.safeParse(raw);
   return result.success ? (result.data as CustomFormSchema) : EMPTY_CUSTOM_FORM_SCHEMA;
+}
+
+// For WRITES (updateCustomFormSchemaAction) — a schema a host is actively
+// saving must be rejected with a real error on failure, not silently
+// downgraded to `{fields: []}`, or a single out-of-range value (e.g. a
+// negative "Max length") would delete every field in the form.
+export function parseCustomFormSchemaStrict(raw: unknown): CustomFormSchema {
+  const result = customFormSchemaSchema.safeParse(raw);
+  if (!result.success) {
+    const first = result.error.issues[0];
+    const path = first?.path.join(".");
+    throw new Error(path ? `Invalid form field (${path}): ${first.message}` : "Invalid form schema.");
+  }
+  return result.data as CustomFormSchema;
 }

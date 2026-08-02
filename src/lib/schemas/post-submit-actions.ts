@@ -38,7 +38,19 @@ const postSubmitActionSchema = z.discriminatedUnion("kind", [
     showVenue: z.boolean().optional(),
     headingNo: z.string().max(200).optional(),
   }),
-  z.object({ kind: z.literal("redirect"), url: z.string().max(2000) }),
+  z.object({
+    kind: z.literal("redirect"),
+    // Must be an absolute http(s) URL: the guest page does
+    // `window.location.href = action.url` verbatim (rsvp-form.tsx,
+    // post-submit-outcome.tsx) — an empty/blank/schemeless value would
+    // navigate to (or reload) the current page, and on the RSVP form that
+    // re-triggers the same redirect effect on load, looping forever.
+    url: z
+      .string()
+      .min(1)
+      .max(2000)
+      .refine((value) => /^https?:\/\//i.test(value), { message: "Redirect URL must start with http:// or https://" }),
+  }),
   z.object({
     kind: z.literal("custom_html"),
     html: z.string().max(20_000),
@@ -49,10 +61,26 @@ const postSubmitActionSchema = z.discriminatedUnion("kind", [
 
 // Never an `as`-cast: a null/malformed column (every existing event before
 // this feature shipped) falls back to the default plain "Thanks!" message,
-// not an error.
+// not an error. Only for READS of an already-stored column — see
+// parsePostSubmitActionStrict for writes, where silently substituting the
+// default would blow away a host's real custom_html/redirect config.
 export function parsePostSubmitAction(raw: unknown): PostSubmitAction {
   const result = postSubmitActionSchema.safeParse(raw);
   return result.success ? result.data : DEFAULT_POST_SUBMIT_ACTION;
+}
+
+// For WRITES (the Actions tab's save action, both RSVP's and every generic
+// form's) — must reject with a real error on an invalid config, not
+// silently downgrade to DEFAULT_POST_SUBMIT_ACTION, or e.g. a Custom HTML
+// frame height typed above 4000 would erase the host's entire custom
+// confirmation and save the generic default instead.
+export function parsePostSubmitActionStrict(raw: unknown): PostSubmitAction {
+  const result = postSubmitActionSchema.safeParse(raw);
+  if (!result.success) {
+    const first = result.error.issues[0];
+    throw new Error(first?.message ?? "Invalid confirmation config.");
+  }
+  return result.data;
 }
 
 // events.rsvp_actions is null until a host visits the Guests → Actions tab

@@ -1,6 +1,7 @@
 "use client";
 
 import { Field } from "@/components/ui/field";
+import { PublicField, PublicChoiceOption } from "@/app/events/[slug]/public-field-ui";
 import { BaseConfigFields, OptionsListEditor } from "../field-config-fields";
 import type { RadioFieldConfig } from "../types";
 
@@ -25,21 +26,22 @@ export function RadioFieldInput({
   error?: string | null;
 }) {
   return (
-    <Field label={config.label} required={config.required} error={error ?? undefined} hint={config.helpText}>
-      <div className="space-y-1.5">
+    <PublicField label={config.label} required={config.required} error={error ?? undefined} hint={config.helpText}>
+      <div className="mt-2 flex flex-wrap gap-2">
         {config.options.map((option) => (
-          <label key={option} className="flex items-center gap-2 text-sm text-foreground">
-            <input
-              type="radio"
-              name={config.id}
-              checked={value === option}
-              onChange={() => onChange(option)}
-              className="h-4 w-4 accent-accent"
-            />
+          <PublicChoiceOption
+            key={option}
+            active={value === option}
+            type="radio"
+            name={config.id}
+            value={option}
+            checked={value === option}
+            onChange={() => onChange(option)}
+          >
             {option}
-          </label>
+          </PublicChoiceOption>
         ))}
       </div>
-    </Field>
+    </PublicField>
   );
 }

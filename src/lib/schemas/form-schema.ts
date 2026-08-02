@@ -2,11 +2,14 @@ import { MAX_NAME_LENGTH, MAX_GUESTS } from "../rsvp-limits";
 
 export type FieldType = "text" | "textarea" | "select" | "radio" | "checkbox" | "plus_ones";
 
-// Lets the app find "the field that means attending" (or name, or
-// plus-ones) even after a host relabels it — independent of id/label/type.
+// Lets the app find "the field that means attending" (or name, plus-ones,
+// or email) even after a host relabels it — independent of id/label/type.
 // Only one field per event should carry a given non-null role; enforced by
-// whichever action saves the schema, not by this module.
-export type FieldRole = "name" | "attending" | "plus_ones" | null;
+// whichever action saves the schema, not by this module. "email" backs the
+// 'email_verified' submission mode (src/lib/schemas/submission-mode.ts) —
+// auto-seeded into the schema when a host switches to that mode (see
+// ensureEmailField below), not part of the default 3-field form.
+export type FieldRole = "name" | "attending" | "plus_ones" | "email" | null;
 
 export type FormField = {
   id: string;
@@ -69,6 +72,7 @@ const ROLE_CANONICAL_SHAPE: Record<Exclude<FieldRole, null>, Pick<FormField, "ty
   name: { type: "text", options: undefined },
   attending: { type: "radio", options: ["yes", "no"] },
   plus_ones: { type: "plus_ones", options: undefined },
+  email: { type: "text", options: undefined },
 };
 
 export function enforceRoleLock(field: FormField): FormField {
@@ -84,7 +88,13 @@ function isFieldType(value: unknown): value is FieldType {
 }
 
 function isFieldRole(value: unknown): value is FieldRole {
-  return value === null || value === "name" || value === "attending" || value === "plus_ones";
+  return (
+    value === null ||
+    value === "name" ||
+    value === "attending" ||
+    value === "plus_ones" ||
+    value === "email"
+  );
 }
 
 function sanitizeField(raw: unknown): FormField | null {
@@ -134,6 +144,28 @@ export function findFieldByRole(
   role: Exclude<FieldRole, null>
 ): FormField | null {
   return schema.fields.find((f) => f.role === role) ?? null;
+}
+
+// Switching an event's submission mode to 'email_verified' (Guests →
+// Settings) needs a trustworthy email value to dedup/key submissions by —
+// this seeds one automatically (append, not replace) so it's a single host
+// click rather than a second manual "now go add an Email field" step. A
+// no-op if the schema already has one (however it got there).
+//
+// Not marked `required: true`: a guest arriving via their personal invite
+// link is already a known, trusted identity (see rsvp-submit.ts's
+// invite-bypass) and shouldn't be forced to also type an email; the email
+// is only actually required — and then verified with a one-time code — for
+// a guest with no invite link at all. That's enforced at submit time
+// (rsvp-submit.ts), not by this field's own `required` flag.
+export function ensureEmailField(schema: FormSchema): FormSchema {
+  if (findFieldByRole(schema, "email")) return schema;
+  return {
+    fields: [
+      ...schema.fields,
+      { id: "email", type: "text", label: "Email", role: "email", required: false, placeholder: "you@example.com" },
+    ],
+  };
 }
 
 type LegacyRsvpRow = {

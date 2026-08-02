@@ -8,6 +8,7 @@ export type RsvpRecord = {
   event_id: string;
   host_id: string;
   invite_id: string | null;
+  email: string | null;
   name: string;
   attending: boolean;
   additional_guests: string[];
@@ -16,7 +17,7 @@ export type RsvpRecord = {
 };
 
 const COLUMNS =
-  "id, event_id, host_id, invite_id, name, attending, additional_guests, responses, created_at";
+  "id, event_id, host_id, invite_id, email, name, attending, additional_guests, responses, created_at";
 
 export async function listRsvps(hostId: string, eventId: string): Promise<RsvpRecord[]> {
   const supabase = createServiceRoleClient();
@@ -105,28 +106,63 @@ export async function getRsvpForInvitePublic(inviteId: string) {
   return data as Pick<RsvpRecord, "name" | "attending" | "additional_guests" | "responses"> | null;
 }
 
+// Guest-facing "already responded? retrieve it" lookup for the
+// 'email_verified' RSVP mode — same role as
+// form-submissions.ts's getSubmissionForEmailPublic, an explicit guest
+// action, not an automatic page-load lookup, and rate-limited by the
+// caller (src/lib/rsvp-submit.ts's isThrottled).
+export async function getRsvpForEmailPublic(eventId: string, email: string) {
+  const supabase = createServiceRoleClient();
+  const { data, error } = await supabase
+    .from("rsvps")
+    .select("name, attending, additional_guests, responses")
+    .eq("event_id", eventId)
+    .eq("email", email)
+    .maybeSingle();
+  if (error) throw new DataError(error.message);
+  return data as Pick<RsvpRecord, "name" | "attending" | "additional_guests" | "responses"> | null;
+}
+
 export type SubmitRsvpInput = {
   eventId: string;
   hostId: string;
-  inviteId: string;
+  // Exactly one of these is ever set, matching the event's
+  // submission_mode (src/lib/rsvp-submit.ts's mode branch): inviteId
+  // for 'private' (or an invite-holding 'email_verified' guest — see that
+  // file's invite-bypass), email for an un-invited 'email_verified' guest,
+  // neither for 'anonymous'.
+  inviteId?: string | null;
+  email?: string | null;
   responses: Responses;
   scalars: RsvpScalars;
 };
 
-// Upserting on the unique invite_id constraint makes "resubmitting updates
-// the existing row" atomic — a check-then-insert/update pattern here would
-// race under concurrent/duplicate submissions.
+// Upserting on a unique constraint makes "resubmitting updates the
+// existing row" atomic — a check-then-insert/update pattern here would
+// race under concurrent/duplicate submissions. Which constraint depends on
+// which identity this submission carries; 'anonymous' (neither) has no
+// dedup target, so it's a plain insert — every submission is its own row.
 export async function upsertRsvpPublic(input: SubmitRsvpInput) {
   const supabase = createServiceRoleClient();
-  const { error } = await supabase.from("rsvps").upsert(
-    {
-      event_id: input.eventId,
-      host_id: input.hostId,
-      invite_id: input.inviteId,
-      responses: input.responses,
-      ...input.scalars,
-    },
-    { onConflict: "invite_id" }
-  );
+  const row = {
+    event_id: input.eventId,
+    host_id: input.hostId,
+    invite_id: input.inviteId ?? null,
+    email: input.email ?? null,
+    responses: input.responses,
+    ...input.scalars,
+  };
+
+  if (input.inviteId) {
+    const { error } = await supabase.from("rsvps").upsert(row, { onConflict: "invite_id" });
+    if (error) throw new DataError(error.message);
+    return;
+  }
+  if (input.email) {
+    const { error } = await supabase.from("rsvps").upsert(row, { onConflict: "event_id,email" });
+    if (error) throw new DataError(error.message);
+    return;
+  }
+  const { error } = await supabase.from("rsvps").insert(row);
   if (error) throw new DataError(error.message);
 }

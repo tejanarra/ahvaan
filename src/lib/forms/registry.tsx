@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import type { FieldKind, FieldValue, BaseFieldConfig } from "./types";
+import type { FieldKind, FieldValue, BaseFieldConfig, CustomFormSchema } from "./types";
 import type {
   TextFieldConfig,
   TextareaFieldConfig,
@@ -176,4 +176,28 @@ export const FIELD_KINDS: FieldKind[] = [
 export function makeCustomFormField(kind: FieldKind) {
   const def = FIELD_TYPE_REGISTRY[kind];
   return { kind, id: crypto.randomUUID(), ...def.defaultConfig } as const;
+}
+
+// Switching an event's submission mode to 'email_verified' (Guests →
+// Settings — one event-wide setting, applied to every form on the event)
+// needs a trustworthy email value to dedup/key submissions by — this seeds
+// one automatically (append, not replace, fixed id so it's idempotent) so
+// it's a single host click rather than a second manual "now go add an
+// Email field" step per form, mirroring ensureEmailField in
+// src/lib/schemas/form-schema.ts for RSVP. A no-op if the schema already
+// has an email-kind field, however it got there.
+//
+// Not marked `required: true` — same reasoning as ensureEmailField: a
+// guest arriving via their personal invite link is already trusted and
+// shouldn't be forced to type an email too; requiring (and verifying) it
+// only applies to a guest with no invite link, enforced at submit time
+// (form-submit.ts).
+export function ensureCustomFormEmailField(schema: CustomFormSchema): CustomFormSchema {
+  if (schema.fields.some((f) => f.kind === "email")) return schema;
+  return {
+    fields: [
+      ...schema.fields,
+      { kind: "email", id: "email", label: "Email", required: false, placeholder: "you@example.com" },
+    ],
+  };
 }

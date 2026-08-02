@@ -3,6 +3,7 @@
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { PublicField, PublicInput } from "@/app/events/[slug]/public-field-ui";
 import { BaseConfigFields } from "../field-config-fields";
 import type { AddressFieldConfig, AddressValue } from "../types";
 
@@ -44,24 +45,38 @@ export function AddressFieldInput({
   const set = (patch: Partial<AddressValue>) => onChange({ ...address, ...patch });
 
   return (
-    <Field label={config.label} required={config.required} error={error ?? undefined} hint={config.helpText}>
-      <div className="space-y-2">
-        <Input
+    <PublicField label={config.label} required={config.required} error={error ?? undefined} hint={config.helpText}>
+      {/* Every PublicInput bakes in its own top margin, meant for the
+          single-input-directly-under-a-label case every other field kind
+          has — cancelled here (`mt-0`) since this field stacks several
+          inputs, and `space-y-2` on this wrapper already provides the gap
+          between them (plus its own `mt-1.5` for the gap from the label). */}
+      <div className="mt-1.5 space-y-2">
+        <PublicInput
+          className="mt-0"
           name={`${config.id}.line1`}
           placeholder="Street address"
           value={address.line1}
           onChange={(e) => set({ line1: e.target.value })}
           invalid={Boolean(error)}
         />
-        <Input
+        <PublicInput
+          className="mt-0"
           name={`${config.id}.line2`}
           placeholder={config.requireLine2 ? "Apartment / suite / unit" : "Apartment / suite / unit (optional)"}
           value={address.line2 ?? ""}
           onChange={(e) => set({ line2: e.target.value })}
         />
         <div className="grid grid-cols-2 gap-2">
-          <Input name={`${config.id}.city`} placeholder="City" value={address.city} onChange={(e) => set({ city: e.target.value })} />
-          <Input
+          <PublicInput
+            className="mt-0"
+            name={`${config.id}.city`}
+            placeholder="City"
+            value={address.city}
+            onChange={(e) => set({ city: e.target.value })}
+          />
+          <PublicInput
+            className="mt-0"
             name={`${config.id}.state`}
             placeholder="State / province"
             value={address.state}
@@ -69,13 +84,15 @@ export function AddressFieldInput({
           />
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <Input
+          <PublicInput
+            className="mt-0"
             name={`${config.id}.postalCode`}
             placeholder="Postal code"
             value={address.postalCode}
             onChange={(e) => set({ postalCode: e.target.value })}
           />
-          <Input
+          <PublicInput
+            className="mt-0"
             name={`${config.id}.country`}
             placeholder="Country"
             value={address.country}
@@ -83,6 +100,6 @@ export function AddressFieldInput({
           />
         </div>
       </div>
-    </Field>
+    </PublicField>
   );
 }

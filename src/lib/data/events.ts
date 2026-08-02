@@ -31,6 +31,12 @@ export type EventRecord = {
   // rsvp-form.tsx's synthesizeLegacyRsvpAction). Raw/unparsed here, same as
   // form_schema/page_schema — callers parse via parsePostSubmitAction.
   rsvp_actions: unknown;
+  // Who's allowed to submit — one event-wide setting governing BOTH the
+  // RSVP form and every generic Forms form under this event
+  // (src/lib/schemas/submission-mode.ts), not a separate per-form choice.
+  // Raw here like rsvp_actions above, callers parse via parseSubmissionMode.
+  // 'private' (the DB default) matches RSVP's original, only-ever behavior.
+  submission_mode: unknown;
   created_at: string;
 };
 
@@ -43,14 +49,14 @@ export type EventSummary = Pick<
 
 const SUMMARY_COLUMNS = "id, slug, title, event_type, event_date, theme_id, status, created_at";
 const FULL_COLUMNS =
-  "id, host_id, slug, event_type, theme_id, title, subtitle, event_date, event_time, venue_name, venue_address, description, cover_image_url, form_schema, page_schema, status, rsvp_deadline, rsvp_actions, created_at";
+  "id, host_id, slug, event_type, theme_id, title, subtitle, event_date, event_time, venue_name, venue_address, description, cover_image_url, form_schema, page_schema, status, rsvp_deadline, rsvp_actions, submission_mode, created_at";
 // The public page needs `status`/`host_id` only to decide draft visibility
-// (see requireVisiblePublicEvent in src/app/e/[slug]/page.tsx) — never
+// (see requireVisiblePublicEvent in src/app/events/[slug]/page.tsx) — never
 // rendered to a guest. `cover_image_url` is included here (unlike most host-
 // only fields) because generateMetadata reads it straight off this same
 // public row to build the guest page's og:image.
 const PUBLIC_COLUMNS =
-  "id, host_id, slug, event_type, theme_id, title, subtitle, event_date, event_time, venue_name, venue_address, description, cover_image_url, form_schema, page_schema, status, rsvp_deadline, rsvp_actions";
+  "id, host_id, slug, event_type, theme_id, title, subtitle, event_date, event_time, venue_name, venue_address, description, cover_image_url, form_schema, page_schema, status, rsvp_deadline, rsvp_actions, submission_mode";
 
 function slugify(title: string) {
   return title
@@ -152,9 +158,34 @@ export async function getEventBySlugPublic(slug: string): Promise<EventRecord | 
   return getEventBySlugPublicCached(slug);
 }
 
+// For the 'anonymous'/'email_verified' RSVP submission paths (src/lib/rsvp-
+// submit.ts) — those modes have no invite row to resolve host_id from
+// (getInviteForRsvpSubmissionPublic's job for 'private'), so the event
+// itself, looked up by the id the client submitted, is host_id's source
+// instead. Not cached (uncommon path, unlike the real page-render read
+// above) — a plain query is fine here.
+//
+// Filtered to `status = 'published'` like the public page (see
+// requireVisiblePublicEvent) — every caller only uses this to authorize a
+// guest-facing write (RSVP/form submit, email verification request), and a
+// draft event's id is never rendered anywhere a guest can see it, so
+// treating a still-draft event as "not found" here closes off writes
+// against an unpublished event even if its id ever leaked out-of-band.
+export async function getEventByIdPublic(eventId: string): Promise<EventRecord | null> {
+  const supabase = createServiceRoleClient();
+  const { data, error } = await supabase
+    .from("events")
+    .select(PUBLIC_COLUMNS)
+    .eq("id", eventId)
+    .eq("status", "published")
+    .maybeSingle();
+  if (error) throw new DataError(error.message);
+  return data as EventRecord | null;
+}
+
 export function revalidateEventCache(eventId: string, slug: string) {
   revalidateTag(`event:${slug}`, "max");
-  revalidatePath(`/e/${slug}`);
+  revalidatePath(`/events/${slug}`);
   revalidatePath(`/dashboard/events/${eventId}`);
 }
 
@@ -268,6 +299,24 @@ export async function updateRsvpActions(hostId: string, eventId: string, actions
   const { data, error } = await supabase
     .from("events")
     .update({ rsvp_actions: actions })
+    .eq("id", eventId)
+    .eq("host_id", hostId)
+    .select("id, slug")
+    .maybeSingle();
+
+  if (error) throw new DataError(error.message);
+  if (!data) throw new NotFoundError("Event not found.");
+
+  revalidateEventCache(eventId, data.slug as string);
+}
+
+// One event-wide setting governing both RSVP and every generic Forms form
+// under this event — see events.submission_mode's own comment.
+export async function updateSubmissionMode(hostId: string, eventId: string, mode: unknown) {
+  const supabase = createServiceRoleClient();
+  const { data, error } = await supabase
+    .from("events")
+    .update({ submission_mode: mode })
     .eq("id", eventId)
     .eq("host_id", hostId)
     .select("id, slug")

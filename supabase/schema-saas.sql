@@ -66,6 +66,27 @@ create table if not exists public.rsvps (
 create index if not exists rsvps_event_id_idx on public.rsvps(event_id);
 create index if not exists rsvps_host_id_idx on public.rsvps(host_id);
 
+-- Identity for the 'email_verified' submission mode (see
+-- events.rsvp_submission_mode below) — 'private' mode keeps using
+-- invite_id/unique(invite_id) above unchanged; 'anonymous' mode leaves both
+-- null on every row (no dedup). Lowercased/trimmed at write time, same
+-- reasoning as form_submissions.email above.
+alter table public.rsvps add column if not exists email text;
+-- Deliberately NOT a partial index (no `where` clause): Postgres already
+-- treats every NULL as distinct under a plain unique index, so
+-- private/anonymous rows (email always null) never collide on their own —
+-- a partial index isn't needed for that. It matters for a different
+-- reason: Supabase's `.upsert(row, {onConflict:"event_id,email"})` emits a
+-- bare `ON CONFLICT (event_id, email)`, which Postgres only accepts if it
+-- exactly matches an existing constraint/index — a partial index (with a
+-- `where` predicate) doesn't match a predicate-less ON CONFLICT target and
+-- raises 42P10 at write time (this was caught live: every anonymous+email
+-- RSVP/form submission failed with "Something went wrong saving..." until
+-- these were changed to plain indexes).
+drop index if exists public.rsvps_email_unique;
+create unique index if not exists rsvps_email_unique
+  on public.rsvps(event_id, email);
+
 create table if not exists public.email_sends (
   id uuid primary key default gen_random_uuid(),
   invite_id uuid not null references public.invites(id) on delete cascade,
@@ -94,6 +115,45 @@ alter table public.events add column if not exists rsvp_deadline timestamptz;
 -- synthesize the old hardcoded defaults (see rsvp-form.tsx), so existing
 -- events keep rendering identically with no backfill required.
 alter table public.events add column if not exists rsvp_actions jsonb;
+-- Who's allowed to submit — one event-wide setting governing BOTH the RSVP
+-- form and every generic Forms form under this event (see
+-- src/lib/schemas/submission-mode.ts), not a separate per-form choice: if a
+-- host wants email verification, they want it everywhere on the event, not
+-- toggled form-by-form. Originally shipped as `rsvp_submission_mode`
+-- (RSVP-only) before Forms lost its own independent `forms.submission_mode`
+-- column below — renamed once, idempotently, since plain `alter table
+-- rename column` errors if the source column is already gone on a re-run.
+-- 'private' matches the RSVP form's original, only-ever behavior (a
+-- personal invite link is required), so this column changes nothing for
+-- any event that never touches the Guests → Settings tab.
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'events' and column_name = 'rsvp_submission_mode'
+  ) and not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'events' and column_name = 'submission_mode'
+  ) then
+    alter table public.events rename column rsvp_submission_mode to submission_mode;
+  end if;
+end $$;
+alter table public.events add column if not exists submission_mode text not null default 'private';
+-- App-level validation (parseSubmissionMode) already rejects anything else
+-- before a write, but a DB-level constraint means a bad value can't land
+-- here through any other path (a manual query, a future migration bug)
+-- either. `not valid` skipped deliberately isn't needed here since this
+-- column's default/every app write is already one of these three values.
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'events_submission_mode_check'
+  ) then
+    alter table public.events
+      add constraint events_submission_mode_check
+      check (submission_mode in ('private', 'anonymous', 'email_verified'));
+  end if;
+end $$;
 
 alter table public.events enable row level security;
 alter table public.invites enable row level security;
@@ -152,6 +212,13 @@ create index if not exists forms_host_id_idx on public.forms(host_id);
 create index if not exists forms_event_id_idx on public.forms(event_id);
 alter table public.forms enable row level security;
 
+-- Forms briefly had its own `submission_mode` column here; dropped in favor
+-- of one event-wide setting (events.submission_mode above) shared with
+-- RSVP — a host who wants email verification wants it for every form on
+-- the event, not toggled per-form. `if exists` so re-running this file is
+-- a no-op once already dropped.
+alter table public.forms drop column if exists submission_mode;
+
 create table if not exists public.form_submissions (
   id uuid primary key default gen_random_uuid(),
   form_id uuid not null references public.forms(id) on delete cascade,
@@ -167,6 +234,95 @@ create table if not exists public.form_submissions (
 create index if not exists form_submissions_form_id_idx on public.form_submissions(form_id);
 create index if not exists form_submissions_host_id_idx on public.form_submissions(host_id);
 alter table public.form_submissions enable row level security;
+
+-- Same "added after the table already shipped" story as forms.
+-- submission_mode above — identity for 'private'/'email_verified' modes,
+-- both null for 'anonymous' (no dedup, every submit is a fresh row).
+-- Always lowercased/trimmed at write time so the plain (non-expression)
+-- unique index below works as a case-insensitive dedup key — Postgrest's
+-- upsert `onConflict` can only target real columns, not `lower(email)`.
+alter table public.form_submissions add column if not exists invite_id uuid references public.invites(id) on delete set null;
+alter table public.form_submissions add column if not exists email text;
+-- One submission per invite (private mode) / per email (email_verified
+-- mode) — plain (non-partial) indexes, not partial ones: Postgres already
+-- treats every NULL as distinct under a plain unique index, so unlimited
+-- anonymous-mode rows (both columns null) are unaffected without needing a
+-- `where` predicate. A partial index breaks Supabase's
+-- `.upsert(row, {onConflict:"..."})`, which emits a bare `ON CONFLICT
+-- (cols)` that only matches a predicate-less constraint/index — see the
+-- matching comment above rsvps_email_unique for the live failure this caused.
+drop index if exists public.form_submissions_invite_unique;
+drop index if exists public.form_submissions_email_unique;
+create unique index if not exists form_submissions_invite_unique
+  on public.form_submissions(form_id, invite_id);
+create unique index if not exists form_submissions_email_unique
+  on public.form_submissions(form_id, email);
+-- Every public page render batches submissions across every form on the
+-- event in one query (listSubmissionsForInvitePublic/
+-- listSubmissionsForEmailPublic in src/lib/data/form-submissions.ts),
+-- filtered by (event_id, invite_id)/(event_id, email) — neither is served
+-- by the per-form unique indexes above (those lead with form_id, not
+-- event_id), so this is the hottest guest-facing read on the table.
+create index if not exists form_submissions_event_invite_idx
+  on public.form_submissions(event_id, invite_id);
+create index if not exists form_submissions_event_email_idx
+  on public.form_submissions(event_id, email);
+
+-- Guest-facing OTP verification for the 'email_verified' submission mode
+-- (RSVP and generic Forms both use this one table). Genuinely proves the
+-- guest controls the email they typed, unlike a bare email string: a
+-- 6-digit code is emailed out, and the pending submission (or, for a
+-- lookup, nothing — just the fact of matching an existing row) is only
+-- acted on once the guest echoes that code back. `payload` carries the
+-- fully-built responses/scalars for a 'submit' verification so the guest
+-- doesn't have to re-enter their answers after checking their inbox; it's
+-- null for an 'identity' verification, which only proves email ownership
+-- (src/lib/guest-verification.ts) — nothing to write yet, and no payload
+-- to leak if consumed through the wrong purpose (see the `purpose` filter
+-- in verifyCode/src/lib/data/email-verification.ts). No `host_id` — this
+-- is a pre-auth, guest-only artifact, never queried by the dashboard.
+create table if not exists public.email_verification_codes (
+  id uuid primary key default gen_random_uuid(),
+  subject_type text not null, -- 'rsvp' | 'form'
+  subject_id uuid not null,   -- events.id (rsvp) or forms.id (form)
+  purpose text not null,      -- 'submit' | 'identity'
+  email text not null,
+  code_hash text not null,
+  payload jsonb,
+  attempts int not null default 0,
+  expires_at timestamptz not null,
+  consumed_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'email_verification_codes_subject_type_check'
+  ) then
+    alter table public.email_verification_codes
+      add constraint email_verification_codes_subject_type_check
+      check (subject_type in ('rsvp', 'form'));
+  end if;
+  if not exists (
+    select 1 from pg_constraint where conname = 'email_verification_codes_purpose_check'
+  ) then
+    alter table public.email_verification_codes
+      add constraint email_verification_codes_purpose_check
+      check (purpose in ('submit', 'identity'));
+  end if;
+end $$;
+
+create index if not exists email_verification_codes_lookup_idx
+  on public.email_verification_codes(subject_type, subject_id, email, purpose);
+-- Served by nothing above: createVerificationCode's best-effort prune
+-- sweep (src/lib/data/email-verification.ts) deletes by `created_at`
+-- alone, on every single code creation — without this index that's a
+-- full table scan each time.
+create index if not exists email_verification_codes_created_at_idx
+  on public.email_verification_codes(created_at);
+
+alter table public.email_verification_codes enable row level security;
 
 -- Phase 4: host-uploaded images (hero cover, Image block). Public-read (a
 -- public bucket serves objects straight from its public URL, no auth

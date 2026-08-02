@@ -9,7 +9,7 @@ export function buildInviteLink(eventSlug: string, inviteId: string, origin?: st
     throw new Error("buildInviteLink requires an explicit origin outside the browser.");
   }
 
-  const url = new URL(`/e/${eventSlug}`, base);
+  const url = new URL(`/events/${eventSlug}`, base);
   url.searchParams.set("i", inviteId);
   return url.toString();
 }

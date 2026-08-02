@@ -50,15 +50,22 @@ export function PostSubmitOutcome({
   venueAddress?: string | null;
 }) {
   // Hooks can't be called conditionally — this effect always runs, and
-  // only *acts* when the resolved action is a redirect.
+  // only *acts* when the resolved action is a redirect with a usable URL.
+  // Guards against a blank/schemeless URL the same way rsvp-form.tsx does:
+  // `window.location.href = ""` would just reload the current page.
+  const hasValidRedirectUrl = action.kind === "redirect" && /^https?:\/\//i.test(action.url);
   useEffect(() => {
-    if (action.kind === "redirect") {
+    if (action.kind === "redirect" && hasValidRedirectUrl) {
       window.location.href = action.url;
     }
-  }, [action]);
+  }, [action, hasValidRedirectUrl]);
+
+  if (action.kind === "redirect" && hasValidRedirectUrl) {
+    return <p className="w-full text-center text-sm text-[var(--t-fg)]/70">Redirecting…</p>;
+  }
 
   if (action.kind === "redirect") {
-    return <p className="w-full text-center text-sm text-[var(--t-fg)]/70">Redirecting…</p>;
+    return <p className="w-full text-center text-sm text-[var(--t-fg)]">Thanks — your response has been recorded.</p>;
   }
 
   if (action.kind === "custom_html") {

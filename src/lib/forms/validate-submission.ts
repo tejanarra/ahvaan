@@ -3,6 +3,16 @@ import { FIELD_TYPE_REGISTRY } from "./registry";
 
 const DEFAULT_MAX_LENGTH = 500;
 const MAX_ADDRESS_PART_LENGTH = 200;
+// Sanitization ceiling for text/textarea, independent of the host's own
+// (optional) "Max length" field setting — that setting is enforced by
+// TextValidator as a real, reportable error, not by truncating here.
+// Truncating to a host-configured maxLength (or the old DEFAULT_MAX_LENGTH
+// fallback) at this stage would silently drop everything past the limit
+// with no error shown to the guest, and would make TextValidator's own
+// length check unreachable dead code. This is only a belt-and-suspenders
+// anti-abuse ceiling — assertWithinSizeBudget (64 KB per submission) is the
+// real backstop.
+const UNBOUNDED_TEXT_MAX_LENGTH = 20_000;
 
 function sanitizeScalar(value: FormDataEntryValue | null, maxLength: number): string {
   return String(value ?? "").trim().slice(0, maxLength);
@@ -31,9 +41,16 @@ export function buildCustomFormResponsesFromFormData(schema: CustomFormSchema, f
   for (const field of schema.fields) {
     switch (field.kind) {
       case "checkbox_group": {
+        // Not capped to field.maxSelected here — an over-selection must
+        // reach CheckboxGroupValidator so it's rejected with a real error,
+        // not silently dropped down to the cap (a guest who checked 4 of 5
+        // options on a maxSelected:2 field should see why their submission
+        // failed, not get a success screen for a submission missing 2 of
+        // their answers). Only capped defensively at the option count,
+        // since more distinct selections than options exist can't be
+        // legitimate no matter what maxSelected says.
         const raw = formData.getAll(field.id).map(String);
-        const cap = field.maxSelected ?? field.options.length;
-        responses[field.id] = Array.from(new Set(raw)).slice(0, cap);
+        responses[field.id] = Array.from(new Set(raw)).slice(0, field.options.length);
         break;
       }
       case "checkbox":
@@ -44,7 +61,13 @@ export function buildCustomFormResponsesFromFormData(schema: CustomFormSchema, f
         break;
       case "text":
       case "textarea":
-        responses[field.id] = sanitizeScalar(formData.get(field.id), field.maxLength ?? DEFAULT_MAX_LENGTH);
+        // Not capped to field.maxLength here (even when the host set one)
+        // — an over-length value must reach TextValidator so it's rejected
+        // with a real error, not silently truncated with no indication
+        // anything was lost. Only capped at the generous anti-abuse
+        // ceiling (UNBOUNDED_TEXT_MAX_LENGTH); assertWithinSizeBudget is
+        // the real backstop against a giant payload.
+        responses[field.id] = sanitizeScalar(formData.get(field.id), UNBOUNDED_TEXT_MAX_LENGTH);
         break;
       default:
         responses[field.id] = sanitizeScalar(formData.get(field.id), DEFAULT_MAX_LENGTH);

@@ -2,6 +2,7 @@
 
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { PublicField, PublicInput } from "@/app/events/[slug]/public-field-ui";
 import { BaseConfigFields } from "../field-config-fields";
 import type { TextFieldConfig } from "../types";
 
@@ -33,8 +34,8 @@ export function TextFieldInput({
   error?: string | null;
 }) {
   return (
-    <Field label={config.label} required={config.required} error={error ?? undefined} hint={config.helpText}>
-      <Input
+    <PublicField label={config.label} required={config.required} error={error ?? undefined} hint={config.helpText}>
+      <PublicInput
         name={config.id}
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value)}
@@ -42,6 +43,6 @@ export function TextFieldInput({
         maxLength={config.maxLength}
         invalid={Boolean(error)}
       />
-    </Field>
+    </PublicField>
   );
 }
