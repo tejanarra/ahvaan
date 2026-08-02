@@ -14,4 +14,6 @@
 
 8. setup privacy policy or other pages which are standardly required with standard information properly added which is needed for my application.
 
-9. rebrand typo ahvan to ahvaan.
+9. rebrand typo ahvaan to ahvaan.
+
+10. urls naming are they correct or standard practices or the right way being built ?

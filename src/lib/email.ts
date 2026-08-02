@@ -84,10 +84,10 @@ function emailShell(event: EventRecord, invite: InviteEmailTarget, heading: stri
       <table role="presentation" style="margin-top: 16px;">
         <tr>
           <td style="vertical-align: middle; padding-right: 6px;">
-            <a href="${siteUrl}"><img src="${siteUrl}/icon.png" width="18" height="18" alt="Ahvan" style="display: block;" /></a>
+            <a href="${siteUrl}"><img src="${siteUrl}/icon.png" width="18" height="18" alt="ahvaan" style="display: block;" /></a>
           </td>
           <td style="vertical-align: middle;">
-            <a href="${siteUrl}" style="font-size: 12px; color: ${MUTED}; text-decoration: none;">Sent via Ahvan — create your own invite</a>
+            <a href="${siteUrl}" style="font-size: 12px; color: ${MUTED}; text-decoration: none;">Sent via ahvaan — create your own invite</a>
           </td>
         </tr>
       </table>
@@ -175,10 +175,10 @@ export async function deliverVerificationEmail(email: string, verifyUrl: string,
       <table role="presentation" style="margin-top: 16px;">
         <tr>
           <td style="vertical-align: middle; padding-right: 6px;">
-            <a href="${siteUrl}"><img src="${siteUrl}/icon.png" width="18" height="18" alt="Ahvan" style="display: block;" /></a>
+            <a href="${siteUrl}"><img src="${siteUrl}/icon.png" width="18" height="18" alt="ahvaan" style="display: block;" /></a>
           </td>
           <td style="vertical-align: middle;">
-            <a href="${siteUrl}" style="font-size: 12px; color: ${MUTED}; text-decoration: none;">Sent via Ahvan</a>
+            <a href="${siteUrl}" style="font-size: 12px; color: ${MUTED}; text-decoration: none;">Sent via ahvaan</a>
           </td>
         </tr>
       </table>

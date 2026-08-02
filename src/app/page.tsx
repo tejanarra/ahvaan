@@ -55,7 +55,7 @@ function InviteVignette() {
         </span>
       </div>
       <div className="mt-3 flex items-center gap-2 rounded-lg bg-surface-sunken px-3 py-2">
-        <p className="flex-1 truncate font-mono text-[11px] text-muted">ahvan.app/e/maya-julien?i=8f2…</p>
+        <p className="flex-1 truncate font-mono text-[11px] text-muted">ahvaan.app/e/maya-julien?i=8f2…</p>
         <span className="text-xs font-semibold text-accent">Copy</span>
       </div>
     </div>
@@ -103,7 +103,7 @@ export default function Home() {
       {/* Navbar */}
       <header className="sticky top-0 z-40 border-b border-border/70 bg-background/85 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
-          <Link href="/" aria-label="Ahvan home">
+          <Link href="/" aria-label="ahvaan home">
             <BrandLockup />
           </Link>
           <nav className="flex items-center gap-1.5 sm:gap-3">
@@ -128,7 +128,7 @@ export default function Home() {
               Design the <em className="text-accent">invitation</em>. Share one link. Watch the RSVPs arrive.
             </h1>
             <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-muted lg:mx-0">
-              Ahvan gives every event a beautiful, fully-customizable page — with built-in
+              ahvaan gives every event a beautiful, fully-customizable page — with built-in
               RSVPs your guests can answer in seconds.
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
@@ -300,10 +300,18 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="border-t border-border">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 py-8 sm:flex-row sm:px-6">
-          <BrandLockup markClassName="h-4 w-4" textClassName="text-sm" />
-          <p className="text-xs text-muted">© {new Date().getFullYear()} Ahvan</p>
-          <nav className="flex items-center gap-4 text-sm">
+        {/* `grid-cols-[1fr_auto_1fr]` (not `flex justify-between`) so the
+            copyright line sits at the row's true center regardless of how
+            wide the logo vs. nav columns are — `justify-between` only
+            centers a middle flex child when its two neighbors happen to be
+            equal width, which they aren't here (logo lockup vs. 4 nav
+            links), so the copyright text visibly drifted off-center. */}
+        <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-4 px-4 py-8 sm:grid-cols-[1fr_auto_1fr] sm:px-6">
+          <div className="flex justify-center sm:justify-start">
+            <BrandLockup markClassName="h-4 w-4" textClassName="text-sm" />
+          </div>
+          <p className="text-center text-xs text-muted">© {new Date().getFullYear()} ahvaan</p>
+          <nav className="flex items-center justify-center gap-4 text-sm sm:justify-self-end">
             <Link href="/privacy" className="text-muted hover:text-foreground">
               Privacy
             </Link>

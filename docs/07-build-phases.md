@@ -44,7 +44,7 @@ Theme system v2: `fonts` + optional `texture` on `Theme`, 4 new themes
 (Garden Party, Ocean Air, Fiesta, Ink & Blush), `--t-font-*` vars, fonts
 loaded only on Stage routes + builder preview. Guest-page block polish
 pass (hero fluid display type, RSVP form controls on theme tokens,
-countdown tabular digits, map mask, footer "Made with Ahvan" line).
+countdown tabular digits, map mask, footer "Made with Ahvaan" line).
 Builder UX consolidation: Style panel (Blocks/Style tabs; Theme + Page
 scopes; custom-code presented as one feature), device-width preview
 toggle, form-builder live preview, editor top-bar with unsaved-dot Save.

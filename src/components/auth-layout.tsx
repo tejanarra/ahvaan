@@ -60,7 +60,7 @@ export function AuthLayout({
       <StageVignette />
       <div className="flex items-center justify-center px-4 py-10 sm:px-6">
         <div className="w-full max-w-sm">
-          <Link href="/" className="inline-flex" aria-label="Ahvan home">
+          <Link href="/" className="inline-flex" aria-label="ahvaan home">
             <BrandLockup />
           </Link>
           <h1 className="mt-8 text-3xl text-foreground font-display">

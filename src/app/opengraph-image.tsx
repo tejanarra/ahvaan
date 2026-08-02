@@ -4,7 +4,7 @@ import { getTheme } from "@/lib/themes";
 // No `runtime = "edge"` — this image is fully static (no per-request
 // data), so the default Node runtime lets Next prerender it once at build
 // time instead of regenerating it on every request.
-export const alt = "Ahvan — RSVP made easy";
+export const alt = "ahvaan — RSVP made easy";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -60,7 +60,7 @@ export default async function OpengraphImage() {
               color: theme.colors.foreground,
             }}
           >
-            Ahvan
+            ahvaan
           </div>
           <div
             style={{

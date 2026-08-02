@@ -23,7 +23,7 @@ export default function GlobalError({
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-background px-4 text-center">
-      <Link href="/" aria-label="Ahvan home">
+      <Link href="/" aria-label="ahvaan home">
         <BrandLockup />
       </Link>
       <div className="space-y-2">

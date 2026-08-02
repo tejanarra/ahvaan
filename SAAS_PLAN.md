@@ -574,13 +574,13 @@ Standard git commands (`git add`, `git commit`, `git push`, `git log`) work
 normally from within this folder against the `saas` branch, same as any
 other checkout.
 
-## Status: docs/ planning folder + Ahvan rebrand assets (2026-07-30)
+## Status: docs/ planning folder + Ahvaan rebrand assets (2026-07-30)
 
 - Added `docs/` (01–09 + README): the canonical forward-looking plan
   (architecture review/target, Phase-0 restructure spec, design system,
   page blueprints, home page, phase plan with gates, production checklist,
   brand doc). `CLAUDE.md` at the repo root points every future session at it.
-- Product renamed **Invitely → Ahvan** (host's pick after a web-verified
+- Product renamed **Invitely → Ahvaan** (host's pick after a web-verified
   naming audit — full candidate/rejection table in
   `docs/09-brand-and-favicon.md`; "Invitely" collides with existing RSVP
   apps on both app stores).
@@ -589,7 +589,7 @@ other checkout.
   (180) replacing the old wedding icons; `src/components/brand.tsx`
   (BrandMark + BrandLockup, Fraunces wordmark via new `--font-fraunces` in
   the root layout) used in the dashboard header, landing header, and auth
-  pages; root metadata now Ahvan (old wedding OG image and unused
+  pages; root metadata now Ahvaan (old wedding OG image and unused
   wedding photos in `public/` deleted).
 
 ## Status: Phase 0 — foundation refactor (2026-07-30)
@@ -765,7 +765,7 @@ that item is already satisfied.
   (`rounded-lg` → `rounded-2xl`). RSVP form inputs/buttons were already
   themed on `--t-*` tokens from earlier work, so no change needed there.
 - **Footer line**: every guest page now ends with a discreet "Made with
-  Ahvan" line linking home, themed to the event's own colors (per
+  Ahvaan" line linking home, themed to the event's own colors (per
   docs/05's nav rule: guest pages carry no Studio chrome except this one
   line).
 

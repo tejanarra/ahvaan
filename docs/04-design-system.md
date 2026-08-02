@@ -1,6 +1,6 @@
 # 04 — Design System: Theory & Specification
 
-A totally custom design language for Ahvan, replacing the current
+A totally custom design language for Ahvaan, replacing the current
 generic zinc-plus-indigo utility styling. This doc is the **single source of
 truth for every visual decision**. If it's not here, it doesn't ship; extend
 this doc first.
@@ -9,7 +9,7 @@ this doc first.
 
 ### The one governing idea: **Studio & Stage**
 
-Ahvan is two products wearing one brand:
+Ahvaan is two products wearing one brand:
 
 - **The Studio** — the host dashboard. A *tool*. Its job is to make the
   host's content the loudest thing on screen. Theory: calm, dense-but-airy,
@@ -42,16 +42,16 @@ itself is briefly the product on stage.
 
 ## Brand foundation
 
-- **Name/wordmark**: “ahvan” set in the display serif (see Typography),
+- **Name/wordmark**: “ahvaan” set in the display serif (see Typography),
   all-lowercase, −0.02em tracking, the final “e” carrying Fraunces's WONK-axis
   letterform, preceded by the mark: a tilted rounded-rectangle “reply card”
   glyph with a wax-seal dot (full geometry in doc 09). (SVG, currentColor —
   so it works in any theme.) In running prose the name is capitalized:
-  Ahvan.
+  Ahvaan.
 - **Voice**: warm, brief, second-person. “Your guests”, “Share your page”.
   Never exclamation-mark enthusiasm; never enterprise jargon.
 
-### Signature style moves (what makes Ahvan look like *only* Ahvan)
+### Signature style moves (what makes Ahvaan look like *only* Ahvaan)
 
 The aesthetic is **modern stationery**: editorial serif elegance on warm
 paper, executed with tool-grade restraint. Five recurring signatures, used

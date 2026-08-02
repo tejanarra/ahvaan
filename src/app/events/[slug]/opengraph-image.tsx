@@ -112,7 +112,7 @@ export default async function EventOpengraphImage({ params }: { params: Promise<
               letterSpacing: 2,
             }}
           >
-            RSVP on Ahvan
+            RSVP on ahvaan
           </div>
         </div>
       </div>
@@ -144,7 +144,7 @@ function GenericCard() {
           color: "#FBFAF8",
         }}
       >
-        Ahvan
+        ahvaan
         <div style={{ marginTop: 16, fontSize: 26, color: "#7FB394", letterSpacing: 3, textTransform: "uppercase" }}>
           You&apos;re invited
         </div>

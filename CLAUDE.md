@@ -1,4 +1,4 @@
-# Ahvan (branch `saas`)
+# Ahvaan (branch `saas`)
 
 Multi-tenant event-invitation SaaS (Next.js 16 + Supabase + Resend).
 

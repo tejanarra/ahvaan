@@ -10,15 +10,15 @@ export const metadata = { title: "Privacy Policy" };
 export default function PrivacyPolicyPage() {
   return (
     <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6">
-      <Link href="/" aria-label="Ahvan home" className="inline-flex">
+      <Link href="/" aria-label="ahvaan home" className="inline-flex">
         <BrandLockup />
       </Link>
       <h1 className="mt-8 text-3xl text-foreground font-display">Privacy Policy</h1>
-      <p className="mt-2 text-sm text-muted">Last updated: 2026-07-30</p>
+      <p className="mt-2 text-sm text-muted">Last updated: 2026-08-02</p>
 
       <div className="mt-8 space-y-6 text-sm leading-relaxed text-foreground">
         <p>
-          Ahvan is an event-invitation tool: a host creates an event page, invites guests with
+          ahvaan is an event-invitation tool: a host creates an event page, invites guests with
           personal links, and collects their RSVPs. This page explains what information we collect
           and why.
         </p>
@@ -35,7 +35,9 @@ export default function PrivacyPolicyPage() {
             <strong>Guests.</strong> When a host creates an invite, we store the name (and, if the
             host adds it, an email address) they gave you. When a guest submits an RSVP, we store
             whatever answers the form asks for — typically a name, attendance, and any custom
-            questions the host added.
+            questions the host added. If a host turns on email verification for an event, we
+            temporarily store the email address a guest enters and a one-time verification code sent
+            to it — the code expires shortly after it&rsquo;s issued, whether or not it&rsquo;s used.
           </p>
           <p className="mt-2">
             <strong>We do not</strong> run advertising or analytics trackers, sell or share data with
@@ -57,16 +59,20 @@ export default function PrivacyPolicyPage() {
           <h2 className="text-base font-semibold">Where it&rsquo;s stored</h2>
           <p className="mt-2">
             All data is stored in a Supabase (PostgreSQL) database. Emails are sent through Resend.
-            Neither is used for any purpose beyond operating Ahvan on our behalf.
+            Neither is used for any purpose beyond operating ahvaan on our behalf.
           </p>
         </section>
 
         <section>
           <h2 className="text-base font-semibold">Cookies</h2>
           <p className="mt-2">
-            We use one cookie to keep a host signed in (an authentication session cookie). We don&rsquo;t
-            use tracking or advertising cookies. Guests never need an account and are never
-            cookied — a guest RSVP link identifies them, not a cookie.
+            We use one cookie to keep a host signed in (an authentication session cookie). Guests
+            never need an account, and a guest who RSVPs via a personal invite link is never
+            cookied — the link itself identifies them. If a host turns on email verification for an
+            event that doesn&rsquo;t require invite links, a guest who verifies their email is given one
+            additional cookie for that event, so they aren&rsquo;t asked to re-verify on a later visit; it
+            expires automatically and can be cleared at any time from that event&rsquo;s page. We don&rsquo;t
+            use tracking or advertising cookies.
           </p>
         </section>
 
@@ -90,8 +96,11 @@ export default function PrivacyPolicyPage() {
         <section>
           <h2 className="text-base font-semibold">Contact</h2>
           <p className="mt-2">
-            Questions about this policy or your data — reach out to the person or team operating this
-            Ahvan instance.
+            Questions about this policy, or a request about your data — email{" "}
+            <a href="mailto:support@ahvaan.tejanarra.space" className="text-accent hover:underline">
+              support@ahvaan.tejanarra.space
+            </a>
+            .
           </p>
         </section>
       </div>

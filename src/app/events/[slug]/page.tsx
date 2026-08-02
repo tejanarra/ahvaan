@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { BrandLockup } from "@/components/brand";
 import { getEventBySlugPublic } from "@/lib/data/events";
 import { getInvitePublic } from "@/lib/data/invites";
 import { getRsvpForInvitePublic } from "@/lib/data/rsvps";
@@ -64,7 +65,7 @@ export async function generateMetadata({
   const event = await getEventBySlugPublic(slug);
 
   if (!event || event.status === "draft") {
-    return { title: "Ahvan", robots: { index: false, follow: false } };
+    return { title: "ahvaan", robots: { index: false, follow: false } };
   }
 
   const title = event.title;
@@ -82,7 +83,7 @@ export async function generateMetadata({
     robots: { index: false, follow: false },
     openGraph: {
       type: "website",
-      siteName: "Ahvan",
+      siteName: "ahvaan",
       title,
       description,
       images: [{ url: image, width: 1200, height: 630 }],
@@ -245,10 +246,10 @@ export default async function PublicEventPage({
         />
         <Link
           href="/"
-          className="fixed bottom-4 right-4 z-10 flex items-center gap-2 rounded-full border border-[#E7E4DD] bg-white/95 px-4 py-2 text-sm font-medium tracking-wide text-[#211E19]/80 shadow-md backdrop-blur hover:text-[#211E19]"
+          className="fixed bottom-4 right-4 z-10 flex items-center gap-1.5 rounded-full border border-[#E7E4DD] bg-white/95 px-4 py-2 text-sm font-medium tracking-wide text-[#211E19]/80 shadow-md backdrop-blur hover:text-[#211E19]"
         >
-          <img src="/mark-black.svg" alt="" className="h-5 w-5" />
-          Made with Ahvan
+          Made with
+          <BrandLockup className="inline-flex items-center gap-1 text-foreground" markClassName="h-4 w-4" textClassName="text-sm font-medium" />
         </Link>
       </>
     );
@@ -294,11 +295,14 @@ export default async function PublicEventPage({
       {verifiedEmail && <GuestIdentityFooter eventId={event.id} email={verifiedEmail} />}
       <Link
         href="/"
-        className="flex items-center justify-center gap-2 pb-8 text-sm tracking-wide text-[var(--t-fg)]/60 hover:text-[var(--t-fg)]/90"
+        className="flex items-center justify-center gap-1.5 pb-8 text-sm tracking-wide text-[var(--t-fg)]/60 hover:text-[var(--t-fg)]/90"
       >
-        <img src="/mark-black.svg" alt="" className="h-5 w-5 opacity-70" />
-        Made with{" "}
-        <span className="font-display underline decoration-dotted underline-offset-2">Ahvan</span>
+        Made with
+        <BrandLockup
+          className="inline-flex items-center gap-1 text-foreground"
+          markClassName="h-4 w-4 opacity-70"
+          textClassName="text-sm font-normal underline decoration-dotted underline-offset-2"
+        />
       </Link>
     </div>
   );

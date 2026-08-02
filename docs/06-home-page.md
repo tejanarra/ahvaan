@@ -22,7 +22,7 @@ Two-column at lg (55/45), stacked on mobile.
 - **Left**: eyebrow caption ("Free forever · No guest accounts", small-caps
   signature style), `text-display` headline: **"Design the *invitation*.
   Share one link. Watch the RSVPs arrive."** (italic accent word per doc 04
-  signature move #1) Subline (≤ 2 lines): "Ahvan gives every event a
+  signature move #1) Subline (≤ 2 lines): "Ahvaan gives every event a
   beautiful, fully-customizable page — with built-in RSVPs your guests can
   answer in seconds." CTAs: primary lg "Create your event", ghost "See how
   it works ↓" (smooth-scrolls to §4).
@@ -81,7 +81,7 @@ one tap on their link.) · Can I change my page after sending invites?
 a group chat.", primary lg CTA, caption "Free · unlimited guests".
 
 ### 9. Footer
-Wordmark, caption "© Ahvan", links: Sign in · Sign up. Nothing else in v1
+Wordmark, caption "© Ahvaan", links: Sign in · Sign up. Nothing else in v1
 (no dead Privacy/Terms links — add real ones in Phase 5's launch checklist).
 
 ## Engagement & quality mechanics
@@ -92,6 +92,6 @@ Wordmark, caption "© Ahvan", links: Sign in · Sign up. Nothing else in v1
   disabled under `prefers-reduced-motion` — the only scroll effect allowed.
 - All copy above is final draft — edit for rhythm during build, but keep
   claims honest and quantifiable-verifiable.
-- SEO: `generateMetadata` with title "Ahvan — Beautiful invitations with
+- SEO: `generateMetadata` with title "Ahvaan — Beautiful invitations with
   effortless RSVPs", meta description from the hero subline, OG image
   rendered from a Stage vignette (static PNG generated once, in `/public`).
