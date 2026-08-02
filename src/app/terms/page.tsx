@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BrandLockup } from "@/components/brand";
+import { PublicFooter } from "@/components/public-footer";
 
 export const metadata = { title: "Terms of Service" };
 
@@ -8,14 +9,15 @@ export const metadata = { title: "Terms of Service" };
 // for launch; have it reviewed by counsel before it's the last word.
 export default function TermsOfServicePage() {
   return (
-    <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6">
-      <Link href="/" aria-label="ahvaan home" className="inline-flex">
-        <BrandLockup />
-      </Link>
-      <h1 className="mt-8 text-3xl text-foreground font-display">Terms of Service</h1>
-      <p className="mt-2 text-sm text-muted">Last updated: 2026-07-30</p>
+    <div className="flex min-h-dvh flex-col">
+      <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-12 sm:px-6">
+        <Link href="/" aria-label="ahvaan home" className="inline-flex">
+          <BrandLockup />
+        </Link>
+        <h1 className="mt-8 text-3xl text-foreground font-display">Terms of Service</h1>
+        <p className="mt-2 text-sm text-muted">Last updated: 2026-07-30</p>
 
-      <div className="mt-8 space-y-6 text-sm leading-relaxed text-foreground">
+        <div className="mt-8 space-y-6 text-sm leading-relaxed text-foreground">
         <p>
           These terms cover your use of ahvaan — a free tool for building event-invitation pages,
           sending personal guest links, and collecting RSVPs. By creating an account or using the
@@ -86,7 +88,9 @@ export default function TermsOfServicePage() {
             signed-in hosts know.
           </p>
         </section>
+        </div>
       </div>
+      <PublicFooter />
     </div>
   );
 }

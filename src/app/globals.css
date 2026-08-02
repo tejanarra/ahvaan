@@ -51,6 +51,52 @@ body {
   font-family: var(--font-hanken), Arial, Helvetica, sans-serif;
 }
 
+/* docs/04 type scale — the only sizes allowed in the Studio. Display sizes
+   use Fraunces' optical-size axis (opsz 72/40) rather than relying on the
+   browser to fake it from a static weight, per the doc's tuning note. */
+@utility text-display {
+  font-family: var(--font-display);
+  font-size: 2.75rem;
+  line-height: 3rem;
+  letter-spacing: -0.01em;
+  font-weight: 560;
+  font-variation-settings: "opsz" 72, "SOFT" 50;
+}
+@utility text-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  line-height: 1.875rem;
+  font-weight: 540;
+  font-variation-settings: "opsz" 40;
+}
+@utility text-heading {
+  font-family: var(--font-sans);
+  font-size: 1.125rem;
+  line-height: 1.625rem;
+  font-weight: 620;
+}
+@utility text-body {
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+  font-weight: 430;
+}
+@utility text-small {
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
+  font-weight: 430;
+}
+@utility text-caption {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 560;
+  color: var(--muted);
+}
+
 /* docs/08 "Reduced-motion verified on builder, modals, marketing reveals" —
    a global floor rather than auditing every animation/transition utility
    one by one: near-zero-duration animations/transitions still run (so

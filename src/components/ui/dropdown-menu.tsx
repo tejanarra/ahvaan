@@ -50,7 +50,7 @@ export function DropdownMenu({
         <div
           role="menu"
           className={cn(
-            "absolute top-full z-50 mt-1.5 min-w-[10rem] rounded-md border border-border bg-surface py-1 shadow-[0_4px_16px_rgb(33_30_25/0.10)]",
+            "absolute top-full z-50 mt-1.5 min-w-[10rem] max-w-[calc(100vw-2rem)] rounded-md border border-border bg-surface py-1 shadow-[0_4px_16px_rgb(33_30_25/0.10)]",
             align === "end" ? "right-0" : "left-0"
           )}
         >
@@ -69,7 +69,7 @@ export function DropdownMenu({
                 item.onSelect();
               }}
               className={cn(
-                "flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium transition-colors hover:bg-surface-hover",
+                "flex w-full items-center gap-2 truncate px-3 py-2 text-left text-sm font-medium transition-colors hover:bg-surface-hover",
                 item.destructive ? "text-destructive" : "text-foreground"
               )}
             >

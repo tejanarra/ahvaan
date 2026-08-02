@@ -3,7 +3,9 @@ import { requireHost } from "@/lib/supabase/auth-server";
 import { getEventFull } from "@/lib/data/events";
 import { resolveFormSchema } from "@/lib/schemas/form-schema";
 import { FormBuilder } from "./form-builder";
-import { GuestsSubTabs } from "../guests-sub-tabs";
+import { PageHeader } from "@/components/ui/page-header";
+import { SectionNav } from "@/components/ui/section-nav";
+import { guestsSubItems } from "../event-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -24,8 +26,12 @@ export default async function EventFieldsPage({
 
   return (
     <div>
-      <GuestsSubTabs eventId={eventId} />
-      <div className="mt-4">
+      <PageHeader
+        title="RSVP form fields"
+        description="What you ask guests when they RSVP."
+        nav={<SectionNav ariaLabel="Guests sections" items={guestsSubItems(eventId)} />}
+      />
+      <div className="mt-6">
         <FormBuilder event={event} schema={schema} />
       </div>
     </div>

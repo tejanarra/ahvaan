@@ -8,7 +8,7 @@ export default function GuestPageNotFound() {
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-background px-4 text-center">
       <Link href="/" className="mb-2">
-        <BrandLockup markClassName="h-8 w-8" textClassName="text-2xl" />
+        <BrandLockup markClassName="h-8 w-8" textClassName="font-display text-2xl leading-none" />
       </Link>
       <p className="text-lg font-display text-foreground">This invitation isn&rsquo;t available</p>
       <p className="max-w-sm text-sm text-muted">

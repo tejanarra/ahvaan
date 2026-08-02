@@ -20,7 +20,7 @@ export default async function DashboardPage() {
   return (
     <div className="mx-auto max-w-6xl">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-foreground">Your events</h1>
+        <h1 className="text-title text-foreground">Your events</h1>
         <Link href="/dashboard/events/new">
           <Button size="sm">
             <PlusIcon className="h-4 w-4" />

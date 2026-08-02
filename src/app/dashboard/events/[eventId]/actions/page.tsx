@@ -7,7 +7,9 @@ import { parsePageSchema } from "@/lib/schemas/page-schema";
 import { defaultPageSchema } from "@/lib/blocks/types";
 import type { BlockInstance, RsvpFormBlockConfig } from "@/lib/blocks/types";
 import { ActionsEditor } from "../actions-editor";
-import { GuestsSubTabs } from "../guests-sub-tabs";
+import { PageHeader } from "@/components/ui/page-header";
+import { SectionNav } from "@/components/ui/section-nav";
+import { guestsSubItems } from "../event-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -42,8 +44,12 @@ export default async function EventActionsPage({ params }: { params: Promise<{ e
 
   return (
     <div>
-      <GuestsSubTabs eventId={eventId} />
-      <div className="mt-4">
+      <PageHeader
+        title="After they RSVP"
+        description="What guests see and receive once they submit."
+        nav={<SectionNav ariaLabel="Guests sections" items={guestsSubItems(eventId)} />}
+      />
+      <div className="mt-6">
         <ActionsEditor
           initialAction={initialAction}
           rsvpMode

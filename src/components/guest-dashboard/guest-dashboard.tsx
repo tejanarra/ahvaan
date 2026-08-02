@@ -202,6 +202,7 @@ export function GuestDashboard({
       <div className="mt-4 flex gap-2">
         <ToggleGroup
           size="md"
+          fullWidth
           className="flex-1"
           options={[
             { value: "invites", label: `Invites (${pendingInvites.length})` },
@@ -215,10 +216,11 @@ export function GuestDashboard({
       {tab === "responded" && hasAttendingData && (
         <div className="mt-3">
           <ToggleGroup
+            fullWidth="mobile"
             options={[
               { value: "all", label: "All" },
               { value: "attending", label: "Attending" },
-              { value: "declined", label: "Not attending" },
+              { value: "declined", label: "Declined" },
             ]}
             value={respondedFilter}
             onChange={(v) => setRespondedFilter(v as RespondedFilter)}

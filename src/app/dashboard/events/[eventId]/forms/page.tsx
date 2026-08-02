@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireHost } from "@/lib/supabase/auth-server";
 import { listForms } from "@/lib/data/forms";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { NewFormButton } from "./new-form-button";
 
 export const dynamic = "force-dynamic";
@@ -13,16 +14,11 @@ export default async function EventFormsPage({ params }: { params: Promise<{ eve
 
   return (
     <div>
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-sm font-semibold text-foreground">Forms</h2>
-          <p className="mt-0.5 text-xs text-muted">
-            Any custom form for this event — feedback, song requests, T-shirt sizes, or anything else. Separate from
-            the RSVP form, which lives under the Guests tab.
-          </p>
-        </div>
-        <NewFormButton eventId={eventId} />
-      </div>
+      <PageHeader
+        title="Forms"
+        description="Any custom form for this event — feedback, song requests, T-shirt sizes, or anything else. Separate from the RSVP form, which lives under Guests → Fields."
+        actions={<NewFormButton eventId={eventId} />}
+      />
 
       {forms.length === 0 ? (
         <EmptyState

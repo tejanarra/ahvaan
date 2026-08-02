@@ -14,15 +14,15 @@ export default async function DashboardLayout({
 
   return (
     <ToastProvider>
-      <div className="flex h-screen flex-col bg-background">
+      <div className="flex h-dvh flex-col bg-background">
         <LockBodyScroll />
         <header className="shrink-0 border-b border-border">
-          <div className="mx-auto flex max-w-[1600px] items-center justify-between px-4 py-1 sm:px-6 lg:px-10">
+          <div className="mx-auto flex max-w-[1600px] items-center justify-between px-4 py-2 sm:px-6 sm:py-1 lg:px-10">
             <Link href="/dashboard">
               <BrandLockup
                 markSrc="/mark-black.svg"
-                markClassName="h-10 w-10"
-                textClassName="text-2xl"
+                markClassName="h-8 w-8 sm:h-10 sm:w-10"
+                textClassName="font-display text-xl leading-none sm:text-2xl"
               />
             </Link>
             <AccountMenu email={host.email ?? ""} />

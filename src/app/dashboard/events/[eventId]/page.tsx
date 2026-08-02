@@ -9,7 +9,9 @@ import { ExportCsvButton } from "@/components/guest-dashboard/export-csv-button"
 import type { PendingInvite, RespondedGuest } from "@/components/guest-dashboard/guest-card";
 import { resolveFormSchema, findFieldByRole, getFieldValue } from "@/lib/schemas/form-schema";
 import type { Responses } from "@/lib/schemas/form-schema";
-import { GuestsSubTabs } from "./guests-sub-tabs";
+import { PageHeader } from "@/components/ui/page-header";
+import { SectionNav } from "@/components/ui/section-nav";
+import { guestsSubItems } from "./event-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -86,21 +88,24 @@ export default async function EventGuestsPage({
 
   return (
     <div>
-      <GuestsSubTabs eventId={eventId} />
-      <div className="mt-4 flex items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold text-foreground">Guests</h2>
-        <div className="flex items-center gap-2">
-          <ExportCsvButton
-            eventSlug={event.slug}
-            schema={schema}
-            pendingInvites={pendingInvites}
-            respondedGuests={respondedGuests}
-          />
-          <ShareInviteButton eventId={event.id} eventSlug={event.slug} eventTitle={event.title} />
-        </div>
-      </div>
+      <PageHeader
+        title="Guest data"
+        description="The people you've invited and how they replied."
+        actions={
+          <>
+            <ExportCsvButton
+              eventSlug={event.slug}
+              schema={schema}
+              pendingInvites={pendingInvites}
+              respondedGuests={respondedGuests}
+            />
+            <ShareInviteButton eventId={event.id} eventSlug={event.slug} eventTitle={event.title} />
+          </>
+        }
+        nav={<SectionNav ariaLabel="Guests sections" items={guestsSubItems(eventId)} />}
+      />
 
-      <div className="mt-4">
+      <div className="mt-6">
         <GuestDashboard
           eventId={event.id}
           eventSlug={event.slug}

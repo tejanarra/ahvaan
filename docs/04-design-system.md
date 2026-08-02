@@ -226,12 +226,32 @@ marked **new**.
   border + 12px caption below. Labels: `text-caption`, muted, 6px gap.
 - **Card** — surface bg, border, `--radius-md`, no shadow; optional header
   row pattern (heading left, actions right, 16px padding, divider).
-- **Tabs** — underline style: 2px accent underline slides (180ms) under the
-  active item; inactive muted → foreground on hover. Used for event nav.
+- **SideNav** — the event workspace's one persistent nav surface (desktop
+  only, ~208px column, sticky): flat vertical list of the four top-level
+  sections (Guests · Invite page · Forms · Settings). Rows are `text-body`,
+  `--radius-sm`; current item gets `bg-accent-soft` + `text-accent` +
+  a 2px accent rail on the left edge; hover gets `bg-surface-hover`. It
+  never nests a second level — a section's own sub-pages render as a
+  `SectionNav` pill row inside that page's own header instead (see
+  `PageHeader` below and docs/05's breadcrumb hard rule).
+- **SectionNav** — borderless accent-soft pills for a page's own sub-nav
+  (Guests' Data/Fields/Actions/Settings; a form workspace's Fields/Data/
+  Actions). Pills: `rounded-full`, `h-7`, `text-[13px]`; current item
+  `bg-accent-soft` + `text-accent`, inactive `text-muted` → `hover:bg-
+  surface-hover` + `hover:text-foreground`. On narrow viewports it becomes
+  a horizontally-scrollable strip (edge-fade mask, full-bleed to the
+  screen edge). Never full-width/underlined — that would make it read as
+  a second `SideNav`/primary bar rather than a page-local control.
+- **PageHeader** — the shared shell every event-workspace content page
+  opens with: optional plain-text `crumb` (no arrow icon — the workspace's
+  one back-arrow lives in the header band, not here), `title`, optional
+  `description` (≤ 65ch), optional `actions` (top-right), optional `nav`
+  (a `SectionNav` pill row). A `border-b` closes the block before the page
+  body.
 - **ToggleGroup** — segmented control on `--surface-sunken`, active segment
   gets surface bg + border + text-foreground. This is THE control for small
   exclusive choices (align, width, S/M/L) — never radio-button rows in the
-  Studio.
+  Studio, and never route navigation (that's `SideNav`/`SectionNav`'s job).
 - **Badge** — soft tints: accent-soft/green, warning, destructive at 12% bg;
   caption type. Used for status (Draft/Published), counts, roles.
 - **Modal** — centered, `--radius-lg`, `--shadow-modal`, backdrop

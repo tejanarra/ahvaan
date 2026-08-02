@@ -23,8 +23,9 @@ const MODE_DESCRIPTIONS: Record<SubmissionMode, string> = {
 // One event-wide setting (events.submission_mode) that governs both the
 // RSVP form and every generic Forms form on this event — a host wanting
 // email verification wants it everywhere on the event, not toggled
-// form-by-form, so there's a single editor at Guests → Settings rather
-// than a second copy under Forms.
+// form-by-form, so there's a single editor in the event Settings page
+// (event-settings-form.tsx's "RSVP" card) rather than a second copy
+// under Forms.
 export function SubmissionModeEditor({
   initialMode,
   emailFieldMissing = false,

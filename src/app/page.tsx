@@ -2,6 +2,7 @@ import Link from "next/link";
 import { THEMES } from "@/lib/themes";
 import { Button } from "@/components/ui/button";
 import { BrandLockup } from "@/components/brand";
+import { PublicFooter } from "@/components/public-footer";
 import { ThemeDemo } from "@/components/marketing/theme-demo";
 import { Reveal } from "@/components/marketing/reveal";
 
@@ -108,12 +109,12 @@ export default function Home() {
           </Link>
           <nav className="flex items-center gap-1.5 sm:gap-3">
             <Link href="/login">
-              <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="md">
                 Sign in
               </Button>
             </Link>
             <Link href="/signup">
-              <Button size="sm">Get started free</Button>
+              <Button size="md">Get started free</Button>
             </Link>
           </nav>
         </div>
@@ -298,35 +299,7 @@ export default function Home() {
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-border">
-        {/* `grid-cols-[1fr_auto_1fr]` (not `flex justify-between`) so the
-            copyright line sits at the row's true center regardless of how
-            wide the logo vs. nav columns are — `justify-between` only
-            centers a middle flex child when its two neighbors happen to be
-            equal width, which they aren't here (logo lockup vs. 4 nav
-            links), so the copyright text visibly drifted off-center. */}
-        <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-4 px-4 py-8 sm:grid-cols-[1fr_auto_1fr] sm:px-6">
-          <div className="flex justify-center sm:justify-start">
-            <BrandLockup markClassName="h-4 w-4" textClassName="text-sm" />
-          </div>
-          <p className="text-center text-xs text-muted">© {new Date().getFullYear()} ahvaan</p>
-          <nav className="flex items-center justify-center gap-4 text-sm sm:justify-self-end">
-            <Link href="/privacy" className="text-muted hover:text-foreground">
-              Privacy
-            </Link>
-            <Link href="/terms" className="text-muted hover:text-foreground">
-              Terms
-            </Link>
-            <Link href="/login" className="text-muted hover:text-foreground">
-              Sign in
-            </Link>
-            <Link href="/signup" className="text-muted hover:text-foreground">
-              Sign up
-            </Link>
-          </nav>
-        </div>
-      </footer>
+      <PublicFooter />
     </div>
   );
 }

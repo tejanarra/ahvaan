@@ -27,7 +27,7 @@ export default function NewEventPage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="text-xl font-semibold text-foreground">Create an event</h1>
+      <h1 className="text-title text-foreground">Create an event</h1>
 
       <Card className="mt-6">
         <CardBody>

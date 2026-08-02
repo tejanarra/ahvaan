@@ -1,14 +1,30 @@
+"use client";
+
 import type { ReactNode } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { BrandLockup } from "@/components/brand";
 import { getTheme } from "@/lib/themes";
+
+// docs/05 wants the vignette rotating among 3 themes per load. Picking with
+// Math.random() during the initial render would differ between the SSR
+// pass and client hydration (a real hydration mismatch, not just a lint
+// nit) — so the first render always uses the same theme, and a `useEffect`
+// swaps in the random pick right after mount instead. The vignette is
+// purely decorative (`aria-hidden`), so a swap a moment after paint is an
+// acceptable trade for correctness.
+const VIGNETTE_THEME_IDS = ["classic-gold", "midnight-elegant", "ink-and-blush"] as const;
 
 // Split-screen auth (docs/05): left pane is a Stage vignette — a miniature
 // themed invite on its theme's own background — right pane is the form on
 // Studio paper. The vignette pane disappears below lg; mobile gets a clean
 // single-column card.
 function StageVignette() {
-  const c = getTheme("midnight-elegant").colors;
+  const [themeId, setThemeId] = useState<(typeof VIGNETTE_THEME_IDS)[number]>(VIGNETTE_THEME_IDS[0]);
+  useEffect(() => {
+    setThemeId(VIGNETTE_THEME_IDS[Math.floor(Math.random() * VIGNETTE_THEME_IDS.length)]);
+  }, []);
+  const c = getTheme(themeId).colors;
   return (
     <div
       className="relative hidden flex-col items-center justify-center overflow-hidden lg:flex"
@@ -56,9 +72,9 @@ export function AuthLayout({
   footer?: ReactNode;
 }) {
   return (
-    <div className="grid min-h-screen bg-background lg:grid-cols-[45fr_55fr]">
+    <div className="grid min-h-dvh bg-background lg:grid-cols-[45fr_55fr]">
       <StageVignette />
-      <div className="flex items-center justify-center px-4 py-10 sm:px-6">
+      <div className="flex items-start justify-center px-4 py-10 sm:items-center sm:px-6">
         <div className="w-full max-w-sm">
           <Link href="/" className="inline-flex" aria-label="ahvaan home">
             <BrandLockup />

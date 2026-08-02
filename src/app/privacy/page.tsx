@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BrandLockup } from "@/components/brand";
+import { PublicFooter } from "@/components/public-footer";
 
 export const metadata = { title: "Privacy Policy" };
 
@@ -9,14 +10,15 @@ export const metadata = { title: "Privacy Policy" };
 // for launch; have it reviewed by counsel before it's the last word.
 export default function PrivacyPolicyPage() {
   return (
-    <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6">
-      <Link href="/" aria-label="ahvaan home" className="inline-flex">
-        <BrandLockup />
-      </Link>
-      <h1 className="mt-8 text-3xl text-foreground font-display">Privacy Policy</h1>
-      <p className="mt-2 text-sm text-muted">Last updated: 2026-08-02</p>
+    <div className="flex min-h-dvh flex-col">
+      <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-12 sm:px-6">
+        <Link href="/" aria-label="ahvaan home" className="inline-flex">
+          <BrandLockup />
+        </Link>
+        <h1 className="mt-8 text-3xl text-foreground font-display">Privacy Policy</h1>
+        <p className="mt-2 text-sm text-muted">Last updated: 2026-08-02</p>
 
-      <div className="mt-8 space-y-6 text-sm leading-relaxed text-foreground">
+        <div className="mt-8 space-y-6 text-sm leading-relaxed text-foreground">
         <p>
           ahvaan is an event-invitation tool: a host creates an event page, invites guests with
           personal links, and collects their RSVPs. This page explains what information we collect
@@ -103,7 +105,9 @@ export default function PrivacyPolicyPage() {
             .
           </p>
         </section>
+        </div>
       </div>
+      <PublicFooter />
     </div>
   );
 }

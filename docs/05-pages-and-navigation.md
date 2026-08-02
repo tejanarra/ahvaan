@@ -7,34 +7,77 @@ design system (doc 04) tokens/components only.
 
 ```
 PUBLIC (marketing route group)
-  /                       Home (doc 06)
-  /login  /signup  /reset-password
+  /                             Home (doc 06)
+  /login  /signup
+  /forgot-password  /reset-password
+  /terms  /privacy              Legal (own scroll column + PublicFooter,
+                                 no sticky nav — see Navigation rules)
 GUEST (stage)
-  /e/[slug]               Public event page (?i=<inviteId> personalizes)
+  /events/[slug]                Public event page (?i=<inviteId> personalizes)
 HOST (studio — requireHost)
-  /dashboard              Events list
-  /dashboard/events/new   Create event
-  /dashboard/events/[id]  ┐ event workspace, tabbed:
-    (index) Guests        │   Guests · Page · Form · Settings
-    /design  Page         │   ("Invite page"→"Page", "RSVP form"→"Form" —
-    /form    Form         │    shorter labels, same order)
-    /settings Settings    ┘
+  /dashboard                    Events list
+  /dashboard/events/new         Create event
+  /dashboard/events/[id]        ┐ event workspace: header band (← Events,
+    (index) Guests → Data       │ title/badge/preview link) + a persistent
+      /fields   Guests → Fields │ left SideNav (Guests · Invite page ·
+      /actions  Guests → Actions│ Forms · Settings, desktop only). Guests'
+    /design      Invite page    │ three sub-pages render a SectionNav pill
+    /forms                      │ row (Data/Fields/Actions) in their own
+      /forms/[formId]           │ PageHeader — see Navigation rules. Forms
+        /fields /data /actions  │ list; each form workspace gets its own
+    /settings    Settings       │ PageHeader + SectionNav pill row: Fields
+                                 ┘ · Data · Actions. Settings is the ONE
+                                     place for event-wide settings, including
+                                     RSVP submission mode + deadline — no
+                                     separate "Guests → Settings".
 SYSTEM
-  not-found · error · loading per route group (Phase 5)
+  not-found · error · loading per route group
 ```
 
 **Navigation rules**
-- Exactly two Studio levels: the events list, and one event's workspace. No
-  deeper. Breadcrumb is a single "← Events" link (as today).
+- The event workspace has exactly three fixed zones, never duplicated: (1)
+  the header band — "← Events" (the **only** back-arrow in the whole
+  workspace) plus event title/badge/"View page ↗"; (2) a persistent left
+  `SideNav` (desktop only) listing the four top-level sections (Guests ·
+  Invite page · Forms · Settings) as flat links — it never nests a second
+  level; (3) the content column, which opens with a shared `PageHeader`
+  (crumb?/title/description?/actions?/nav?). A section's own sub-pages
+  (Guests' Data/Fields/Actions; a form's Fields/Data/Actions) live as a
+  `SectionNav` pill row in that page's `PageHeader.nav` slot, at every
+  breakpoint — not in the sidebar, and not as a second full-width bar.
+  `ToggleGroup` (bordered segmented control) is reserved for in-page
+  filters/state and must never carry route navigation. There is exactly
+  one Settings destination for an event (the top-level Settings page,
+  covering visibility/details/RSVP rules/sharing/danger zone) — Guests has
+  no separate "Settings" sub-page, since two same-named settings
+  destinations in one workspace is confusing regardless of what's inside
+  either.
+- **Breadcrumb hard rule**: exactly one back-arrow exists anywhere in the
+  event workspace — `← Events` in the header band. It never moves, never
+  changes label. Anything else that shows "where you are" (e.g. the form
+  workspace's "Forms" crumb in its `PageHeader`) is plain text, no arrow —
+  a crumb, not a control. Guests' four pages and the Forms list get no
+  crumb at all; the sidebar already names the section.
+- Mobile (< 640px, sidebar hidden): a sticky pill strip under the header
+  band lists the four top-level sections (reusing `SectionNav`'s scroll-
+  strip behavior); a section's sub-pages still render in that page's own
+  `PageHeader.nav` slot, same as desktop — the two rows never touch/stack
+  since the page title sits between them.
 - The Studio header (all dashboard pages): wordmark → `/dashboard`, right
-  side: account menu **(new — replaces bare email + sign-out button)**: a
-  Dropdown with the email as header, items: Sign out. Nothing else in v1.
+  side: account menu: a Dropdown with the email as trigger (icon-only below
+  `sm`), items: Sign out. Nothing else in v1.
 - The event workspace header row: title (editable inline? **no** — edit in
-  Settings, one way to do things), status Badge (Draft/Published, Phase 4),
-  "View page ↗" (opens `/e/[slug]`; when draft, appends preview param).
+  Settings, one way to do things), status Badge (Draft/Published),
+  "View page ↗" (opens `/events/[slug]`; when draft, appends preview param).
 - Guest pages have **no** Ahvaan chrome except a single discreet footer
   line: "Made with Ahvaan" linking home (this is the growth loop; keep it
   small, `text-caption`, theme-muted color).
+- `/terms` and `/privacy` are not blueprinted as Studio or Stage pages —
+  they're plain public documents. Each gets a wordmark link back to `/` at
+  the top and the shared `PublicFooter` (Privacy/Terms/Sign in/Sign up
+  cross-links) at the bottom, matching the marketing home page's footer.
+  Deliberately no sticky nav header on these two routes — that would turn a
+  legal document into a conversion surface.
 
 ## Page blueprints
 
@@ -69,7 +112,7 @@ state = accent ring. Submit → workspace `/design` tab (drop straight into
 designing — stronger aha than the guests tab), event created as **draft**
 (Phase 4).
 
-### `/dashboard/events/[id]` — Guests tab (re-skin only, Phase 1)
+### `/dashboard/events/[id]` — Guests section, Data sub-page (re-skin only, Phase 1)
 Keep the built interaction design (stats tiles, tabs Invites/Responded,
 search, sort, cards, edit dialog, share/copy, mail actions) — it's proven.
 Re-skin to tokens; changes limited to:
@@ -79,7 +122,7 @@ Re-skin to tokens; changes limited to:
 - Send-states (sent/error) unify on Badge + Tooltip (error message in
   tooltip), replacing color-only icon states.
 
-### `/dashboard/events/[id]/design` — Page tab (re-skin, Phase 2)
+### `/dashboard/events/[id]/design` — Invite page section (re-skin, Phase 2)
 Keep the fullscreen `fixed inset-0` editor decision and two-pane split
 (420px panel + preview). Changes:
 - Top bar: "← {event title}", center: nothing, right: "Save" primary +
@@ -94,18 +137,26 @@ Keep the fullscreen `fixed inset-0` editor decision and two-pane split
   **(new, cheap)**: ToggleGroup Desktop/Mobile that constrains preview width
   to 390px — hosts constantly need this; guests are mobile.
 
-### `/dashboard/events/[id]/form` — Form tab (re-skin, Phase 2)
-Keep `[380px_1fr]` list+editor split and role-tag rules. Re-skin; field rows
-get type icon + Badge for role-tagged fields; live preview of the rendered
-form in the right pane **below the editor** (or as a third toggle) so hosts
-see the guest's view without leaving.
+### `/dashboard/events/[id]/forms` — Forms section (Phase 2)
+List of an event's custom forms (feedback, song requests, etc.) — separate
+from the RSVP form, which lives under Guests → Fields. Each form opens its
+own workspace at `/forms/[formId]` with a `SectionNav`: Fields · Data ·
+Actions, keeping the same `[380px_1fr]` list+editor split and role-tag rules
+as the Guests → Fields builder. Field rows get type icon + Badge for
+role-tagged fields; live preview of the rendered form in the right pane
+**below the editor** (or as a third toggle) so hosts see the guest's view
+without leaving.
 
-### `/dashboard/events/[id]/settings` (light rework, Phase 1)
+### `/dashboard/events/[id]/settings` — the one Settings destination
 Shared `EventDetailsForm` + theme picker (same component as `new`), plus:
-**Publish section** (Phase 4): status toggle + explanation + public URL with
-copy button; **RSVP deadline** (Phase 4): optional datetime; **Danger zone**:
-delete event (destructive card at bottom, confirm modal). Sections as Cards
-with header rows, 32px rhythm, single column `max-w-2xl`.
+**Publish section**: status toggle + explanation + public URL with copy
+button; **RSVP**: who can submit (private/anonymous/email-verified) and
+optional RSVP deadline, together in one card — these used to be split
+across two different "Settings" destinations (this page, and a separate
+Guests → Settings sub-page), which read as confusing regardless of what
+was in either; **Social sharing image**: cover image for link previews;
+**Danger zone**: delete event (destructive card at bottom, confirm modal).
+Sections as Cards with header rows, 32px rhythm, single column `max-w-2xl`.
 
 ### `/e/[slug]` — Guest page (Stage, Phase 2 polish)
 Rendering model unchanged (theme vars + PageRenderer). Phase 2 adds:
