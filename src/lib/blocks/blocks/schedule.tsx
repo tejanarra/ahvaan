@@ -364,12 +364,30 @@ function TimelineHorizontal({ items, gapPx }: { items: ScheduleItem[]; gapPx: nu
   const lineColor = "var(--schedule-line-color, color-mix(in oklab, var(--t-accent) 35%, transparent))";
   return (
     <div style={{ display: "grid", gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))`, columnGap: gapPx }}>
-      {items.map((item, index) => (
-        <div key={`line-${item.id}`} className="flex items-center" style={{ gridColumn: index + 1, gridRow: 2, alignSelf: "center" }}>
-          <div className="h-px flex-1" style={{ background: index === 0 ? "transparent" : lineColor }} />
-          <div className="h-px flex-1" style={{ background: index === items.length - 1 ? "transparent" : lineColor }} />
-        </div>
-      ))}
+      {/* One line spanning every column, rather than a separate segment per
+          item — per-item segments left the `columnGap` between columns
+          (there's no grid cell there for a segment to occupy) with nothing
+          drawn across it, breaking the line at every gap between items.
+          Each dot sits centered *within* its own column (Dot's wrapper below
+          is `justify-center`), not at the column's edge — so the line has to
+          stop exactly half a column short on each side, or it visibly
+          overruns before the first dot and after the last one. `marginLeft`/
+          `marginRight` here compute that half-column width directly: total
+          span width minus the (N-1) gaps, divided evenly among N columns,
+          halved. */}
+      {items.length > 1 && (
+        <div
+          className="h-px"
+          style={{
+            gridColumn: `1 / ${items.length + 1}`,
+            gridRow: 2,
+            alignSelf: "center",
+            background: lineColor,
+            marginLeft: `calc((100% - ${(items.length - 1) * gapPx}px) / ${items.length} / 2)`,
+            marginRight: `calc((100% - ${(items.length - 1) * gapPx}px) / ${items.length} / 2)`,
+          }}
+        />
+      )}
       {items.map((item, index) => (
         <div key={`top-${item.id}`} className="min-w-0 pb-2" style={{ gridColumn: index + 1, gridRow: 1, alignSelf: "end" }}>
           {index % 2 === 0 && <ItemText item={item} align="center" compact />}
@@ -495,12 +513,51 @@ function MinimalLayout({ items, direction, align, gapPx }: { items: ScheduleItem
   );
 }
 
+// Free-text "Time" like "4:00 PM" (or "16:00", "9:30am") → minutes since
+// midnight, for sorting only — never used to affect the displayed text
+// itself. Returns null rather than a fallback like countdown.tsx's
+// toIsoTime does, because here a failed parse needs to mean "leave this
+// item's position alone" (see the sort below), not "treat it as midnight"
+// (which would incorrectly sort an unparseable time to the very front).
+function parseTimeToMinutes(time: string | undefined): number | null {
+  if (!time) return null;
+  const match = time.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+  if (!match) return null;
+  let hour = Number(match[1]);
+  const minute = Number(match[2]);
+  const meridiem = match[3]?.toUpperCase();
+  if (meridiem === "PM" && hour < 12) hour += 12;
+  if (meridiem === "AM" && hour === 12) hour = 0;
+  if (hour > 23 || minute > 59) return null;
+  return hour * 60 + minute;
+}
+
+// A schedule is inherently chronological — hosts add items in whatever
+// order occurs to them (and can still reorder manually in the editor), but
+// the guest-facing render always sorts by each item's own parsed Time so
+// the page reads in the actual order of the day regardless of entry order.
+// Items with no time, or a time that doesn't parse, are appended after the
+// timed ones in their original relative order — there's no sensible slot
+// to guess for them among timed items, so leaving them where the host put
+// them (just moved to the end) is the least surprising fallback.
+function sortByTime(items: ScheduleItem[]): ScheduleItem[] {
+  const timed: { item: ScheduleItem; minutes: number }[] = [];
+  const untimed: ScheduleItem[] = [];
+  for (const item of items) {
+    const minutes = parseTimeToMinutes(item.time);
+    if (minutes === null) untimed.push(item);
+    else timed.push({ item, minutes });
+  }
+  timed.sort((a, b) => a.minutes - b.minutes);
+  return [...timed.map((entry) => entry.item), ...untimed];
+}
+
 export function ScheduleRender({ config }: { config: ScheduleConfig; ctx: PageRenderContext }) {
   // A hand-edited JSON schema (or an item added then left blank) could carry
   // an item with no label — dropped at render time rather than shown as an
   // empty row, same "silently skip the unusable entry" approach as
   // carousel.tsx filtering out slides with no image url.
-  const items = (config.items ?? []).filter((item) => item.label.trim());
+  const items = sortByTime((config.items ?? []).filter((item) => item.label.trim()));
   if (items.length === 0) return null;
 
   const style = config.style ?? "cards";
