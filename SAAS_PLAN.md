@@ -1228,3 +1228,67 @@ publicly) — user feedback that the first pass read as too prominent for
 what's meant to be a discreet legal footnote, not a competing profile card.
 
 `npm run build` clean throughout.
+
+## Status: Home page redesign — Studio tour, fuller feature coverage (2026-08-02)
+
+User-directed marketing redesign, same session. Goal: a more premium,
+feature-complete home page that drives signups by proving depth, not just
+describing it.
+
+**`src/components/marketing/studio-tour.tsx`** (new): a client component
+reproducing the real Studio dashboard chrome — the actual `SideNav` row
+treatment, `StatTile`, `Badge`, `ToggleGroup` components plus a fake
+browser-chrome bar — with four clickable tabs matching the real IA
+(Guests · Invite page · Forms · Settings), each swapping in a static,
+hardcoded pane. No host data, no live queries; same "prove it with real
+components" spirit as the existing `ThemeDemo`. Replaces an earlier pass
+at a generic icon-and-prose feature grid, cut after user feedback that it
+read as boring/generic marketing filler rather than something that
+demonstrates the product.
+
+**`src/app/page.tsx`**: new "Everything included" section (between "How it
+works" and the deep-dive rows) pairs `StudioTour` with a chip row for the
+handful of real, shipped features too situational for a tab — per-device
+layout control, sandboxed custom code, draft/publish, RSVP deadline, CSV
+export, public host profile, delivery-logged reminders. Deep-dive rows
+each gained a category eyebrow (Page builder / RSVP form / Communication)
+for hierarchy; the three vignettes and theme-gallery cards gained a
+subtle hover lift for a more fluid feel. FAQ expanded from 5 to 7 items to
+cover CSV export and custom code, both real features with no other home
+above the fold.
+
+`docs/06-home-page.md` updated in the same session to document the new
+§5 Studio tour section and the FAQ count change.
+
+`npm run build` clean throughout. Not yet verified live in a browser
+(no Playwright/chromium-cli available in this environment) — verified via
+clean production build and a curl of the rendered HTML for the new
+section's markup; recommend a manual look before shipping.
+
+## Status: StudioTour rebuilt to match the real dashboard chrome (2026-08-02)
+
+Follow-up, same session — user feedback that the first `StudioTour` pass
+(a fake browser-chrome bar + icon-labeled sidebar) didn't actually look
+like the app.
+
+**`src/components/marketing/studio-tour.tsx`**: rebuilt to mirror
+`event-layout-shell.tsx` directly instead of inventing new chrome. The
+header replicates its exact Zone A (breadcrumb caption, Fraunces event
+title, status `Badge`, "View public page" link); the sidebar drops the
+icons the real desktop `SideNav` doesn't have and replicates its row
+treatment, adding a sliding `bg-accent-soft` indicator (`translateY`,
+200ms `cubic-bezier(.2,.8,.2,1)`, docs/04's motion curve) instead of a
+per-row static rail. The "Invite page" pane now has a two-column
+components-list-plus-canvas shape echoing the real page builder
+(`component-palette.tsx`'s "Components" caption header) with a real
+`ToggleGroup` for the Desktop/Mobile device switch, tying the per-device
+layout story directly to the visual. Tab content crossfades in via a new
+`animate-tour-pane-in` utility (`globals.css`, transform/opacity-only
+keyframes, respects the existing reduced-motion floor) instead of
+snapping.
+
+`npm run build` and `npm run lint` both clean (two `react/no-unescaped-
+entities` errors from the prior pass fixed in `src/app/page.tsx` along
+the way). Still not verified in an actual browser — no Playwright/
+chromium-cli in this environment; verified via clean build/lint plus a
+curl of the rendered HTML.

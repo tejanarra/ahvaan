@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { THEMES } from "@/lib/themes";
 import { Button } from "@/components/ui/button";
 import { BrandLockup } from "@/components/brand";
 import { PublicFooter } from "@/components/public-footer";
 import { ThemeDemo } from "@/components/marketing/theme-demo";
+import { StudioTour } from "@/components/marketing/studio-tour";
 import { Reveal } from "@/components/marketing/reveal";
 import { getSessionUser } from "@/lib/supabase/auth-server";
+import { UserIcon, ShareIcon, MailIcon, ClipboardListIcon } from "@/components/icons";
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
   return (
@@ -17,7 +18,7 @@ function Eyebrow({ children }: { children: React.ReactNode }) {
 
 function BuilderVignette() {
   return (
-    <div className="flex gap-3 rounded-xl border border-border bg-surface p-4 shadow-[0_4px_16px_rgb(33_30_25/0.06)]">
+    <div className="flex gap-3 rounded-xl border border-border bg-surface p-4 shadow-[0_4px_16px_rgb(33_30_25/0.06)] transition-transform duration-150 hover:-translate-y-0.5">
       <div className="flex-1 space-y-2">
         {["Hero", "Countdown", "RSVP form", "Venue map"].map((b, i) => (
           <div
@@ -46,7 +47,7 @@ function BuilderVignette() {
 
 function InviteVignette() {
   return (
-    <div className="rounded-xl border border-border bg-surface p-4 shadow-[0_4px_16px_rgb(33_30_25/0.06)]">
+    <div className="rounded-xl border border-border bg-surface p-4 shadow-[0_4px_16px_rgb(33_30_25/0.06)] transition-transform duration-150 hover:-translate-y-0.5">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-semibold text-foreground">Amara Osei</p>
@@ -66,7 +67,7 @@ function InviteVignette() {
 
 function TrackVignette() {
   return (
-    <div className="rounded-xl border border-border bg-surface p-4 shadow-[0_4px_16px_rgb(33_30_25/0.06)]">
+    <div className="rounded-xl border border-border bg-surface p-4 shadow-[0_4px_16px_rgb(33_30_25/0.06)] transition-transform duration-150 hover:-translate-y-0.5">
       <div className="grid grid-cols-3 gap-2 text-center">
         {[
           ["42", "Attending"],
@@ -92,11 +93,13 @@ function TrackVignette() {
 /* -------------------------------- page -------------------------------- */
 
 const FAQS = [
-  ["Is it really free?", "Yes — all of it. Unlimited events, unlimited guests, every feature. No trials, no locked tiers, no card required."],
+  ["Is it really free?", "Yes — all of it. Unlimited events, unlimited guests, every feature, every template. No trials, no locked tiers, no card required, and no ads."],
   ["Do guests need an account?", "Never. Each guest gets a personal link — they open it, tap their answer, and they're done. It works in any browser on any phone."],
   ["Can I change my page after sending invites?", "Yes. Your page is live — edit the design, the details, or the RSVP questions any time, and every guest link shows the latest version instantly."],
   ["What kinds of events is it for?", "Any gathering with a guest list: weddings, birthdays, baby showers, dinner parties, reunions. Pick a theme that fits and make it yours."],
   ["Can I answer for a guest?", "Yes — if someone RSVPs by phone or text, you can add or edit their response yourself and your counts stay accurate."],
+  ["Is my guest data mine?", "Yes. Export your full guest list and every response to CSV whenever you want — nothing is locked into ahvaan."],
+  ["Can I add my own code to the page?", "Yes, at the block or whole-page level. It runs sandboxed, so it can't touch your account or anyone else's."],
 ] as const;
 
 export default async function Home() {
@@ -108,7 +111,7 @@ export default async function Home() {
       <header className="sticky top-0 z-40 border-b border-border/70 bg-background/85 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
           <Link href="/" aria-label="ahvaan home">
-            <BrandLockup />
+            <BrandLockup markClassName="h-7 w-7 sm:h-8 sm:w-8" textClassName="text-xl font-semibold leading-none font-display sm:text-2xl" />
           </Link>
           <nav className="flex items-center gap-1.5 sm:gap-3">
             {user ? (
@@ -138,14 +141,15 @@ export default async function Home() {
         {/* Hero */}
         <section className="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-16 pt-14 sm:px-6 sm:pt-20 lg:grid-cols-[1.1fr_1fr] lg:gap-16">
           <div className="text-center lg:text-left">
-            <Eyebrow>RSVP made easy · Free forever · No guest accounts</Eyebrow>
+            <Eyebrow>Free forever · No ads · No guest accounts</Eyebrow>
             <h1 className="mt-4 text-4xl leading-[1.08] text-foreground sm:text-5xl lg:text-[3.4rem] font-display">
               Design the <em className="text-accent">invitation</em>. Share one link. Watch the RSVPs arrive.
             </h1>
             <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-muted lg:mx-0">
-              ahvaan is a free app for building and sending event invitations. Create a
-              custom invitation page for your event, share one link with your guests, and
-              track every RSVP in one dashboard — no guest accounts, no spreadsheets.
+              ahvaan is a completely free app for building and sending event invitations —
+              no ads, no locked tiers. Start from a free template or build your page from
+              scratch, share one link with your guests, and track every RSVP in one
+              dashboard — no guest accounts, no spreadsheets.
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
               <Link href="/signup">
@@ -164,7 +168,7 @@ export default async function Home() {
         {/* Honest facts strip */}
         <div className="border-y border-border bg-surface-sunken/60">
           <p className="mx-auto max-w-6xl px-4 py-4 text-center text-xs font-semibold uppercase tracking-[0.08em] text-muted sm:px-6">
-            Unlimited events · Unlimited guests · Every RSVP tracked
+            Free templates to start · Fully customizable · No ads, ever
           </p>
         </div>
 
@@ -196,34 +200,78 @@ export default async function Home() {
           </div>
         </section>
 
+        {/* Everything you need, in one place — the real dashboard, live */}
+        <section className="border-t border-border bg-surface-sunken/40">
+          <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+            <div className="grid items-start gap-12 lg:grid-cols-[0.85fr_1.15fr] lg:gap-16">
+              <Reveal>
+                <Eyebrow>Everything included</Eyebrow>
+                <h2 className="mt-3 text-3xl text-foreground sm:text-4xl font-display">
+                  This isn&rsquo;t a mockup — it&rsquo;s <em className="text-accent">your dashboard</em>
+                </h2>
+                <p className="mt-4 max-w-md text-base leading-relaxed text-muted">
+                  Click through Guests, Invite page, Forms, and Settings below — it&rsquo;s the
+                  exact workspace you&rsquo;ll get, no trial, no paywall, no &ldquo;upgrade to
+                  unlock.&rdquo;
+                </p>
+                <div className="mt-6 flex flex-wrap gap-2" aria-label="Also included">
+                  {[
+                    "Per-device layout control",
+                    "Sandboxed custom code",
+                    "Draft & publish control",
+                    "Optional RSVP deadline",
+                    "CSV export anytime",
+                    "Public host profile",
+                    "Delivery-logged reminders",
+                  ].map((chip) => (
+                    <span
+                      key={chip}
+                      className="rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium text-muted"
+                    >
+                      {chip}
+                    </span>
+                  ))}
+                </div>
+              </Reveal>
+              <Reveal>
+                <StudioTour />
+              </Reveal>
+            </div>
+          </div>
+        </section>
+
         {/* Deep-dive features */}
-        <section className="mx-auto max-w-6xl space-y-20 px-4 pb-20 sm:px-6">
+        <section className="mx-auto max-w-6xl space-y-20 px-4 pb-20 pt-20 sm:px-6">
           {(
             [
               [
+                "Page builder",
                 "A page builder that's actually yours",
                 "Drag blocks anywhere, nest layouts, size and align anything. And when you want pixel-perfect control, add your own code safely.",
                 <BuilderVignette key="v" />,
                 false,
               ],
               [
+                "RSVP form",
                 "An RSVP form you control",
                 "Meal choices, song requests, plus-ones — ask exactly what you need. Guests answer on their phone in under a minute.",
                 <InviteVignette key="v" />,
                 true,
               ],
               [
+                "Communication",
                 "Invites and reminders, handled",
                 "One-click email invites, and bulk reminders that go only to guests who haven't answered yet — with a delivery log you can trust.",
                 <TrackVignette key="v" />,
                 false,
               ],
             ] as const
-          ).map(([title, body, vignette, flip]) => (
+          ).map(([eyebrow, title, body, vignette, flip]) => (
             <Reveal key={title as string}>
               <div className="grid items-center gap-8 md:grid-cols-2 md:gap-16">
                 <div className={flip ? "md:order-2" : undefined}>
-                  <h3 className="text-2xl text-foreground sm:text-3xl font-display">
+                  <Eyebrow>{eyebrow}</Eyebrow>
+                  <h3 className="mt-2 text-2xl text-foreground sm:text-3xl font-display">
                     {title}
                   </h3>
                   <p className="mt-4 max-w-md text-base leading-relaxed text-muted">{body}</p>
@@ -234,42 +282,68 @@ export default async function Home() {
           ))}
         </section>
 
-        {/* Theme gallery */}
+        {/* Who can submit — situational use cases for the submission-mode system */}
         <section className="border-t border-border bg-surface-sunken/40">
           <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
             <Reveal>
-              <Eyebrow>Themes</Eyebrow>
-              <h2 className="mt-3 text-3xl text-foreground sm:text-4xl font-display">
-                Start from a look you <em className="text-accent">love</em>
+              <Eyebrow>Who can respond</Eyebrow>
+              <h2 className="mt-3 max-w-xl text-3xl text-foreground sm:text-4xl font-display">
+                Every guest list is different. <em className="text-accent">Yours can match.</em>
               </h2>
+              <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted">
+                One setting on your event decides who&rsquo;s allowed to respond and how a second
+                submission is handled — for the RSVP form and every custom form, together. Pick
+                the one that fits how you&rsquo;re actually sending invites.
+              </p>
             </Reveal>
-            <div className="mt-10 grid grid-cols-2 gap-4 lg:grid-cols-4">
-              {THEMES.map((t) => (
-                <Reveal key={t.id}>
-                  <div className="overflow-hidden rounded-xl border border-border bg-surface transition-transform duration-150 hover:-translate-y-0.5">
-                    <div
-                      className="flex h-28 flex-col items-center justify-center px-3 text-center"
-                      style={{ background: t.colors.background, color: t.colors.foreground }}
-                    >
-                      <p className="text-lg font-display">
-                        Maya &amp; Julien
-                      </p>
-                      <div className="mt-2 h-px w-10" style={{ background: t.colors.accent }} />
-                      <p className="mt-2 text-[10px] uppercase tracking-[0.16em]" style={{ color: t.colors.accent }}>
-                        June 12
-                      </p>
+            <div className="mt-10 grid gap-5 lg:grid-cols-3">
+              {(
+                [
+                  [
+                    <UserIcon key="i" className="h-5 w-5" />,
+                    "Private",
+                    "You've got a real guest list.",
+                    "A wedding, a milestone birthday, a private dinner — every guest gets their own personal link. Only that link gets in, one response per guest, and reopening it shows their answer ready to edit. No duplicates, no guessing who replied.",
+                  ],
+                  [
+                    <ShareIcon key="i" className="h-5 w-5" />,
+                    "Anonymous",
+                    "You just want answers, fast.",
+                    "A team lunch poll, a casual open house, a quick \"who's in\" — share one link anywhere and let anyone respond, no identity check, no account. Perfect when knowing exactly who answered matters less than getting a headcount.",
+                  ],
+                  [
+                    <MailIcon key="i" className="h-5 w-5" />,
+                    "Email verified",
+                    "It's open, but it still needs to be real.",
+                    "A public fundraiser, a community event, an invite forwarded past your original list — anyone can respond, but a quick emailed code confirms they're a real, unique person first. One response per verified email, and they can return with an \"Already responded?\" link to edit it.",
+                  ],
+                ] as const
+              ).map(([icon, label, hook, body]) => (
+                <Reveal key={label as string}>
+                  <div className="flex h-full flex-col gap-3 rounded-xl border border-border bg-surface p-5 transition-transform duration-150 hover:-translate-y-0.5">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-accent-soft text-accent">
+                      {icon}
+                    </span>
+                    <div>
+                      <h3 className="text-sm font-semibold uppercase tracking-[0.06em] text-accent">{label}</h3>
+                      <p className="mt-1 font-display text-lg text-foreground">{hook}</p>
                     </div>
-                    <div
-                      className="h-1.5"
-                      style={{
-                        background: `linear-gradient(90deg, ${t.colors.accent}, ${t.colors.accentDark})`,
-                      }}
-                    />
-                    <p className="px-3 py-2.5 text-sm font-medium text-foreground">{t.label}</p>
+                    <p className="text-sm leading-relaxed text-muted">{body}</p>
                   </div>
                 </Reveal>
               ))}
             </div>
+            <Reveal>
+              <div className="mt-8 flex items-center gap-3 rounded-xl border border-border bg-surface px-5 py-4">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent">
+                  <ClipboardListIcon className="h-4 w-4" />
+                </span>
+                <p className="text-sm text-muted">
+                  Whichever mode you choose, every response — RSVP or custom form — lands in the
+                  same searchable dashboard, and exports to CSV whenever you need it.
+                </p>
+              </div>
+            </Reveal>
           </div>
         </section>
 

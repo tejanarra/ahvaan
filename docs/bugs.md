@@ -4,8 +4,6 @@
 
 3. very difficult to understand and modify sizing and layout for a normal user who has no experience with development.
 
-6. build user profile page which will be used for showing host information in public pages for privacy and other legal obligations or data use terms etc. 
-
 7. redeisgn the portfolio page to be more elgant clean and more feature oriented to drive more business with a very better new design so that it feels very premium and professional.
 
 10. urls naming are they correct or standard practices or the right way being built ?

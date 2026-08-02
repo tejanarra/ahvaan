@@ -51,7 +51,24 @@ Three cards in a row (stack on mobile), numbered in Fraunces:
 One sentence each. These vignettes are built from real `ui/` components so
 they stay current-looking for free.
 
-### 5. Deep-dive features — alternating rows (the only long section)
+### 5. Studio tour — the real dashboard, not a mockup
+"Everything included" (added post-v1, user-directed): left column is copy
+("This isn't a mockup — it's your dashboard") plus a chip row for the
+features too situational for a tab (per-device layout, sandboxed custom
+code, draft/publish, RSVP deadline, CSV export, host profile, delivery-
+logged reminders). Right column is `StudioTour`
+(`src/components/marketing/studio-tour.tsx`), a client component that
+reproduces the actual Studio chrome — the real `SideNav` row treatment,
+`StatTile`, `Badge`, `ToggleGroup` components, a fake browser-chrome bar —
+with four clickable tabs matching the real IA (Guests · Invite page ·
+Forms · Settings) swapping between static, hardcoded panes. No host data,
+no live queries, same "proof via real components" spirit as `ThemeDemo`.
+This is the page's second interactive moment (doc originally allowed only
+one); kept because it demonstrates feature breadth far better than prose
+cards and because a host clicking through the actual dashboard chrome is
+strictly more convincing than a description of it.
+
+### 6. Deep-dive features — alternating rows (the only long prose section)
 Three rows, image/text alternating, 64px rhythm, each pairing one honest
 capability with a vignette:
 - **"A page builder that's actually yours"** — drag blocks, nest containers,
@@ -64,23 +81,27 @@ capability with a vignette:
   email invites, bulk reminders to whoever hasn't answered. (Vignette:
   pending list with the "Email all pending" button.)
 
-### 6. Theme gallery
+### 7. Theme gallery
 "Start from a look you love" — grid of all 8 themes as mini invite cards
 (real colors + display font sample), each labeled. Hover: 120ms lift
 (translateY(-2px)). Not clickable-to-anything in v1 except the signup CTA
 below; do not build per-theme pages.
 
-### 7. FAQ (accordion, 5 items max)
+### 8. FAQ (accordion, 7 items max)
 Is it really free? (Yes — all of it.) · Do guests need an account? (No —
 one tap on their link.) · Can I change my page after sending invites?
 (Yes, live.) · What events is it for? (Any.) · Can I edit RSVPs myself?
-(Yes.) Native `<details>` styled to system, 180ms reveal.
+(Yes.) · Is my guest data mine? (Yes — CSV export anytime.) · Can I add my
+own code to the page? (Yes, sandboxed.) Native `<details>` styled to
+system, 180ms reveal. Expanded from 5 to 7 (user-directed) to cover CSV
+export and custom code — both real, shipped features with no other home
+above the fold.
 
-### 8. Final CTA band
+### 9. Final CTA band
 `--surface-sunken` band, Fraunces headline "Your event deserves better than
 a group chat.", primary lg CTA, caption "Free · unlimited guests".
 
-### 9. Footer
+### 10. Footer
 Wordmark, caption "© Ahvaan", links: Sign in · Sign up. Nothing else in v1
 (no dead Privacy/Terms links — add real ones in Phase 5's launch checklist).
 

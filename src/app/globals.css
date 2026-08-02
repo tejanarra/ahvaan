@@ -106,6 +106,24 @@ body {
    marketing Reveal component already skips its own JS-driven motion via
    matchMedia — this is the belt-and-suspenders CSS-only backstop for
    everything else (Modal, Toast, Dropdown, page-builder drag animations). */
+/* Marketing StudioTour (src/components/marketing/studio-tour.tsx): content
+   pane crossfade on tab switch. Transform/opacity only, per docs/04's motion
+   rule; the reduced-motion floor below already neutralizes it when needed. */
+@keyframes tour-pane-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@utility animate-tour-pane-in {
+  animation: tour-pane-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
