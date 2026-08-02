@@ -80,7 +80,7 @@ export function TextRender({ config }: { config: TextConfig }) {
   const variant = config.variant ?? "body";
   return (
     <p
-      className={`w-full whitespace-pre-wrap ${TEXT_VARIANT_CLASSES[variant]} ${config.color ? "" : "text-[var(--t-fg)]/85"}`}
+      className={`w-full whitespace-pre-wrap break-words ${TEXT_VARIANT_CLASSES[variant]} ${config.color ? "" : "text-[var(--t-fg)]/85"}`}
       style={config.color ? { color: config.color } : undefined}
     >
       {config.body}

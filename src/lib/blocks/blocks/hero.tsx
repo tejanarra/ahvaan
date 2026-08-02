@@ -157,7 +157,7 @@ export function HeroRender({ config, ctx }: { config: HeroConfig; ctx: PageRende
       )}
       {config.showTitle !== false && event.title && (
         <h1
-          className="mt-2 leading-[1.1] text-[var(--t-fg)]"
+          className="mt-2 break-words leading-[1.1] text-[var(--t-fg)]"
           style={{ fontFamily: "var(--t-font-display)", fontSize: "clamp(1.75rem, 4vw + 1rem, 3rem)" }}
         >
           {event.title}

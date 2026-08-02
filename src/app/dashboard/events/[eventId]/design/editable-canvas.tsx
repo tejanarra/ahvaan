@@ -314,117 +314,128 @@ function EditableBlock({
         )}
       />
       {showInsertionBefore && <InsertionBar orientation={parentLayoutMode === "row" ? "row" : "column"} />}
-      <div
-        style={{ zIndex: controlsZIndex }}
-        className={cn(
-          "absolute -top-3.5 right-1 flex items-center gap-0.5 rounded-md border border-border bg-background px-1 py-0.5 shadow-sm transition-opacity",
-          // Was permanently visible for containers (a 0-padding container
-          // has no exposed background left to hover, which made its own
-          // toolbar unreachable) — reverted now that the Outline mode
-          // (outline-panel.tsx) is the reliable, spacing-independent way to
-          // reach a container's Edit/Move/Delete actions regardless of its
-          // padding/gap. Keeping this hover-gated for every block type,
-          // container or not, is what keeps exactly one block's chrome
-          // visible at a time (paired with the JS deepest-hover tracking
-          // below) instead of two overlapping.
-          isSelected || isHovered ? "opacity-100" : "pointer-events-none opacity-0"
+      {/* Name chip and action toolbar share one flex-wrap row instead of
+          each being independently absolute-positioned (chip anchored
+          left, toolbar anchored right) — on a narrow multi-column
+          container (2/3-up starter layouts) their combined width easily
+          exceeds the column's own width, so independently-positioned
+          siblings collided into an unreadable cluster and spilled past
+          the column into its neighbor. flex-wrap lets the toolbar drop
+          to its own line under the chip instead of overlapping it. */}
+      <div style={{ zIndex: controlsZIndex }} className="absolute -top-4 inset-x-1 flex flex-wrap items-start justify-between gap-1">
+        {isContainer ? (
+          // Was permanently visible (both for reachability at 0 padding and
+          // to show the block's name) — now hover/selection-gated like the
+          // toolbar, for the same reason: two nested containers' chips
+          // both anchor top-left, so at 0 padding they land at nearly the
+          // same coordinates and become unreadable stacked on top of each
+          // other (confirmed live, see the page builder plan doc). The
+          // Outline mode is the reliable place to see every block's name and
+          // structure regardless of spacing; this chip is now a quick visual
+          // confirmation while directly interacting with one block, not the
+          // only way to find out what something's called.
+          <button
+            type="button"
+            onClick={() => setCollapsed((v) => !v)}
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? "Expand this container" : "Collapse this container"}
+            title={collapsed ? "Expand" : "Collapse"}
+            className={cn(
+              "flex max-w-full items-center gap-1 overflow-hidden rounded-full border border-accent/40 bg-background px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-accent transition-opacity hover:bg-accent-soft",
+              isSelected || isHovered || collapsed ? "opacity-100" : "pointer-events-none opacity-0"
+            )}
+          >
+            <span aria-hidden="true" className={cn("shrink-0 transition-transform", collapsed ? "-rotate-90" : "")}>
+              ▾
+            </span>
+            <span className="truncate">
+              {block.name || "Container"} · {(block.config.layoutMode ?? "column").replace(/^./, (c) => c.toUpperCase())}
+            </span>
+            {collapsed && !isEmptyContainer && (
+              <span className="shrink-0 normal-case text-muted-foreground">({block.children.length})</span>
+            )}
+          </button>
+        ) : (
+          <span />
         )}
-      >
-        <span
-          {...attributes}
-          {...listeners}
-          role="button"
-          tabIndex={0}
-          aria-label="Drag to reorder"
-          className="cursor-grab touch-none rounded p-1 text-muted hover:bg-surface hover:text-foreground active:cursor-grabbing"
-        >
-          <DragHandleIcon className="h-3.5 w-3.5" />
-        </span>
-        <button
-          type="button"
-          onClick={() => onSelect(path)}
-          aria-label={`Edit ${def.label}`}
-          className="rounded p-1 text-muted hover:bg-surface hover:text-foreground"
-        >
-          <EditIcon className="h-3.5 w-3.5" />
-        </button>
-        {(containerId !== null || containerOptions.length > 0) && (
-          <DropdownMenu
-            trigger={
-              <span
-                title="Move to…"
-                aria-label="Move to a different container or the page's top level"
-                className="flex items-center gap-0.5 rounded p-1 text-muted hover:bg-surface hover:text-foreground"
-              >
-                <MoveOutIcon className="h-3.5 w-3.5" />
-                <ChevronDownIcon className="h-2.5 w-2.5" />
-              </span>
-            }
-            items={[
-              ...(containerId !== null ? [{ label: "Top level (page)", onSelect: () => onMoveOut(path) }] : []),
-              ...containerOptions
-                // Exclude the block's current container plus — when moving a
-                // container itself — its own id and every nested descendant,
-                // so it can never be dropped inside itself.
-                .filter((c) => c.id !== containerId && !(isContainer && (c.id === block.id || descendantContainerIds(block).includes(c.id))))
-                .map((c) => ({ label: `Into "${c.label}"`, onSelect: () => onMoveTo(path, c.id) })),
-            ]}
-          />
-        )}
-        <button
-          type="button"
-          onClick={() => onCopy(path)}
-          aria-label={`Copy ${def.label}`}
-          title="Copy"
-          className="rounded p-1 text-muted hover:bg-surface hover:text-foreground"
-        >
-          <CopyIcon className="h-3.5 w-3.5" />
-        </button>
-        <button
-          type="button"
-          onClick={() => onPaste(path)}
-          disabled={!hasClipboard}
-          aria-label="Paste below"
-          title="Paste below"
-          className="rounded p-1 text-muted hover:bg-surface hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
-        >
-          <ClipboardListIcon className="h-3.5 w-3.5" />
-        </button>
-        <ConfirmIconButton label="Remove block" confirmText={`Remove "${def.label}" from the page?`} onConfirm={async () => onRemove(path)} />
-      </div>
-
-      {isContainer && (
-        // Was permanently visible (both for reachability at 0 padding and
-        // to show the block's name) — now hover/selection-gated like the
-        // toolbar above, for the same reason: two nested containers' chips
-        // both anchor top-left, so at 0 padding they land at nearly the
-        // same coordinates and become unreadable stacked on top of each
-        // other (confirmed live, see the page builder plan doc). The
-        // Outline mode is the reliable place to see every block's name and
-        // structure regardless of spacing; this chip is now a quick visual
-        // confirmation while directly interacting with one block, not the
-        // only way to find out what something's called.
-        <button
-          type="button"
-          onClick={() => setCollapsed((v) => !v)}
-          aria-expanded={!collapsed}
-          aria-label={collapsed ? "Expand this container" : "Collapse this container"}
-          title={collapsed ? "Expand" : "Collapse"}
-          style={{ zIndex: controlsZIndex }}
+        <div
           className={cn(
-            "absolute -top-2.5 left-2 flex items-center gap-1 rounded-full border border-accent/40 bg-background px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-accent transition-opacity hover:bg-accent-soft",
-            isSelected || isHovered || collapsed ? "opacity-100" : "pointer-events-none opacity-0"
+            "ml-auto flex shrink-0 items-center gap-0.5 rounded-md border border-border bg-background px-1 py-0.5 shadow-sm transition-opacity",
+            // Was permanently visible for containers (a 0-padding container
+            // has no exposed background left to hover, which made its own
+            // toolbar unreachable) — reverted now that the Outline mode
+            // (outline-panel.tsx) is the reliable, spacing-independent way to
+            // reach a container's Edit/Move/Delete actions regardless of its
+            // padding/gap. Keeping this hover-gated for every block type,
+            // container or not, is what keeps exactly one block's chrome
+            // visible at a time (paired with the JS deepest-hover tracking
+            // below) instead of two overlapping.
+            isSelected || isHovered ? "opacity-100" : "pointer-events-none opacity-0"
           )}
         >
-          <span aria-hidden="true" className={cn("transition-transform", collapsed ? "-rotate-90" : "")}>
-            ▾
+          <span
+            {...attributes}
+            {...listeners}
+            role="button"
+            tabIndex={0}
+            aria-label="Drag to reorder"
+            className="cursor-grab touch-none rounded p-1 text-muted hover:bg-surface hover:text-foreground active:cursor-grabbing"
+          >
+            <DragHandleIcon className="h-3.5 w-3.5" />
           </span>
-          {block.name || "Container"} · {(block.config.layoutMode ?? "column").replace(/^./, (c) => c.toUpperCase())}
-          {collapsed && !isEmptyContainer && (
-            <span className="normal-case text-muted-foreground">({block.children.length})</span>
+          <button
+            type="button"
+            onClick={() => onSelect(path)}
+            aria-label={`Edit ${def.label}`}
+            className="rounded p-1 text-muted hover:bg-surface hover:text-foreground"
+          >
+            <EditIcon className="h-3.5 w-3.5" />
+          </button>
+          {(containerId !== null || containerOptions.length > 0) && (
+            <DropdownMenu
+              trigger={
+                <span
+                  title="Move to…"
+                  aria-label="Move to a different container or the page's top level"
+                  className="flex items-center gap-0.5 rounded p-1 text-muted hover:bg-surface hover:text-foreground"
+                >
+                  <MoveOutIcon className="h-3.5 w-3.5" />
+                  <ChevronDownIcon className="h-2.5 w-2.5" />
+                </span>
+              }
+              items={[
+                ...(containerId !== null ? [{ label: "Top level (page)", onSelect: () => onMoveOut(path) }] : []),
+                ...containerOptions
+                  // Exclude the block's current container plus — when moving a
+                  // container itself — its own id and every nested descendant,
+                  // so it can never be dropped inside itself.
+                  .filter((c) => c.id !== containerId && !(isContainer && (c.id === block.id || descendantContainerIds(block).includes(c.id))))
+                  .map((c) => ({ label: `Into "${c.label}"`, onSelect: () => onMoveTo(path, c.id) })),
+              ]}
+            />
           )}
-        </button>
-      )}
+          <button
+            type="button"
+            onClick={() => onCopy(path)}
+            aria-label={`Copy ${def.label}`}
+            title="Copy"
+            className="rounded p-1 text-muted hover:bg-surface hover:text-foreground"
+          >
+            <CopyIcon className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => onPaste(path)}
+            disabled={!hasClipboard}
+            aria-label="Paste below"
+            title="Paste below"
+            className="rounded p-1 text-muted hover:bg-surface hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
+          >
+            <ClipboardListIcon className="h-3.5 w-3.5" />
+          </button>
+          <ConfirmIconButton label="Remove block" confirmText={`Remove "${def.label}" from the page?`} onConfirm={async () => onRemove(path)} />
+        </div>
+      </div>
       {isEmptyContainer ? (
         <EmptyDropZone containerId={block.id} onClick={() => onSelect(path)} />
       ) : isContainer && collapsed ? (
@@ -516,21 +527,32 @@ export function EmptyDropZone({ containerId, onClick }: { containerId: string | 
 // This renders a slim, always-present strip using the exact same droppable
 // id as the empty state, so page-builder.tsx's existing EMPTY_LIST_PREFIX
 // handling covers both cases with no extra logic.
+// Shared by both drop zones below: `flexBasis: "100%"` is the standard trick
+// for forcing a flex-wrap item onto its own line — without it, this strip is
+// a genuine extra flex sibling next to a row container's real children, and
+// since its border/text are transparent except while actively hovered, that
+// claimed a small slice of the row's width as unexplained blank space eating
+// into the row's real columns. `gridColumn: "1 / -1"` is the equivalent fix
+// for a **grid** container: without it, CSS Grid's auto-placement doesn't
+// know this element is just a decoration — it consumes its own cell like any
+// other child, which (for a 2-column grid) interleaves it between the real
+// children and checkerboards them across two rows instead of one, since
+// auto-placement fills cells left-to-right in DOM order and this element is
+// a genuine DOM sibling of the real blocks (SortableContext is a context
+// provider, not a wrapper element — its children render as direct DOM
+// siblings of whatever's around it). Both styles are harmless no-ops in the
+// display mode they don't apply to, so it's safe to always set both rather
+// than branch on `layoutMode`.
+const dropZoneSpanStyle = { flexBasis: "100%", gridColumn: "1 / -1" } as const;
+
 function EndOfListDropZone({ containerId }: { containerId: string | null }) {
   const { setNodeRef, isOver } = useDroppable({ id: emptyListId(containerId) });
   return (
     <div
       ref={setNodeRef}
-      // flexBasis: "100%" is the standard trick for forcing a flex-wrap item
-      // onto its own line — without it, this strip is a genuine third flex
-      // sibling next to a row container's real children. It has no explicit
-      // flex-grow, so it still claims its own (small) slice of the row's
-      // width; since its border/text are transparent except while actively
-      // hovered, that slice rendered as unexplained blank space eating into
-      // the row's real columns (editor-only — the real guest page and
-      // Preview mode render through PageRenderer, which has no such
-      // element, so neither ever showed this).
-      style={{ flexBasis: "100%" }}
+      // (editor-only — the real guest page and Preview mode render through
+      // PageRenderer, which has no such element, so neither ever showed this)
+      style={dropZoneSpanStyle}
       className={cn(
         "flex h-6 items-center justify-center rounded-md border border-dashed text-[10px] font-medium uppercase tracking-wide transition-colors",
         isOver ? "border-accent bg-accent/5 text-accent" : "border-transparent text-transparent"
@@ -554,7 +576,7 @@ function StartOfListDropZone({ containerId }: { containerId: string | null }) {
   return (
     <div
       ref={setNodeRef}
-      style={{ flexBasis: "100%" }}
+      style={dropZoneSpanStyle}
       className={cn(
         "flex h-6 items-center justify-center rounded-md border border-dashed text-[10px] font-medium uppercase tracking-wide transition-colors",
         isOver ? "border-accent bg-accent/5 text-accent" : "border-transparent text-transparent"

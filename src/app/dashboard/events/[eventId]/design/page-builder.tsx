@@ -23,6 +23,7 @@ import type { EventRecord } from "@/lib/data/events";
 import type { FormSchema } from "@/lib/schemas/form-schema";
 import type { BlockInstance, BlockType, PageSchema } from "@/lib/blocks/types";
 import { BLOCK_REGISTRY, makeBlockInstance } from "@/lib/blocks/registry";
+import { makeStarterLayout } from "@/lib/blocks/starter-layouts";
 import { getTheme, resolveThemeColors, THEMES, type ThemeId, type ThemeColorOverrides } from "@/lib/themes";
 import { resolveThemeFonts } from "@/lib/theme-fonts";
 import { CustomPageFrame } from "@/lib/blocks/custom-page-frame";
@@ -943,7 +944,10 @@ export function PageBuilder({
         <div className="flex min-h-0 flex-col rounded-lg border border-border bg-surface">
           <p className="shrink-0 border-b border-border px-4 py-2.5 text-xs font-medium uppercase tracking-wide text-muted">Components</p>
           <div className="min-h-0 flex-1 overflow-y-auto p-3">
-            <ComponentPalette onAdd={(type) => setBlocks((prev) => [...prev, makeBlockInstance(type)])} />
+            <ComponentPalette
+              onAdd={(type) => setBlocks((prev) => [...prev, makeBlockInstance(type)])}
+              onAddLayout={(id) => setBlocks((prev) => [...prev, makeStarterLayout(id)])}
+            />
           </div>
         </div>
 

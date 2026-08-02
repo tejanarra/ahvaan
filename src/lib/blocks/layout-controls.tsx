@@ -133,6 +133,13 @@ export function layoutWrapperStyle(
         ? { flex: "1 1 0%", minWidth: "200px" }
         : {}),
     ...(inGrid && resolved.gridSpan && resolved.gridSpan > 1 ? { gridColumn: `span ${resolved.gridSpan}` } : {}),
+    // Grid items default to an "automatic minimum size" driven by their own
+    // content (same mechanism as flex's implicit min-width), so a track
+    // capped at minmax(0, 1fr) (container.tsx) still didn't stop unbreakable
+    // content (e.g. a long word) from overflowing the item past its column —
+    // minWidth: 0 here is what actually lets it shrink to (and wrap/clip
+    // within) the track's share.
+    ...(inGrid ? { minWidth: 0 } : {}),
     maxWidth: hasRowRatio || inGrid ? undefined : resolved.width === "full" ? "none" : `${BLOCK_WIDTH_PX[resolved.width]}px`,
     minHeight: resolved.minHeightPx && resolved.minHeightPx > 0 ? `${Math.min(resolved.minHeightPx, 4000)}px` : undefined,
     ...(inRow || inGrid ? {} : ALIGN_TO_MARGIN[resolved.align]),

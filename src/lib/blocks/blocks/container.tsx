@@ -205,7 +205,11 @@ export function ContainerRender({
 
   const layoutStyle =
     layoutMode === "grid"
-      ? { display: "grid", gridTemplateColumns: `repeat(${clampedColumns}, 1fr)`, gap, justifyContent: justify, alignItems }
+      ? // minmax(0, 1fr), not bare 1fr — bare 1fr resolves to minmax(auto, 1fr),
+        // so a track holding an unbreakable long word (or any content whose
+        // min-content width exceeds its equal share) grows past its share and
+        // pushes into the next column instead of wrapping/clipping in place.
+        { display: "grid", gridTemplateColumns: `repeat(${clampedColumns}, minmax(0, 1fr))`, gap, justifyContent: justify, alignItems }
       : {
           display: "flex",
           flexDirection: layoutMode === "row" ? ("row" as const) : ("column" as const),
