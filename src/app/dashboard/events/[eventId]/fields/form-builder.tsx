@@ -281,8 +281,8 @@ export function FormBuilder({
 
   return (
     <div>
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <h2 className="text-sm font-semibold text-foreground">
             RSVP form fields
           </h2>
@@ -292,7 +292,7 @@ export function FormBuilder({
               : `${fields.length} field${fields.length === 1 ? "" : "s"} — add, edit, reorder, or remove any of them, including the built-in ones.`}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 *:flex-1 sm:*:flex-none">
           {saved && <span className="text-sm text-success">Saved.</span>}
           <Button size="sm" onClick={handleSave} loading={isPending}>
             {isPending ? "Saving..." : "Save form"}

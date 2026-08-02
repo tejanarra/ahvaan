@@ -80,7 +80,7 @@ export function ThemeDemo() {
         </div>
       </div>
 
-      <div className="mt-5 flex items-center justify-center gap-3" role="group" aria-label="Preview theme">
+      <div className="mt-5 flex flex-wrap items-center justify-center gap-2 sm:gap-3" role="group" aria-label="Preview theme">
         {THEMES.map((t) => (
           <button
             key={t.id}

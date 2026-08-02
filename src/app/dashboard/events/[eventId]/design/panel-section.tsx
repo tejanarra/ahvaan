@@ -19,7 +19,7 @@ export function PanelSection({
 }) {
   return (
     <section className="space-y-2.5 border-b border-border pb-4 last:border-b-0 last:pb-0">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-xs font-medium uppercase tracking-wider text-muted">{title}</h3>
         {actions}
       </div>

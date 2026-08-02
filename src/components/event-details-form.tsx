@@ -50,7 +50,7 @@ export function EventDetailsFields({
         <Input id="subtitle" name="subtitle" value={value.subtitle} onChange={(e) => onChange("subtitle", e.target.value)} />
       </Field>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Event type" htmlFor="eventType">
           <Select id="eventType" name="eventType" value={value.eventType} onChange={(e) => onChange("eventType", e.target.value)}>
             {EVENT_TYPES.map((t) => (
@@ -65,7 +65,7 @@ export function EventDetailsFields({
         </Field>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Time" htmlFor="eventTime" hint="Optional">
           <Input
             id="eventTime"

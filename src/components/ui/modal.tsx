@@ -41,12 +41,26 @@ export function Modal({ open, onClose, title, children, className, size = "sm" }
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={onClose}>
+    // Mobile (docs/05): the dialog docks to the bottom edge as a full-width
+    // sheet instead of floating centered — `items-end` + no outer padding on
+    // mobile, reverting to the centered floating card at `sm` and up.
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 sm:items-center sm:p-4"
+      onClick={onClose}
+    >
       <div
         role="dialog"
         aria-modal="true"
         onClick={(e) => e.stopPropagation()}
-        className={cn(SIZE_CLASSES[size], "rounded-lg border border-border bg-background shadow-lg", className)}
+        className={cn(
+          SIZE_CLASSES[size],
+          // Always a flex column with a viewport-relative height cap, so the
+          // content pane below can actually scroll internally instead of the
+          // whole dialog overflowing the viewport — previously this only
+          // worked when a caller's own className happened to add both.
+          "flex max-h-[85dvh] flex-col rounded-t-lg border border-border bg-background shadow-lg sm:max-h-[80vh] sm:rounded-lg",
+          className
+        )}
       >
         {title && (
           <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
@@ -58,10 +72,6 @@ export function Modal({ open, onClose, title, children, className, size = "sm" }
             </IconButton>
           </div>
         )}
-        {/* min-h-0 only takes effect when the caller's className also makes
-            this dialog a flex column with a fixed height (e.g. the page
-            builder's block-edit modal) — a no-op otherwise, so existing
-            auto-height modal usages are unaffected. */}
         <div className="min-h-0 flex-1 overflow-y-auto p-5">{children}</div>
       </div>
     </div>

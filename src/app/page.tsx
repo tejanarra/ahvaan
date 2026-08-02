@@ -114,7 +114,10 @@ export default function Home() {
               </Button>
             </Link>
             <Link href="/signup">
-              <Button size="md">Get started free</Button>
+              <Button size="md">
+                <span className="sm:hidden">Get started</span>
+                <span className="hidden sm:inline">Get started free</span>
+              </Button>
             </Link>
           </nav>
         </div>

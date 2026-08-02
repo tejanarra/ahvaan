@@ -64,7 +64,7 @@ export function ConfirmIconButton({
       onClick={() => setConfirming(true)}
       aria-label={label}
       title={label}
-      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-destructive/80 transition hover:bg-destructive/10 hover:text-destructive"
+      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-destructive/80 transition hover:bg-destructive/10 hover:text-destructive sm:h-8 sm:w-8"
     >
       {icon ?? <TrashIcon />}
     </button>

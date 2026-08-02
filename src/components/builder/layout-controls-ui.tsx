@@ -261,8 +261,8 @@ export function LayoutControls({
       </div>
 
       {parentLayoutMode === "row" && (
-        <div className="flex items-center gap-2 text-xs">
-          <span className="text-muted">Row share</span>
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <span className="shrink-0 text-muted">Row share</span>
           <Input
             type="number"
             min={0}
@@ -270,16 +270,19 @@ export function LayoutControls({
             value={resolved.flexGrow ?? ""}
             onChange={(e) => onChange({ ...resolved, flexGrow: e.target.value ? Number(e.target.value) : undefined })}
             placeholder="1"
-            className="h-7 w-16 px-2 text-xs"
+            className="h-7 w-16 shrink-0 px-2 text-xs"
           />
-          <span className="text-muted" title="e.g. 2 here + 1 on two siblings = this one takes half the row">
+          <span
+            className="min-w-0 basis-full text-muted sm:basis-auto"
+            title="e.g. 2 here + 1 on two siblings = this one takes half the row"
+          >
             Blank splits evenly (equal share of 1). Set a different number for a custom ratio, or 0 to size this one to its own content instead.
           </span>
         </div>
       )}
       {parentLayoutMode === "grid" && (
-        <div className="flex items-center gap-2 text-xs">
-          <span className="text-muted">Grid span</span>
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <span className="shrink-0 text-muted">Grid span</span>
           <Input
             type="number"
             min={1}
@@ -287,7 +290,7 @@ export function LayoutControls({
             step={1}
             value={resolved.gridSpan ?? 1}
             onChange={(e) => onChange({ ...resolved, gridSpan: e.target.value ? Number(e.target.value) : undefined })}
-            className="h-7 w-16 px-2 text-xs"
+            className="h-7 w-16 shrink-0 px-2 text-xs"
           />
           <span className="text-muted">of this container&rsquo;s grid columns</span>
         </div>
@@ -296,7 +299,7 @@ export function LayoutControls({
       <button
         type="button"
         onClick={() => setDeviceOpen((v) => !v)}
-        className="flex items-center gap-1 text-xs font-medium text-accent hover:underline"
+        className="-mx-1 flex items-center gap-1 rounded px-1 py-1.5 text-xs font-medium text-accent hover:underline"
       >
         {deviceOpen ? "Hide per-device options" : "Per-device options"}
         <span aria-hidden="true">{deviceOpen ? "▲" : "▼"}</span>
@@ -348,7 +351,7 @@ export function LayoutControls({
       <button
         type="button"
         onClick={() => setAdvancedOpen((v) => !v)}
-        className="flex items-center gap-1 text-xs font-medium text-accent hover:underline"
+        className="-mx-1 flex items-center gap-1 rounded px-1 py-1.5 text-xs font-medium text-accent hover:underline"
       >
         {advancedOpen ? "Hide advanced options" : "Advanced options"}
         <span aria-hidden="true">{advancedOpen ? "▲" : "▼"}</span>

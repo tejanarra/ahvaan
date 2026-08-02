@@ -70,16 +70,24 @@ export function EmailVerificationModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4"
+      onClick={onClose}
+    >
       <div
         role="dialog"
         aria-modal="true"
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-sm rounded-lg border border-[var(--t-accent)]/25 bg-[var(--t-surface)] p-5 text-[var(--t-fg)] shadow-lg"
+        className="max-h-[90vh] w-full max-w-sm overflow-y-auto rounded-t-lg border border-[var(--t-accent)]/25 bg-[var(--t-surface)] p-5 text-[var(--t-fg)] shadow-lg sm:rounded-lg"
       >
         <div className="flex items-start justify-between gap-3">
           <h2 className="text-lg font-semibold uppercase tracking-wide text-[var(--t-accent-dark)]">Verify your email</h2>
-          <button type="button" onClick={onClose} aria-label="Close" className="shrink-0 text-[var(--t-fg)]/60 hover:text-[var(--t-fg)]">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="-mr-1.5 -mt-1.5 flex h-8 w-8 shrink-0 items-center justify-center text-[var(--t-fg)]/60 hover:text-[var(--t-fg)]"
+          >
             ✕
           </button>
         </div>
@@ -102,13 +110,13 @@ export function EmailVerificationModal({
             />
           ) : (
             <>
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
-                  className={inputClass + " mt-0"}
+                  className={inputClass + " mt-0 min-w-0 flex-1"}
                 />
                 <button
                   type="button"

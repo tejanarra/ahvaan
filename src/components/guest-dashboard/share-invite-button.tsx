@@ -124,9 +124,9 @@ export function ShareInviteButton({
                 readOnly
                 value={buildInviteMessage(eventTitle, link)}
                 onFocus={(e) => e.currentTarget.select()}
-                className="w-full truncate bg-transparent text-sm text-foreground focus:outline-none"
+                className="min-w-0 w-full flex-1 truncate bg-transparent text-sm text-foreground focus:outline-none"
               />
-              <Button size="sm" onClick={handleCopy}>
+              <Button size="sm" className="shrink-0" onClick={handleCopy}>
                 {copied ? "Copied!" : "Copy"}
               </Button>
             </div>

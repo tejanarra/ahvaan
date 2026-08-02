@@ -39,7 +39,7 @@ export function OtpCodeEntry({
           value={code}
           onChange={(e) => setCode(e.target.value)}
           placeholder="6-digit code"
-          className={inputClass}
+          className={inputClass + " min-w-0 flex-1"}
         />
         <button
           type="button"

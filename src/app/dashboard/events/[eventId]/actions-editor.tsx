@@ -73,7 +73,12 @@ export function ActionsEditor({
         <p className="mt-0.5 text-xs text-muted">Choose what a guest sees right after they submit.</p>
       </div>
 
-      <ToggleGroup options={KIND_OPTIONS} value={kind} onChange={(v) => setKind(v as PostSubmitAction["kind"])} />
+      <ToggleGroup
+        options={KIND_OPTIONS}
+        value={kind}
+        onChange={(v) => setKind(v as PostSubmitAction["kind"])}
+        fullWidth="mobile"
+      />
 
       {kind === "message" && (
         <div className="space-y-3">

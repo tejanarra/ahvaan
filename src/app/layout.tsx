@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Hanken_Grotesk, Geist_Mono, Fraunces } from "next/font/google";
+import { ServiceWorkerRegister } from "@/components/service-worker-register";
 import "./globals.css";
 
 // UI face — warm humanist grotesk (see docs/04-design-system.md "Typography").
@@ -27,6 +28,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  themeColor: "#2F5D46",
 };
 
 const description =
@@ -50,6 +52,11 @@ export const metadata: Metadata = {
     title: "ahvaan — RSVP made easy",
     description,
   },
+  appleWebApp: {
+    capable: true,
+    title: "ahvaan",
+    statusBarStyle: "default",
+  },
 };
 
 export default function RootLayout({
@@ -62,7 +69,10 @@ export default function RootLayout({
       lang="en"
       className={`${hanken.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <ServiceWorkerRegister />
+        {children}
+      </body>
     </html>
   );
 }

@@ -171,7 +171,7 @@ function OutlineRow({
             onClick={() => setExpanded((v) => !v)}
             aria-expanded={expanded}
             aria-label={expanded ? "Collapse" : "Expand"}
-            className="shrink-0 rounded p-0.5 text-muted hover:bg-surface hover:text-foreground"
+            className="shrink-0 rounded p-1.5 text-muted hover:bg-surface hover:text-foreground"
           >
             <ChevronDownIcon className={cn("h-3.5 w-3.5 transition-transform", !expanded && "-rotate-90")} />
           </button>

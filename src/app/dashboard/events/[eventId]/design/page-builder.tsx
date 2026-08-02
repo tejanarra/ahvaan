@@ -421,6 +421,14 @@ export function PageBuilder({
   const [customPage, setCustomPage] = useState<CustomPageConfig>(initialCustomPage);
   const [liveEvent, setLiveEvent] = useState<EventRecord>(event);
   const [selectedPath, setSelectedPath] = useState<BlockPath | null>(null);
+  // Separate from `selectedPath` on purpose: selection also drives the
+  // canvas's own ring/toolbar (see editable-canvas.tsx), which needs to
+  // survive closing the modal — touch has no hover, so a block staying
+  // selected after Close is the only way to reach its drag/copy/remove
+  // controls on a phone at all. Modal visibility can't just key off
+  // `Boolean(selectedBlock)` once selection outlives the modal, or Close
+  // would never actually close it (selectedBlock would still be non-null).
+  const [editingBlockOpen, setEditingBlockOpen] = useState(false);
   const [pageSettingsOpen, setPageSettingsOpen] = useState(false);
   const [codeMode, setCodeMode] = useState(false);
   const [zoom, setZoom] = useState(100);
@@ -582,15 +590,25 @@ export function PageBuilder({
   const openBlock = (path: BlockPath) => {
     setPageSettingsOpen(false);
     setSelectedPath(path);
+    setEditingBlockOpen(true);
   };
 
   const openPageSettings = () => {
     setSelectedPath(null);
+    setEditingBlockOpen(false);
     setPageSettingsOpen(true);
   };
 
   const closeModal = () => {
-    setSelectedPath(null);
+    // `selectedPath` intentionally persists after closing — the block's
+    // canvas toolbar (drag/move/copy/remove) only shows for a hovered or
+    // selected block, and touch has no hover at all. Without this, a touch
+    // user could never reach those controls except by mouse: tapping a
+    // block opens its modal immediately (see the full-cover edit button in
+    // editable-canvas.tsx), and closing it used to deselect right away too
+    // — leaving no tap-driven path back to the toolbar. `editingBlockOpen`
+    // is what actually gates the modal now, so Close still closes it.
+    setEditingBlockOpen(false);
     setPageSettingsOpen(false);
   };
 
@@ -611,8 +629,15 @@ export function PageBuilder({
 
   const handleRemoveBlock = (path: BlockPath) => {
     const list = getBlockList(blocks, path.containerId);
-    setBlocks(setBlockList(blocks, path.containerId, list.filter((b) => b.id !== path.blockId)));
-    if (selectedPath?.containerId === path.containerId && selectedPath?.blockId === path.blockId) {
+    const nextBlocks = setBlockList(blocks, path.containerId, list.filter((b) => b.id !== path.blockId));
+    setBlocks(nextBlocks);
+    // Removing an ancestor container also removes whatever's currently
+    // selected inside it, not just an exact path match — re-resolve against
+    // the post-removal tree rather than only checking the removed path
+    // itself, so selection can't keep pointing at a block that no longer
+    // exists (harmless today since findBlock/getBlockList degrade
+    // gracefully, but stale state all the same).
+    if (selectedPath && !findBlock(nextBlocks, selectedPath)) {
       setSelectedPath(null);
     }
   };
@@ -690,6 +715,14 @@ export function PageBuilder({
       return target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
     }
     function onKeyDown(e: KeyboardEvent) {
+      // Selection now deliberately survives closing a block's modal (see
+      // closeModal) so touch users can still reach its canvas toolbar
+      // afterward — but that means `selectedPath` can be "stale" (pointing
+      // at a block with no visible selection cue) once the Code editor or
+      // Preview mode is active, neither of which render any selection ring.
+      // Without this guard, Ctrl/Cmd+V there would silently mutate `blocks`
+      // with no on-screen indication anything happened.
+      if (codeMode || canvasMode === "preview") return;
       if (!(e.metaKey || e.ctrlKey) || !selectedPath || isTextEntryTarget(e.target)) return;
       if (e.key === "c" || e.key === "C") {
         if (window.getSelection()?.toString()) return;
@@ -703,7 +736,7 @@ export function PageBuilder({
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedPath, blocks, clipboardBlock]);
+  }, [selectedPath, blocks, clipboardBlock, codeMode, canvasMode]);
 
   // Renaming from the Outline panel — same shape as handleChangeSelected
   // (which the block's own edit-modal header uses for the same field) but
@@ -830,8 +863,11 @@ export function PageBuilder({
         ? blockTypeAndLabelForId(blocks, activeDragId)
         : null;
 
-  const modalOpen = Boolean(selectedBlock) || pageSettingsOpen;
-  const modalTitle = selectedBlock ? selectedBlock.name || BLOCK_REGISTRY[selectedBlock.type]?.label || selectedBlock.type : "Page settings";
+  const modalOpen = (editingBlockOpen && Boolean(selectedBlock)) || pageSettingsOpen;
+  const modalTitle =
+    editingBlockOpen && selectedBlock
+      ? selectedBlock.name || BLOCK_REGISTRY[selectedBlock.type]?.label || selectedBlock.type
+      : "Page settings";
 
   const canvasThemeStyle = {
     "--t-bg": themeColors.background,
@@ -952,8 +988,20 @@ export function PageBuilder({
       {/* Individually-scrollable columns so selecting a block near the
           bottom of a long page never hides the palette above or requires
           scrolling a separate settings panel into view — editing now opens
-          in a modal (below) instead of a persistent third column. */}
-      <div className="grid min-h-0 flex-1 grid-rows-[1fr] grid-cols-1 gap-5 xl:grid-cols-[300px_1fr]">
+          in a modal (below) instead of a persistent third column.
+
+          Below `xl` (this three-pane layout is a power tool that doesn't
+          reflow to a single phone column — see docs/07/report), the palette
+          and canvas stack instead of sitting side by side. Stacking them
+          into implicit auto-height grid rows (the old behavior) let the
+          palette claim the row's whole 1fr height while the canvas row
+          grew to fit its *content* with no cap — on a long page that's
+          hundreds of vertical pixels, forcing the whole dashboard page to
+          scroll instead of just this panel. Giving the palette a bounded
+          row height and the canvas the rest (both already `min-h-0
+          overflow-y-auto` internally) keeps both individually scrollable
+          and the outer page scroll-free, matching desktop's behavior. */}
+      <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(140px,220px)_1fr] gap-5 xl:grid-cols-[300px_1fr] xl:grid-rows-[1fr]">
         <div className="flex min-h-0 flex-col rounded-lg border border-border bg-surface">
           <p className="shrink-0 border-b border-border px-4 py-2.5 text-xs font-medium uppercase tracking-wide text-muted">Components</p>
           <div className="min-h-0 flex-1 overflow-y-auto p-3">
@@ -1028,7 +1076,7 @@ export function PageBuilder({
 
   return (
     <div className="flex h-full flex-col space-y-4">
-      <div className="flex shrink-0 items-center justify-between">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
         <div>
           <Link href={`/dashboard/events/${liveEvent.id}`} className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground">
             <ArrowLeftIcon className="h-4 w-4" />
@@ -1036,8 +1084,14 @@ export function PageBuilder({
           </Link>
           <h1 className="mt-1 text-xl font-semibold text-foreground">Page builder</h1>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
+        {/* flex-wrap + a wrap-only border on the second group (not the
+            fixed `border-l` below `sm`, which reads oddly once the group
+            drops to its own line on a narrow toolbar) — five controls
+            (Page settings, theme, Code, save status, Save) never fit one
+            row under ~1024px, so this wraps to two rows instead of forcing
+            the whole header (and the page) into horizontal scroll. */}
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+          <div className="flex flex-wrap items-center gap-2">
             <Button type="button" variant="secondary" size="sm" onClick={openPageSettings}>
               Page settings
             </Button>
@@ -1047,7 +1101,7 @@ export function PageBuilder({
               {codeMode ? "Visual builder" : "Code"}
             </Button>
           </div>
-          <div className="flex items-center gap-3 border-l border-border pl-4">
+          <div className="flex flex-wrap items-center gap-3 sm:border-l sm:border-border sm:pl-4">
             {eventSaveState === "saving" && <span className="text-xs text-muted">Saving…</span>}
             {eventSaveState === "saved" && <span className="text-xs text-success">Saved.</span>}
             {saved && <span className="text-sm text-success">Saved.</span>}
@@ -1081,7 +1135,7 @@ export function PageBuilder({
       ) : mounted ? (
         canvas
       ) : (
-        <div className="grid min-h-0 flex-1 grid-rows-[1fr] grid-cols-1 gap-5 xl:grid-cols-[300px_1fr]">
+        <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(140px,220px)_1fr] gap-5 xl:grid-cols-[300px_1fr] xl:grid-rows-[1fr]">
           <div className="rounded-lg border border-border bg-surface" />
           <div className="rounded-lg border border-border" />
         </div>
@@ -1092,7 +1146,7 @@ export function PageBuilder({
           how many fields that block type has — consistency across block
           types, and the preview stays visible while adjusting settings. */}
       <Modal open={modalOpen} onClose={closeModal} title={modalTitle} size="full" className="flex h-[90vh] flex-col">
-        {selectedBlock ? (
+        {editingBlockOpen && selectedBlock ? (
           <PropertiesPanel
             selectedBlock={selectedBlock}
             onChangeSelected={handleChangeSelected}

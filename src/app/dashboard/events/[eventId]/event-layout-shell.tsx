@@ -3,8 +3,8 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { ArrowLeftIcon, ExternalLinkIcon } from "@/components/icons";
-import { SectionNav } from "@/components/ui/section-nav";
+import { ArrowLeftIcon, ExternalLinkIcon, FormIcon, InvitePageIcon, SettingsIcon, UserIcon } from "@/components/icons";
+import { BottomNav } from "@/components/ui/bottom-nav";
 import { SideNav } from "@/components/ui/side-nav";
 import { Badge } from "@/components/ui/badge";
 import type { EventStatus } from "@/lib/data/events";
@@ -48,11 +48,20 @@ export function EventLayoutShell({
   }
 
   const groups = eventNavGroups(eventId);
-  // Same isActive functions the sidebar uses, flattened into SectionNav's
-  // `isActive` boolean shape for the mobile pill strip — one source of
-  // truth (event-nav.ts) rendered as two different components per
-  // breakpoint, not two separately-maintained nav lists.
-  const topLevelItems = groups.map((g) => ({ href: g.href, label: g.label, isActive: g.isActive(pathname) }));
+  // Same isActive functions the sidebar uses, paired with an icon for the
+  // mobile bottom tab bar — one source of truth (event-nav.ts) rendered as
+  // two different components per breakpoint, not two separately-maintained
+  // nav lists. Order matches SideNav: Guests, Invite page, Forms, Settings.
+  const navIcons = [UserIcon, InvitePageIcon, FormIcon, SettingsIcon];
+  const bottomNavItems = groups.map((g, i) => {
+    const Icon = navIcons[i] ?? UserIcon;
+    return {
+      href: g.href,
+      label: g.label,
+      isActive: g.isActive(pathname),
+      icon: <Icon className="h-5 w-5" />,
+    };
+  });
 
   return (
     <div className="mx-auto max-w-7xl">
@@ -85,30 +94,37 @@ export function EventLayoutShell({
         </div>
       </div>
 
-      <div className="mt-6 border-b border-border" />
+      {/* Mobile: sidebar hidden, a fixed bottom tab bar takes its place.
+          Placed here in DOM order (right after Zone A, before Zone C's own
+          content) — not at the end of the tree — purely for tab/reading
+          order: it's `fixed`, so its on-screen position is unaffected, but a
+          keyboard/screen-reader user reaches the workspace's primary
+          section-switcher before a long page of content, not after.
+          Guests'/a form's sub-items still ride in the page's own PageHeader
+          nav slot (SectionNav, same place on both breakpoints), so this bar
+          never stacks above a second nav row. */}
+      <BottomNav ariaLabel="Event sections" items={bottomNavItems} />
 
-      {/* Mobile: sidebar hidden, a sticky pill strip takes its place.
-          Guests'/a form's sub-items ride in the page's own PageHeader nav
-          slot instead (same place on both breakpoints for those), so this
-          strip never sits directly above a second nav row. */}
-      <div className="sm:hidden">
-        <div className="sticky top-0 z-20 -mx-4 border-b border-border bg-background px-4 pb-2 pt-3">
-          <SectionNav ariaLabel="Event sections" items={topLevelItems} />
-        </div>
-      </div>
+      <div className="mt-6 border-b border-border" />
 
       <div className="sm:grid sm:grid-cols-[13rem_minmax(0,1fr)] sm:gap-8">
         {/* Zone B — desktop-only sidebar. `<main>` (src/app/dashboard/
             layout.tsx) is the page's scroll container, so `sticky top-0`
-            here is correct with no extra plumbing. */}
+            here is correct with no extra plumbing. On mobile, BottomNav
+            above takes over as the top-level section switcher instead. */}
         <div className="hidden border-r border-border pr-6 sm:block">
           <div className="sticky top-6">
             <SideNav ariaLabel="Event sections" groups={groups} />
           </div>
         </div>
 
-        {/* Zone C */}
-        <div className="min-w-0 pt-6 sm:pt-8">{children}</div>
+        {/* Zone C — bottom padding on mobile clears the fixed BottomNav (its
+            own h-16 plus the safe-area inset it pads itself with, e.g. the
+            home-indicator area on notched iPhones) so the last bit of
+            content is never hidden behind it. */}
+        <div className="min-w-0 pb-[calc(4rem+env(safe-area-inset-bottom)+1rem)] pt-6 sm:pb-0 sm:pt-8">
+          {children}
+        </div>
       </div>
     </div>
   );

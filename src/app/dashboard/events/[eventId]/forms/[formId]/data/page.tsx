@@ -28,14 +28,16 @@ export default async function FormDataPage({ params }: { params: Promise<{ event
 
   return (
     <div>
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <h2 className="text-sm font-semibold text-foreground">Submissions</h2>
           <p className="mt-0.5 text-xs text-muted">
             {submissions.length} submission{submissions.length === 1 ? "" : "s"}.
           </p>
         </div>
-        <ExportSubmissionsCsvButton formName={form.name} schema={form.schema} submissions={submissions} />
+        <div className="flex *:flex-1 sm:*:flex-none">
+          <ExportSubmissionsCsvButton formName={form.name} schema={form.schema} submissions={submissions} />
+        </div>
       </div>
 
       {submissions.length === 0 ? (

@@ -69,7 +69,9 @@ export function DropdownMenu({
                 item.onSelect();
               }}
               className={cn(
-                "flex w-full items-center gap-2 truncate px-3 py-2 text-left text-sm font-medium transition-colors hover:bg-surface-hover",
+                // py-2.5 hits the 40px touch-target floor (docs/05) on
+                // mobile; sm:py-2 keeps the tighter desktop density.
+                "flex w-full items-center gap-2 truncate px-3 py-2.5 text-left text-sm font-medium transition-colors hover:bg-surface-hover sm:py-2",
                 item.destructive ? "text-destructive" : "text-foreground"
               )}
             >

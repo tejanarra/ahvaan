@@ -290,6 +290,13 @@ function EditableBlock({
         onHover(path);
       }}
       onMouseLeave={() => onHoverEnd(path)}
+      // Touch has no hover at all — without this, a not-yet-selected
+      // block's toolbar/chip never becomes visible on a phone/tablet no
+      // matter what's tapped, since `isHovered` would always be false.
+      onTouchStart={(e) => {
+        e.stopPropagation();
+        onHover(path);
+      }}
       className={cn(
         // A block can render nothing yet (e.g. a freshly-added Image block
         // with no URL set — its Render returns null until configured) — a
@@ -514,7 +521,7 @@ export function EmptyDropZone({ containerId, onClick }: { containerId: string | 
         isOver ? "border-accent bg-accent/5 text-foreground" : "border-border text-muted"
       )}
     >
-      Drag a component here from the left
+      Drag a component here, or add one from the Components panel
     </div>
   );
 }

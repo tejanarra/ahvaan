@@ -62,8 +62,8 @@ export function FieldsBuilder({ eventId, formId, schema }: { eventId: string; fo
 
   return (
     <div>
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <h2 className="text-sm font-semibold text-foreground">Fields</h2>
           <p className="mt-0.5 text-xs text-muted">
             {fields.length === 0
@@ -71,7 +71,7 @@ export function FieldsBuilder({ eventId, formId, schema }: { eventId: string; fo
               : `${fields.length} field${fields.length === 1 ? "" : "s"}.`}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 *:flex-1 sm:*:flex-none">
           {saved && <span className="text-sm text-success">Saved.</span>}
           <Button size="sm" onClick={handleSave} loading={isPending}>
             {isPending ? "Saving..." : "Save form"}

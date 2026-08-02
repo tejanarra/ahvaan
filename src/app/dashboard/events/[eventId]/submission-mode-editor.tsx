@@ -66,7 +66,12 @@ export function SubmissionModeEditor({
         </p>
       </div>
 
-      <ToggleGroup options={MODE_OPTIONS} value={mode} onChange={(v) => setMode(v as SubmissionMode)} />
+      <ToggleGroup
+        options={MODE_OPTIONS}
+        value={mode}
+        onChange={(v) => setMode(v as SubmissionMode)}
+        fullWidth="mobile"
+      />
       <p className="text-sm text-muted">{MODE_DESCRIPTIONS[mode]}</p>
       {mode === "email_verified" && emailFieldMissing && (
         <p className="text-xs text-muted">An Email field will be added automatically to RSVP and every form when you save.</p>

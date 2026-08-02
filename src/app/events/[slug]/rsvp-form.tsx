@@ -84,12 +84,12 @@ function PlusOnesField({
               }
               placeholder={`Guest ${index + 1} name`}
               maxLength={field.maxLength}
-              className={inputClass + " mt-0"}
+              className={inputClass + " mt-0 min-w-0 flex-1"}
             />
             <button
               type="button"
               onClick={() => commit(items.filter((f) => f.key !== item.key))}
-              className="shrink-0 text-[var(--t-fg)]/50 hover:text-[var(--t-fg)]/80"
+              className="flex h-9 w-9 shrink-0 items-center justify-center text-[var(--t-fg)]/50 hover:text-[var(--t-fg)]/80"
               aria-label="Remove guest"
             >
               ✕

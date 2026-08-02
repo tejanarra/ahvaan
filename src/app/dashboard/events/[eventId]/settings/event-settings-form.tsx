@@ -96,8 +96,8 @@ export function EventSettingsForm({ event }: { event: EventRecord }) {
         <CardHeader>
           <CardTitle>Visibility</CardTitle>
         </CardHeader>
-        <CardBody className="flex items-center justify-between gap-4">
-          <div>
+        <CardBody className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
               <Badge variant={status === "published" ? "success" : "neutral"}>
                 {status === "published" ? "Published" : "Draft"}
@@ -114,6 +114,7 @@ export function EventSettingsForm({ event }: { event: EventRecord }) {
             size="sm"
             onClick={handleTogglePublish}
             loading={isPublishing}
+            className="w-full sm:w-auto"
           >
             {isPublishing ? "Saving..." : status === "published" ? "Unpublish" : "Publish"}
           </Button>
@@ -186,9 +187,9 @@ export function EventSettingsForm({ event }: { event: EventRecord }) {
         <CardHeader>
           <CardTitle className="text-destructive">Danger zone</CardTitle>
         </CardHeader>
-        <CardBody className="flex items-center justify-between">
+        <CardBody className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
           <p className="text-sm text-muted">Delete this event, its invites, and all RSVPs. This cannot be undone.</p>
-          <Button variant="destructive" size="sm" onClick={() => setConfirmOpen(true)}>
+          <Button variant="destructive" size="sm" onClick={() => setConfirmOpen(true)} className="w-full sm:w-auto">
             Delete event
           </Button>
         </CardBody>

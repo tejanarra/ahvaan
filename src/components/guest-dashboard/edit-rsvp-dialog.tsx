@@ -175,7 +175,7 @@ export function EditRsvpDialog({
   };
 
   return (
-    <Modal open onClose={onClose} title="Edit RSVP" className="max-h-[85vh] overflow-y-auto">
+    <Modal open onClose={onClose} title="Edit RSVP">
       <div className="space-y-4">
         {schema.fields.map((field) => (
           <EditField

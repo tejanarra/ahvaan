@@ -23,7 +23,9 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
     <button
       ref={ref}
       className={cn(
-        "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors disabled:pointer-events-none disabled:opacity-50",
+        // Mobile floor is the 40px touch target (docs/05); desktop keeps the
+        // tighter 32px chrome — same pattern as ToggleGroup's mobile bump.
+        "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md transition-colors disabled:pointer-events-none disabled:opacity-50 sm:h-8 sm:w-8",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40",
         VARIANT_CLASSES[variant],
         className

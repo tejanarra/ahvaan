@@ -117,16 +117,19 @@ function BlockSection({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left"
+        className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left"
       >
-        <span className="flex items-center gap-2 text-sm font-medium text-foreground">
-          <span aria-hidden="true" className="text-muted-foreground">
+        {/* min-w-0 + truncate: a host-given block name has no length limit —
+            without this, a long one pushed the type badge on the right
+            (and this whole row) past the panel's width instead of clipping. */}
+        <span className="flex min-w-0 items-center gap-2 text-sm font-medium text-foreground">
+          <span aria-hidden="true" className="shrink-0 text-muted-foreground">
             {open ? "▾" : "▸"}
           </span>
-          {blockSectionTitle(block)}
-          {error && <span className="text-xs font-normal text-destructive">— invalid JSON</span>}
+          <span className="truncate">{blockSectionTitle(block)}</span>
+          {error && <span className="shrink-0 text-xs font-normal text-destructive">— invalid JSON</span>}
         </span>
-        <span className="font-mono text-[10px] text-muted-foreground">{block.type}</span>
+        <span className="shrink-0 font-mono text-[10px] text-muted-foreground">{block.type}</span>
       </button>
       {open && (
         <div className="space-y-2 border-t border-border p-3">
@@ -248,7 +251,11 @@ export function JsonSchemaEditor({
             replacing the visual builder&rsquo;s state.
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        {/* flex-wrap: three buttons (one with a long label) never fit one
+            row on a narrow panel — wrapping to a second row keeps them
+            reachable instead of forcing this header, and the page, into
+            horizontal scroll. */}
+        <div className="flex flex-wrap items-center gap-2">
           <Button type="button" variant="secondary" size="sm" onClick={handleRevert}>
             Revert
           </Button>
@@ -267,13 +274,18 @@ export function JsonSchemaEditor({
           <button
             type="button"
             onClick={() => setPageOpen((v) => !v)}
-            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium text-foreground"
+            className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm font-medium text-foreground"
           >
-            <span aria-hidden="true" className="text-muted-foreground">
+            <span aria-hidden="true" className="shrink-0 text-muted-foreground">
               {pageOpen ? "▾" : "▸"}
             </span>
-            Page settings
-            <span className="text-xs font-normal text-muted-foreground">(theme overrides, font, page CSS, custom page)</span>
+            <span className="shrink-0">Page settings</span>
+            {/* Hidden below sm rather than truncated — at phone widths this
+                aside is the first thing that can go without losing meaning
+                (the row's own label already says "Page settings"). */}
+            <span className="hidden truncate text-xs font-normal text-muted-foreground sm:inline">
+              (theme overrides, font, page CSS, custom page)
+            </span>
           </button>
           {pageOpen && (
             <div className="border-t border-border p-3">
