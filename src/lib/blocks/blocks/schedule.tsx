@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { ScheduleAlign, ScheduleConfig, ScheduleDirection, ScheduleItem, ScheduleStyle } from "../types";
 import type { PageRenderContext } from "../context";
 import { Field } from "@/components/ui/field";
@@ -34,6 +34,64 @@ const ALIGN_OPTIONS: { value: ScheduleAlign; label: string }[] = [
   { value: "center", label: "Center" },
 ];
 
+// One click, no jargon: each preset is a ready-made combination of the
+// same style/direction/align/gap fields the Advanced section exposes
+// individually — a host who's never heard of "direction" or a "gap in
+// pixels" can still get a good-looking result, and can still drop into
+// Advanced afterward to nudge just one setting without losing the rest.
+const LAYOUT_PRESETS: {
+  id: string;
+  label: string;
+  description: string;
+  icon: ReactNode;
+  config: Required<Pick<ScheduleConfig, "style" | "direction" | "align" | "gapPx">>;
+}[] = [
+  {
+    id: "simple-list",
+    label: "Simple list",
+    description: "Cards stacked one after another.",
+    icon: <PresetIconStack />,
+    config: { style: "cards", direction: "vertical", align: "left", gapPx: 20 },
+  },
+  {
+    id: "elegant-timeline",
+    label: "Elegant timeline",
+    description: "A centered line with times alternating left and right — classic wedding style.",
+    icon: <PresetIconTimelineVertical />,
+    config: { style: "timeline", direction: "vertical", align: "left", gapPx: 32 },
+  },
+  {
+    id: "side-by-side",
+    label: "Side-by-side cards",
+    description: "Cards laid out in a row, all visible at once.",
+    icon: <PresetIconRow />,
+    config: { style: "cards", direction: "horizontal", align: "left", gapPx: 16 },
+  },
+  {
+    id: "minimal-list",
+    label: "Minimal",
+    description: "Just the text, separated by thin lines — no cards or dots.",
+    icon: <PresetIconMinimal />,
+    config: { style: "minimal", direction: "vertical", align: "center", gapPx: 20 },
+  },
+  {
+    id: "horizontal-timeline",
+    label: "Horizontal timeline",
+    description: "One line across the page with times above and below it.",
+    icon: <PresetIconTimelineHorizontal />,
+    config: { style: "timeline", direction: "horizontal", align: "left", gapPx: 28 },
+  },
+];
+
+function matchesPreset(config: ScheduleConfig, preset: (typeof LAYOUT_PRESETS)[number]) {
+  return (
+    (config.style ?? "cards") === preset.config.style &&
+    (config.direction ?? "vertical") === preset.config.direction &&
+    (config.align ?? "left") === preset.config.align &&
+    (config.gapPx ?? 28) === preset.config.gapPx
+  );
+}
+
 export function ScheduleEdit({
   config,
   onChange,
@@ -41,6 +99,7 @@ export function ScheduleEdit({
   config: ScheduleConfig;
   onChange: (next: ScheduleConfig) => void;
 }) {
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const items = config.items ?? [];
   const style = config.style ?? "cards";
 
@@ -67,50 +126,32 @@ export function ScheduleEdit({
         />
       </Field>
 
-      <Field label="Layout style">
-        <ToggleGroup size="md" options={STYLE_OPTIONS} value={style} onChange={(v) => onChange({ ...config, style: v as ScheduleStyle })} />
-      </Field>
-
-      <Field
-        label="Direction"
-        hint={
-          style === "timeline"
-            ? "Vertical: items alternate left/right of a centered line. Horizontal: items alternate above/below, sharing the row's width — text truncates rather than scrolling."
-            : "Horizontal lays items out as a row sharing the block's width — text truncates to fit rather than scrolling."
-        }
-      >
-        <ToggleGroup
-          size="md"
-          options={DIRECTION_OPTIONS}
-          value={config.direction ?? "vertical"}
-          onChange={(v) => onChange({ ...config, direction: v as ScheduleDirection })}
-        />
-      </Field>
-
-      {style !== "timeline" && (
-        <Field label="Text alignment">
-          <ToggleGroup
-            size="md"
-            options={ALIGN_OPTIONS}
-            value={config.align ?? "left"}
-            onChange={(v) => onChange({ ...config, align: v as ScheduleAlign })}
-          />
-        </Field>
-      )}
-
-      <Field label="Gap between items" hint="Spacing in pixels.">
-        <div className="flex items-center gap-2">
-          <Input
-            type="number"
-            min={4}
-            max={120}
-            value={config.gapPx ?? 28}
-            onChange={(e) => onChange({ ...config, gapPx: Number(e.target.value) || 0 })}
-            className="w-24"
-          />
-          <span className="text-sm text-muted">px</span>
+      <div>
+        <p className="text-sm font-medium text-foreground">Choose a layout</p>
+        <div className="mt-2 space-y-2">
+          {LAYOUT_PRESETS.map((preset) => {
+            const selected = matchesPreset(config, preset);
+            return (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => onChange({ ...config, ...preset.config })}
+                className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left transition ${
+                  selected ? "border-accent ring-1 ring-accent" : "border-border hover:border-border-strong"
+                }`}
+              >
+                <span className="flex h-11 w-14 shrink-0 items-center justify-center rounded-md bg-surface text-muted">
+                  {preset.icon}
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium text-foreground">{preset.label}</span>
+                  <span className="block text-xs text-muted">{preset.description}</span>
+                </span>
+              </button>
+            );
+          })}
         </div>
-      </Field>
+      </div>
 
       <div className="space-y-3">
         <p className="text-xs font-medium uppercase tracking-wide text-muted">Items ({items.length})</p>
@@ -174,23 +215,145 @@ export function ScheduleEdit({
         </button>
       </div>
 
-      <div className="rounded-lg border border-dashed border-border p-3">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted">Custom CSS hooks</p>
-        <p className="mt-1.5 text-xs text-muted">
-          For finer control, use this block&apos;s own{" "}
-          <span className="font-medium text-foreground">Layout → Advanced options → Custom CSS</span> (above, outside
-          this panel). These CSS custom properties cascade into every part of this component:
-        </p>
-        <pre className="mt-2 overflow-x-auto rounded-md bg-surface p-2 text-[11px] leading-relaxed text-muted">
+      <div className="border-t border-border pt-3">
+        <button
+          type="button"
+          onClick={() => setAdvancedOpen((v) => !v)}
+          className="text-sm text-accent hover:underline"
+        >
+          {advancedOpen ? "Hide advanced layout options" : "Advanced layout options"}
+        </button>
+        {advancedOpen && (
+          <div className="mt-3 space-y-5">
+            <p className="text-xs text-muted">
+              A layout preset above already sets these — change one here to nudge just that setting without
+              switching presets.
+            </p>
+            <Field label="Layout style">
+              <ToggleGroup
+                size="md"
+                options={STYLE_OPTIONS}
+                value={style}
+                onChange={(v) => onChange({ ...config, style: v as ScheduleStyle })}
+              />
+            </Field>
+
+            <Field
+              label="Direction"
+              hint={
+                style === "timeline"
+                  ? "Vertical: items alternate left/right of a centered line. Horizontal: items alternate above/below, sharing the row's width — text truncates rather than scrolling."
+                  : "Horizontal lays items out as a row sharing the block's width — text truncates to fit rather than scrolling."
+              }
+            >
+              <ToggleGroup
+                size="md"
+                options={DIRECTION_OPTIONS}
+                value={config.direction ?? "vertical"}
+                onChange={(v) => onChange({ ...config, direction: v as ScheduleDirection })}
+              />
+            </Field>
+
+            {style !== "timeline" && (
+              <Field label="Text alignment">
+                <ToggleGroup
+                  size="md"
+                  options={ALIGN_OPTIONS}
+                  value={config.align ?? "left"}
+                  onChange={(v) => onChange({ ...config, align: v as ScheduleAlign })}
+                />
+              </Field>
+            )}
+
+            <Field label="Gap between items" hint="Spacing in pixels.">
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min={4}
+                  max={120}
+                  value={config.gapPx ?? 28}
+                  onChange={(e) => onChange({ ...config, gapPx: Number(e.target.value) || 0 })}
+                  className="w-24"
+                />
+                <span className="text-sm text-muted">px</span>
+              </div>
+            </Field>
+
+            <div className="rounded-lg border border-dashed border-border p-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted">Custom CSS hooks</p>
+              <p className="mt-1.5 text-xs text-muted">
+                For finer control, use this block&apos;s own{" "}
+                <span className="font-medium text-foreground">Layout → Advanced options → Custom CSS</span> (above,
+                outside this panel). These CSS custom properties cascade into every part of this component:
+              </p>
+              <pre className="mt-2 overflow-x-auto rounded-md bg-surface p-2 text-[11px] leading-relaxed text-muted">
 {`--schedule-dot-color: #b45309;
 --schedule-line-color: #e7dcc8;
 --schedule-card-bg: #fdf6e3;
 --schedule-card-border: #e7dcc8;
 --schedule-radius: 20px;
 --schedule-time-color: #92400e;`}
-        </pre>
+              </pre>
+            </div>
+          </div>
+        )}
       </div>
     </div>
+  );
+}
+
+// Tiny CSS-only glyphs for the preset picker — plain divs rather than SVG
+// so they inherit currentColor/theme surface tokens for free and never need
+// a separate asset.
+function PresetIconStack() {
+  return (
+    <span className="flex flex-col gap-1">
+      <span className="h-1.5 w-8 rounded-sm bg-current opacity-70" />
+      <span className="h-1.5 w-8 rounded-sm bg-current opacity-70" />
+      <span className="h-1.5 w-8 rounded-sm bg-current opacity-70" />
+    </span>
+  );
+}
+
+function PresetIconTimelineVertical() {
+  return (
+    <span className="relative flex h-9 w-4 flex-col items-center justify-between">
+      <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-current opacity-40" />
+      <span className="relative z-10 h-1.5 w-1.5 -translate-x-2 rounded-full bg-current" />
+      <span className="relative z-10 h-1.5 w-1.5 translate-x-2 rounded-full bg-current" />
+      <span className="relative z-10 h-1.5 w-1.5 -translate-x-2 rounded-full bg-current" />
+    </span>
+  );
+}
+
+function PresetIconRow() {
+  return (
+    <span className="flex items-center gap-1">
+      <span className="h-6 w-2.5 rounded-sm bg-current opacity-70" />
+      <span className="h-6 w-2.5 rounded-sm bg-current opacity-70" />
+      <span className="h-6 w-2.5 rounded-sm bg-current opacity-70" />
+    </span>
+  );
+}
+
+function PresetIconMinimal() {
+  return (
+    <span className="flex flex-col items-center gap-1">
+      <span className="h-0.5 w-7 bg-current opacity-70" />
+      <span className="h-px w-9 bg-current opacity-25" />
+      <span className="h-0.5 w-7 bg-current opacity-70" />
+    </span>
+  );
+}
+
+function PresetIconTimelineHorizontal() {
+  return (
+    <span className="relative flex w-9 items-center justify-between">
+      <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-current opacity-40" />
+      <span className="relative z-10 h-1.5 w-1.5 -translate-y-1.5 rounded-full bg-current" />
+      <span className="relative z-10 h-1.5 w-1.5 translate-y-1.5 rounded-full bg-current" />
+      <span className="relative z-10 h-1.5 w-1.5 -translate-y-1.5 rounded-full bg-current" />
+    </span>
   );
 }
 
