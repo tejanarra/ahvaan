@@ -2,11 +2,11 @@
 
 import { useRef, useState, useTransition } from "react";
 import { uploadImage } from "@/app/dashboard/events/[eventId]/actions";
+import { compressImageIfNeeded } from "@/lib/compress-image";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
 // Shared by every image URL input (hero cover, Image block) — a host can
@@ -37,15 +37,14 @@ export function ImageUploadField({
       setError("Only JPEG, PNG, WebP, or GIF images are allowed.");
       return;
     }
-    if (file.size > MAX_IMAGE_BYTES) {
-      setError("Images must be 5MB or smaller.");
-      return;
-    }
 
-    const formData = new FormData();
-    formData.set("file", file);
     startTransition(async () => {
       try {
+        // Resized/re-encoded down to our limit rather than rejected — see
+        // compress-image.ts. A no-op for files already under the limit.
+        const upload = await compressImageIfNeeded(file);
+        const formData = new FormData();
+        formData.set("file", upload);
         const url = await uploadImage(eventId, formData);
         onChange(url);
       } catch (err) {

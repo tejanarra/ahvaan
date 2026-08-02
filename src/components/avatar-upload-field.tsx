@@ -2,9 +2,9 @@
 
 import { useRef, useState, useTransition } from "react";
 import { uploadAvatar } from "@/app/dashboard/profile/actions";
+import { compressImageIfNeeded } from "@/lib/compress-image";
 import { Button } from "@/components/ui/button";
 
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
 // Same upload-or-nothing shape as ImageUploadField, minus the "or paste a
@@ -27,15 +27,12 @@ export function AvatarUploadField({
       setError("Only JPEG, PNG, WebP, or GIF images are allowed.");
       return;
     }
-    if (file.size > MAX_IMAGE_BYTES) {
-      setError("Images must be 5MB or smaller.");
-      return;
-    }
 
-    const formData = new FormData();
-    formData.set("file", file);
     startTransition(async () => {
       try {
+        const upload = await compressImageIfNeeded(file);
+        const formData = new FormData();
+        formData.set("file", upload);
         const url = await uploadAvatar(formData);
         onChange(url);
       } catch (err) {

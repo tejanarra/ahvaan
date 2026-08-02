@@ -4,6 +4,7 @@ import { createServiceRoleClient } from "@/lib/supabase/server";
 import type { EventType } from "@/lib/event-types";
 import type { ThemeId } from "@/lib/themes";
 import { NotFoundError, DataError } from "@/lib/data/errors";
+import { deleteEventImages } from "@/lib/data/storage";
 
 export type EventStatus = "draft" | "published";
 
@@ -353,6 +354,19 @@ export async function deleteEvent(hostId: string, eventId: string) {
   const supabase = createServiceRoleClient();
   const { error } = await supabase.from("events").delete().eq("id", eventId).eq("host_id", hostId);
   if (error) throw new DataError(error.message);
+
+  // Storage objects aren't covered by the DB row's cascade delete (they
+  // live in a separate system, not a referencing table) — clean them up
+  // explicitly so a deleted event doesn't leave its images behind forever
+  // in a public-read bucket. Best-effort: the event is already gone from
+  // the user's perspective by this point, so a storage hiccup here
+  // shouldn't surface as a failed delete.
+  try {
+    await deleteEventImages(hostId, eventId);
+  } catch (err) {
+    console.error(`Failed to delete images for event ${eventId}:`, err);
+  }
+
   revalidatePath("/dashboard");
 }
 

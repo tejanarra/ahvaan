@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { updateHostProfile, clearAvatar } from "./actions";
+import { updateHostProfile, clearAvatar, deleteAccount } from "./actions";
 import { AvatarUploadField } from "@/components/avatar-upload-field";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
+import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
 import type { HostProfileRecord } from "@/lib/data/host-profile";
 
@@ -20,6 +21,8 @@ export function ProfileForm({ profile }: { profile: HostProfileRecord | null }) 
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url ?? "");
   const [isSaving, startSaveTransition] = useTransition();
   const [isClearingAvatar, startClearTransition] = useTransition();
+  const [isDeletingAccount, startDeleteTransition] = useTransition();
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const handleSave = () => {
     startSaveTransition(async () => {
@@ -43,6 +46,19 @@ export function ProfileForm({ profile }: { profile: HostProfileRecord | null }) 
         show("Photo removed.");
       } catch (err) {
         show(err instanceof Error ? err.message : "Failed to remove photo.", "error");
+      }
+    });
+  };
+
+  const handleDeleteAccount = () => {
+    startDeleteTransition(async () => {
+      try {
+        await deleteAccount();
+        // Full reload (not router.push) so every bit of client-side state
+        // for the now-deleted account is gone, not just the visible route.
+        window.location.href = "/";
+      } catch (err) {
+        show(err instanceof Error ? err.message : "Failed to delete account.", "error");
       }
     });
   };
@@ -105,6 +121,42 @@ export function ProfileForm({ profile }: { profile: HostProfileRecord | null }) 
           </Button>
         </CardBody>
       </Card>
+
+      <Card className="border-destructive/30">
+        <CardHeader>
+          <CardTitle className="text-destructive">Danger zone</CardTitle>
+        </CardHeader>
+        <CardBody className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+          <p className="text-sm text-muted">
+            Permanently delete your account — every event, guest, RSVP, uploaded image, and
+            this profile. This cannot be undone.
+          </p>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => setConfirmOpen(true)}
+            className="w-full sm:w-auto"
+          >
+            Delete account
+          </Button>
+        </CardBody>
+      </Card>
+
+      <Modal open={confirmOpen} onClose={() => setConfirmOpen(false)} title="Delete account">
+        <p className="text-sm text-muted">
+          Delete your account? This permanently removes every event you&rsquo;ve created, all
+          their guests and RSVPs, every image you&rsquo;ve uploaded, and this profile. This
+          cannot be undone.
+        </p>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button variant="secondary" onClick={() => setConfirmOpen(false)} disabled={isDeletingAccount}>
+            Cancel
+          </Button>
+          <Button variant="destructive" onClick={handleDeleteAccount} loading={isDeletingAccount}>
+            {isDeletingAccount ? "Deleting..." : "Delete account"}
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }

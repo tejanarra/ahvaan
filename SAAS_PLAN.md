@@ -1186,3 +1186,45 @@ fixed-position "Made with ahvaan" pill rather than a second floating
 element.
 
 `npm run build` clean throughout.
+
+## Status: Storage cleanup, account deletion, client-side image compression (2026-08-02)
+
+Follow-up to the host-profile entry above, same session, user-directed.
+
+**Storage cleanup** (`src/lib/data/storage.ts`): `deleteEventImages(hostId,
+eventId)` wipes an event's whole `${hostId}/${eventId}/` folder in
+`event-images` — covers hero cover + every Image/carousel block's upload
+without parsing `page_schema`, since they all share that one folder.
+Wired into `events.ts`'s `deleteEvent` (best-effort — a storage failure
+doesn't block the already-completed DB delete). `deleteHostAvatarByUrl`
+removes one specific avatar file (parsed back out of its own public URL);
+wired into `uploadAvatar`/`clearAvatar` (dashboard/profile/actions.ts) so
+replacing or removing a photo doesn't leave the old file orphaned.
+`deleteAllHostImages(hostId, eventIds)` wipes every image across every
+bucket for full account deletion below.
+
+**Account deletion**: new "Danger zone" on `/dashboard/profile`
+(`deleteAccount` action) — cleans up all Storage files first (while
+eventIds are still known), then `supabase.auth.admin.deleteUser(host.id)`,
+which cascades every `host_id references auth.users(id) on delete cascade`
+table (events, invites, rsvps, email_sends, custom_components, forms,
+form_submissions, host_profiles) automatically. No `redirect()` inside the
+action (same reasoning as `deleteEvent`'s existing comment); the client
+does a full `window.location.href = "/"` after success instead of
+`router.push`, so no stale client state for the now-deleted account survives.
+
+**Client-side image compression** (`src/lib/compress-image.ts`): an
+oversized upload (event image or avatar) is resized/re-encoded to fit the
+5MB limit via canvas (scale to a 2400px max dimension, then step JPEG
+quality down, then one further dimension cut if still too big) instead of
+being rejected outright — GIFs are left untouched (canvas only captures
+one frame, would kill animation). Wired into both `ImageUploadField` and
+`AvatarUploadField`; the old "must be 5MB or smaller" rejection is gone
+from both, server-side validation stays as a backstop.
+
+**Public host card sizing**: shrunk to a single small inline
+avatar+name line plus one short muted disclaimer sentence (no bio shown
+publicly) — user feedback that the first pass read as too prominent for
+what's meant to be a discreet legal footnote, not a competing profile card.
+
+`npm run build` clean throughout.

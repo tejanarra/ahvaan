@@ -248,35 +248,26 @@ export default async function PublicEventPage({
             customComponents,
           }}
         />
-        <div className="fixed bottom-4 left-4 right-4 z-10 flex justify-center sm:left-auto sm:right-4 sm:justify-end">
-          <div className="max-w-xs rounded-xl border border-[#E7E4DD] bg-white/95 px-4 py-3 text-center shadow-md backdrop-blur">
-            {hostProfile && (hostProfile.display_name || hostProfile.bio || hostProfile.avatar_url) && (
-              <div className="mb-2 flex flex-col items-center gap-1.5">
-                {hostProfile.avatar_url && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={hostProfile.avatar_url}
-                    alt=""
-                    className="h-9 w-9 rounded-full border border-[#E7E4DD] object-cover"
-                  />
-                )}
-                {hostProfile.display_name && (
-                  <p className="text-xs font-medium text-[#211E19]/80">Hosted by {hostProfile.display_name}</p>
-                )}
-              </div>
-            )}
-            <p className="text-[10px] leading-relaxed text-[#211E19]/50">
-              This page and any data collected here are managed solely by its host — ahvaan
-              provides the platform only.
-            </p>
-            <Link
-              href="/"
-              className="mt-2 flex items-center justify-center gap-1.5 text-sm font-medium tracking-wide text-[#211E19]/80 hover:text-[#211E19]"
-            >
-              Made with
-              <BrandLockup className="inline-flex items-center gap-1 text-foreground" markClassName="h-4 w-4" textClassName="text-sm font-medium" />
-            </Link>
-          </div>
+        <div className="fixed bottom-4 right-4 z-10 flex flex-col items-end gap-1">
+          {hostProfile && (hostProfile.display_name || hostProfile.avatar_url) && (
+            <div className="flex items-center gap-1.5 rounded-full bg-white/90 px-2.5 py-1 text-[10px] text-[#211E19]/55 shadow-sm backdrop-blur">
+              {hostProfile.avatar_url && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={hostProfile.avatar_url} alt="" className="h-3.5 w-3.5 rounded-full object-cover" />
+              )}
+              {hostProfile.display_name && <span>Hosted by {hostProfile.display_name}</span>}
+            </div>
+          )}
+          <p className="max-w-[10rem] text-right text-[9px] leading-snug text-[#211E19]/35">
+            Page &amp; data managed by its host, not ahvaan.
+          </p>
+          <Link
+            href="/"
+            className="flex items-center gap-1.5 rounded-full border border-[#E7E4DD] bg-white/95 px-4 py-2 text-sm font-medium tracking-wide text-[#211E19]/80 shadow-md backdrop-blur hover:text-[#211E19]"
+          >
+            Made with
+            <BrandLockup className="inline-flex items-center gap-1 text-foreground" markClassName="h-4 w-4" textClassName="text-sm font-medium" />
+          </Link>
         </div>
       </>
     );
