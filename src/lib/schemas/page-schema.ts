@@ -18,6 +18,7 @@ const BLOCK_TYPES: BlockType[] = [
   "countdown",
   "schedule",
   "rsvp-form",
+  "form",
   "venue-map",
   "custom-html",
   "container",

@@ -2,6 +2,7 @@
 
 import { useState, type CSSProperties, type ReactNode } from "react";
 import type { EventRecord } from "@/lib/data/events";
+import type { FormRecord } from "@/lib/data/forms";
 import type { BlockInstance, ContainerLayoutMode, PageSchema } from "@/lib/blocks/types";
 import type { PageRenderContext } from "@/lib/blocks/context";
 import { BLOCK_REGISTRY } from "@/lib/blocks/registry";
@@ -228,6 +229,7 @@ export function PropertiesPanel({
   onRemoveSelected,
   event,
   onEventFieldsChange,
+  availableForms,
   ctx,
   themeColors,
   fontFamily,
@@ -241,6 +243,10 @@ export function PropertiesPanel({
   onRemoveSelected: () => void;
   event: EventRecord;
   onEventFieldsChange: (patch: Partial<EventRecord>) => void;
+  // Only the "form" block's Edit reads this (its "which form?" dropdown) —
+  // every other block type ignores it, same as event/onEventFieldsChange
+  // above being unused by every block except hero/rsvp-form.
+  availableForms: FormRecord[];
   ctx: PageRenderContext;
   themeColors: Theme["colors"];
   fontFamily: string;
@@ -306,6 +312,7 @@ export function PropertiesPanel({
             childBlocks={childBlocks}
             event={event}
             onEventFieldsChange={onEventFieldsChange}
+            availableForms={availableForms}
           />
         </PanelSection>
       </div>

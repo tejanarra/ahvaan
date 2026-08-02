@@ -7,6 +7,7 @@ import { findFieldByRole } from "@/lib/schemas/form-schema";
 import type { FormField, FormSchema, Responses } from "@/lib/schemas/form-schema";
 import { buildSandboxSrcDoc } from "@/lib/blocks/sandbox";
 import { applyComponentShortcodes } from "@/lib/blocks/shortcodes";
+import type { PostSubmitAction } from "@/lib/schemas/post-submit-actions";
 
 const initialState: RsvpFormState = { status: "idle" };
 
@@ -246,12 +247,7 @@ export function RsvpForm({
   guestName,
   venueName,
   venueAddress,
-  confirmedYesHeading = "You're on the list!",
-  confirmedNoHeading = "Thanks for letting us know",
-  showVenueOnConfirmation = true,
-  confirmationHtml,
-  confirmationCss,
-  confirmationHeightPx,
+  action,
   readOnly = false,
 }: {
   eventId: string;
@@ -261,18 +257,16 @@ export function RsvpForm({
   guestName?: string;
   venueName: string | null;
   venueAddress: string | null;
-  // Post-submit confirmation copy — configurable per event via the
-  // rsvp-form block's own settings (previously hardcoded with no way for a
-  // host to adjust it).
-  confirmedYesHeading?: string;
-  confirmedNoHeading?: string;
-  showVenueOnConfirmation?: boolean;
-  // Full visual override for the confirmation screen — when set, replaces
-  // everything below (heading, field list, venue map) with the host's own
-  // sandboxed HTML/CSS.
-  confirmationHtml?: string;
-  confirmationCss?: string;
-  confirmationHeightPx?: number;
+  // What happens right after a guest submits — configurable from the
+  // event's Guests → Actions tab (src/lib/schemas/post-submit-actions.ts),
+  // not this block's own settings anymore. "message" is RSVP's own rich
+  // built-in view (heading(s) + submitted-answers list + optional venue);
+  // "redirect"/"custom_html" are handled inline below rather than through
+  // the shared <PostSubmitOutcome> (src/lib/forms/post-submit-outcome.tsx)
+  // — that component's schema/responses shape is the generic forms engine's,
+  // not this RSVP-specific one, and duplicating ~15 lines here beats
+  // fighting that type mismatch for two rendering branches.
+  action: PostSubmitAction;
   // Past the event's RSVP deadline: a guest who already responded can
   // still see their confirmation, but can't reopen it to edit — the
   // server enforces this too (submitRsvpFromFormData), this just hides an
@@ -296,20 +290,30 @@ export function RsvpForm({
     }
   }, [state]);
 
+  // Hooks can't be called conditionally — this always runs, and only
+  // *acts* once a redirect action needs to fire.
+  useEffect(() => {
+    if (mode === "view" && saved && action.kind === "redirect") {
+      window.location.href = action.url;
+    }
+  }, [mode, saved, action]);
+
   const attendingField = findFieldByRole(schema, "attending");
   const plusOnesField = findFieldByRole(schema, "plus_ones");
   const isDeclining = attendingField ? asString(values[attendingField.id]) === "no" : false;
 
-  const venueMap = venueAddress && showVenueOnConfirmation && (
+  const venueMap = venueAddress && action.kind === "message" && action.showVenue && (
     <VenueMap venueName={venueName || "Venue"} venueAddress={venueAddress} />
   );
 
   if (mode === "view" && saved) {
-    if (confirmationHtml) {
-      const height = Number.isFinite(confirmationHeightPx)
-        ? Math.min(4000, Math.max(50, confirmationHeightPx!))
-        : 300;
-      const html = applyComponentShortcodes(confirmationHtml, {
+    if (action.kind === "redirect") {
+      return <p className="w-full text-center text-sm text-[var(--t-fg)]/70">Redirecting…</p>;
+    }
+
+    if (action.kind === "custom_html") {
+      const height = Number.isFinite(action.heightPx) ? Math.min(4000, Math.max(50, action.heightPx)) : 300;
+      const html = applyComponentShortcodes(action.html, {
         eventId,
         inviteId,
         venueName,
@@ -319,7 +323,7 @@ export function RsvpForm({
       });
       return (
         <iframe
-          srcDoc={buildSandboxSrcDoc({ html, css: confirmationCss ?? "", js: "" })}
+          srcDoc={buildSandboxSrcDoc({ html, css: action.css, js: "" })}
           sandbox="allow-scripts"
           referrerPolicy="no-referrer"
           title="RSVP confirmation"
@@ -332,9 +336,9 @@ export function RsvpForm({
     const headingField = findFieldByRole(schema, "attending");
     const heading = headingField
       ? asString(saved[headingField.id]) === "yes"
-        ? confirmedYesHeading
-        : confirmedNoHeading
-      : "Thanks for your response!";
+        ? action.heading
+        : action.headingNo || action.heading
+      : action.heading;
 
     return (
       <div className="w-full space-y-6">

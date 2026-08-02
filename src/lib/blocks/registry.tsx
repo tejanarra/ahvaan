@@ -2,6 +2,7 @@ import type { ComponentType } from "react";
 import type { BlockInstance, BlockType } from "./types";
 import type { PageRenderContext } from "./context";
 import type { EventRecord } from "@/lib/data/events";
+import type { FormRecord } from "@/lib/data/forms";
 import {
   HeroEdit,
   HeroRender,
@@ -26,6 +27,7 @@ import {
   RsvpFormRender,
   rsvpFormDefaultConfig,
 } from "./blocks/rsvp-form";
+import { FormEdit, FormRender, formDefaultConfig } from "./blocks/form";
 import {
   VenueMapEdit,
   VenueMapRender,
@@ -49,7 +51,8 @@ export type BlockDefinition<C> = {
   defaultConfig: C;
   // childBlocks/renderBlock(Editor) are only used by the "container" block;
   // `event`/`onEventFieldsChange` only by blocks (like hero) that edit the
-  // event's own fields directly from within the block editor — every other
+  // event's own fields directly from within the block editor; `availableForms`
+  // only by the "form" block (its "which form?" dropdown) — every other
   // block's Edit simply ignores whichever of these it doesn't need. Kept
   // optional so no other block file needs to know this exists.
   Edit: ComponentType<{
@@ -59,6 +62,7 @@ export type BlockDefinition<C> = {
     renderChildList?: () => ReactNode;
     event?: EventRecord;
     onEventFieldsChange?: (patch: Partial<EventRecord>) => void;
+    availableForms?: FormRecord[];
   }>;
   Render: ComponentType<{
     config: C;
@@ -127,6 +131,13 @@ export const BLOCK_REGISTRY = {
     defaultConfig: rsvpFormDefaultConfig,
     Edit: RsvpFormEdit,
     Render: RsvpFormRender,
+  },
+  form: {
+    type: "form",
+    label: "Form",
+    defaultConfig: formDefaultConfig,
+    Edit: FormEdit,
+    Render: FormRender,
   },
   "venue-map": {
     type: "venue-map",

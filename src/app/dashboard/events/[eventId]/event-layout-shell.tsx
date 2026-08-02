@@ -71,9 +71,16 @@ export function EventLayoutShell({
         <div className="mt-4">
           <Tabs
             items={[
-              { href: base, label: "Guests" },
+              // Guests covers its own /fields and /actions sub-routes too
+              // (see guests-sub-tabs.tsx) — isActive keeps this tab reading
+              // as current on those, not just the bare event route.
+              {
+                href: base,
+                label: "Guests",
+                isActive: pathname === base || pathname.startsWith(`${base}/fields`) || pathname.startsWith(`${base}/actions`),
+              },
               { href: `${base}/design`, label: "Invite page" },
-              { href: `${base}/form`, label: "RSVP form" },
+              { href: `${base}/forms`, label: "Forms", isActive: pathname.startsWith(`${base}/forms`) },
               { href: `${base}/settings`, label: "Settings" },
             ]}
           />

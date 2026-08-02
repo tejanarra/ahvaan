@@ -1085,3 +1085,61 @@ doesn't have — carry into Phase 6 or a deploy pass):
 - Minor: Playful Pastel/Ink & Blush's `accent` (border/tint only, never
   text) sits just under the 3:1 non-text-UI threshold — left alone rather
   than fighting the intentionally soft palette; noted, not fixed.
+
+## Status: Generic multi-form system + RSVP Actions tab (2026-08-02)
+
+User-directed scope addition beyond the original docs/01 feature matrix
+("Form builder with role-tagged fields" was the only form-building item
+listed) — explicitly requested and confirmed via a scope-fork question
+before implementation: RSVP's guest-tracking data model (`invites`/`rsvps`,
+attending/declined stats, invite-link linkage) stays completely separate
+and untouched; a new, independent generic form system sits alongside it for
+any other host-defined form (feedback, song requests, T-shirt sizes, ...).
+Both share one navigation *pattern* (Fields/Data/Actions sub-tabs) via
+shared components, not a shared data model.
+
+**Field-type engine** (`src/lib/forms/`): 11 kinds (text, textarea, email,
+phone, number, date, select, radio, checkbox, checkbox_group, address —
+address is a compound value, validated as one unit). Validation is a real
+class hierarchy (`FieldValidator` base, template-method `validate()`, one
+concrete subclass per kind in `validators/`); UI is composition + a
+registry (`FIELD_TYPE_REGISTRY`, mirrors the existing block-registry
+pattern) — each kind's Edit/Input pair looked up by kind, not switched on.
+Schema structurally validated per-kind via zod
+(`src/lib/schemas/custom-form-schema.ts`), unlike page-schema's
+deliberately-loose block config, since a form's schema directly gates
+anonymous guest input.
+
+**New tables**: `forms` (host_id, event_id, name unique per event, schema,
+actions jsonb), `form_submissions` (host_id/event_id denormalized per the
+existing tenancy convention) — `supabase/schema-saas.sql`, run manually
+against the live project (not from this session).
+
+**Dashboard**: new "Forms" top-level tab (list/create per event, each with
+Fields/Data/Actions sub-tabs, CSV export). "Guests" gained the same
+Fields/Actions sub-tabs (Data = the existing guest list unchanged) —
+today's `.../form` route now redirects to `.../fields`; the old
+"RSVP form" top-level tab is gone.
+
+**Page builder**: new "form" block (Guest interaction category) embeds any
+named form by id; `PageRenderContext` gained `customForms`, populated the
+same once-per-render way as the existing `customComponents` map.
+
+**Post-submit Actions** (`src/lib/schemas/post-submit-actions.ts`): message
+/ redirect / custom HTML, shared by RSVP (`events.rsvp_actions`, new
+Guests → Actions tab) and every custom form (`forms.actions`) through one
+`<ActionsEditor>`. RSVP's previously-hardcoded confirmation fields
+(`confirmedYesHeading`/`showVenueOnConfirmation`/`confirmationHtml`/...)
+moved out of the page-builder block into this event-level column — a
+read-time fallback (`synthesizeLegacyRsvpAction`) reads the block's
+now-untyped legacy fields when `rsvp_actions` is null, so every existing
+event's public page and its Actions-tab defaults are byte-identical to
+before, with no backfill migration step.
+
+**Verified live** (persistent Test Event): all three action kinds
+(message/redirect/custom_html) end-to-end for both RSVP and a real custom
+form with one of each field kind including the compound address field;
+server-side per-field validation confirmed independent of client-side
+(bypassed native `type=email` checking); Data-tab schema evolution (a
+column added after an earlier submission renders blank, doesn't break);
+CSV export. `npm run build` clean throughout.

@@ -9,6 +9,7 @@ import { ExportCsvButton } from "@/components/guest-dashboard/export-csv-button"
 import type { PendingInvite, RespondedGuest } from "@/components/guest-dashboard/guest-card";
 import { resolveFormSchema, findFieldByRole, getFieldValue } from "@/lib/schemas/form-schema";
 import type { Responses } from "@/lib/schemas/form-schema";
+import { GuestsSubTabs } from "./guests-sub-tabs";
 
 export const dynamic = "force-dynamic";
 
@@ -85,7 +86,8 @@ export default async function EventGuestsPage({
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-3">
+      <GuestsSubTabs eventId={eventId} />
+      <div className="mt-4 flex items-center justify-between gap-3">
         <h2 className="text-sm font-semibold text-foreground">Guests</h2>
         <div className="flex items-center gap-2">
           <ExportCsvButton

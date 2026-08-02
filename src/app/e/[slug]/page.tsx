@@ -17,7 +17,8 @@ import { parsePageSchema } from "@/lib/schemas/page-schema";
 import { PageRenderer } from "@/lib/blocks/page-renderer";
 import { CustomPageFrame } from "@/lib/blocks/custom-page-frame";
 import { listComponentsForEventPublic } from "@/lib/data/custom-components";
-import type { CustomComponentMap } from "@/lib/blocks/context";
+import { listFormsForEventPublic } from "@/lib/data/forms";
+import type { CustomComponentMap, CustomFormMap } from "@/lib/blocks/context";
 
 // <custom-component> tags can appear in any custom-html block's HTML, at
 // any nesting depth — this only decides whether the extra component-library
@@ -28,6 +29,12 @@ function hasCustomComponentTag(blocks: BlockInstance[]): boolean {
       (b.type === "custom-html" && (b.config as { html?: string }).html?.includes("<custom-component")) ||
       ("children" in b && hasCustomComponentTag(b.children))
   );
+}
+
+// Same "only query if a block might need it" shape as
+// hasCustomComponentTag above, for the "form" block instead.
+function hasFormBlock(blocks: BlockInstance[]): boolean {
+  return blocks.some((b) => b.type === "form" || ("children" in b && hasFormBlock(b.children)));
 }
 
 export const dynamic = "force-dynamic";
@@ -150,6 +157,10 @@ export default async function PublicEventPage({
     ? Object.fromEntries((await listComponentsForEventPublic(event.id)).map((c) => [c.name, { html: c.html, css: c.css, js: c.js }]))
     : {};
 
+  const customForms: CustomFormMap = hasFormBlock(pageSchema.blocks)
+    ? Object.fromEntries((await listFormsForEventPublic(event.id)).map((f) => [f.id, f]))
+    : {};
+
   const draftBanner = isDraftPreview && (
     <p className="bg-[color-mix(in_oklab,var(--warning)_15%,transparent)] py-1.5 text-center text-xs font-medium text-[var(--warning)]">
       Draft preview — only you can see this page. Publish it from Settings to share the real link.
@@ -208,6 +219,7 @@ export default async function PublicEventPage({
           schema,
           initialResponses,
           customComponents,
+          customForms,
         }}
       />
       <Link

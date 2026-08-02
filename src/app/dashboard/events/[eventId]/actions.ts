@@ -2,7 +2,14 @@
 
 import { requireHost } from "@/lib/supabase/auth-server";
 import { deliverInviteEmail, deliverReminderEmail } from "@/lib/email";
-import { getEventFull, updateFormSchema as updateFormSchemaData, updatePageSchema as updatePageSchemaData } from "@/lib/data/events";
+import {
+  getEventFull,
+  updateFormSchema as updateFormSchemaData,
+  updatePageSchema as updatePageSchemaData,
+  updateRsvpActions as updateRsvpActionsData,
+} from "@/lib/data/events";
+import { parsePostSubmitAction } from "@/lib/schemas/post-submit-actions";
+import type { PostSubmitAction } from "@/lib/schemas/post-submit-actions";
 import * as invitesData from "@/lib/data/invites";
 import * as rsvpsData from "@/lib/data/rsvps";
 import { logEmailSend } from "@/lib/data/email-log";
@@ -191,6 +198,12 @@ export async function updatePageSchema(eventId: string, schema: PageSchema) {
       await upsertComponentByName(host.id, result.value);
     }
   }
+}
+
+export async function updateRsvpActionsAction(eventId: string, rawAction: PostSubmitAction) {
+  const host = await requireHost();
+  const action = parsePostSubmitAction(rawAction);
+  await updateRsvpActionsData(host.id, eventId, action);
 }
 
 function findNamedCustomHtmlBlocks(blocks: BlockInstance[]): { name: string; html: string; css: string; js: string }[] {

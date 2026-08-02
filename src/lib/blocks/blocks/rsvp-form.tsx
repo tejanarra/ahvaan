@@ -1,16 +1,15 @@
 import { RsvpForm } from "@/app/e/[slug]/rsvp-form";
 import type { RsvpFormBlockConfig } from "../types";
 import type { PageRenderContext } from "../context";
+import { parsePostSubmitAction, synthesizeLegacyRsvpAction } from "@/lib/schemas/post-submit-actions";
+import type { PostSubmitAction } from "@/lib/schemas/post-submit-actions";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 
 const DEFAULT_NO_INVITE_HEADING = "By invitation only";
 const DEFAULT_NO_INVITE_MESSAGE =
   "RSVPs are only accepted through a personal invite link. If you're expecting one, please check with the host.";
-const DEFAULT_CONFIRMED_YES_HEADING = "You're on the list!";
-const DEFAULT_CONFIRMED_NO_HEADING = "Thanks for letting us know";
 const DEFAULT_DEADLINE_CLOSED_HEADING = "RSVPs are closed";
 const DEFAULT_DEADLINE_CLOSED_MESSAGE = "The RSVP deadline for this event has passed. Please reach out to the host directly if anything's changed.";
 
@@ -20,9 +19,6 @@ export const rsvpFormDefaultConfig: RsvpFormBlockConfig = {
     "Please let us know who's coming from your side — you and anyone joining you — so we can plan accordingly.",
   noInviteHeading: DEFAULT_NO_INVITE_HEADING,
   noInviteMessage: DEFAULT_NO_INVITE_MESSAGE,
-  confirmedYesHeading: DEFAULT_CONFIRMED_YES_HEADING,
-  confirmedNoHeading: DEFAULT_CONFIRMED_NO_HEADING,
-  showVenueOnConfirmation: true,
 };
 
 export function RsvpFormEdit({
@@ -64,33 +60,6 @@ export function RsvpFormEdit({
       </div>
 
       <div className="space-y-3 border-t border-border pt-3">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted">After a guest submits their RSVP</p>
-        <Field label="Heading when attending">
-          <Input
-            type="text"
-            value={config.confirmedYesHeading ?? ""}
-            onChange={(e) => onChange({ ...config, confirmedYesHeading: e.target.value })}
-            placeholder={DEFAULT_CONFIRMED_YES_HEADING}
-          />
-        </Field>
-        <Field label="Heading when not attending">
-          <Input
-            type="text"
-            value={config.confirmedNoHeading ?? ""}
-            onChange={(e) => onChange({ ...config, confirmedNoHeading: e.target.value })}
-            placeholder={DEFAULT_CONFIRMED_NO_HEADING}
-          />
-        </Field>
-        <label className="flex items-center gap-2 text-sm text-foreground">
-          <Checkbox
-            checked={config.showVenueOnConfirmation !== false}
-            onChange={(e) => onChange({ ...config, showVenueOnConfirmation: e.target.checked })}
-          />
-          Show the venue map after a guest responds
-        </label>
-      </div>
-
-      <div className="space-y-3 border-t border-border pt-3">
         <p className="text-xs font-medium uppercase tracking-wide text-muted">
           After the RSVP deadline passes (set in Settings)
         </p>
@@ -110,50 +79,13 @@ export function RsvpFormEdit({
             rows={3}
           />
         </Field>
-
-        <p className="text-xs text-muted">
-          For full visual control over the confirmation screen, write your own HTML below
-          (sandboxed the same way as the Custom HTML/CSS/JS block). Write{" "}
-          <code className="font-mono">{"{{responses_summary}}"}</code> to show the guest&rsquo;s
-          own answers, or <code className="font-mono">{"{{venue_map}}"}</code> to show the venue —
-          leave HTML empty to keep the built-in layout above.
-        </p>
-        <Field label="Confirmation HTML" hint="Leave empty to use the built-in layout.">
-          <Textarea
-            value={config.confirmationHtml ?? ""}
-            onChange={(e) => onChange({ ...config, confirmationHtml: e.target.value })}
-            rows={5}
-            spellCheck={false}
-            className="font-mono text-xs"
-          />
-        </Field>
-        {config.confirmationHtml && (
-          <>
-            <Field label="Confirmation CSS">
-              <Textarea
-                value={config.confirmationCss ?? ""}
-                onChange={(e) => onChange({ ...config, confirmationCss: e.target.value })}
-                rows={4}
-                spellCheck={false}
-                className="font-mono text-xs"
-              />
-            </Field>
-            <Field label="Frame height">
-              <div className="flex items-center gap-2">
-                <Input
-                  type="number"
-                  min={50}
-                  max={2000}
-                  value={config.confirmationHeightPx ?? 300}
-                  onChange={(e) => onChange({ ...config, confirmationHeightPx: Number(e.target.value) || 0 })}
-                  className="w-24"
-                />
-                <span className="text-sm text-muted">px</span>
-              </div>
-            </Field>
-          </>
-        )}
       </div>
+
+      <p className="border-t border-border pt-3 text-xs text-muted">
+        What happens right after a guest submits — the heading(s) they see, whether the venue map shows, or a full
+        custom HTML override — now lives in this event&rsquo;s <strong>Guests → Actions</strong> tab, so it&rsquo;s
+        reachable without opening the page builder.
+      </p>
     </div>
   );
 }
@@ -201,6 +133,10 @@ export function RsvpFormRender({
   // edits, so it doesn't retroactively hide what they already submitted.
   if (deadlinePassed && !initialResponses) return <DeadlineClosedNote config={config} />;
 
+  const action: PostSubmitAction = event.rsvp_actions
+    ? parsePostSubmitAction(event.rsvp_actions)
+    : synthesizeLegacyRsvpAction(config);
+
   return (
     <div className="w-full">
       {config.heading && (
@@ -220,15 +156,11 @@ export function RsvpFormRender({
           initialResponses={initialResponses}
           venueName={event.venue_name}
           venueAddress={event.venue_address}
-          confirmedYesHeading={config.confirmedYesHeading || DEFAULT_CONFIRMED_YES_HEADING}
-          confirmedNoHeading={config.confirmedNoHeading || DEFAULT_CONFIRMED_NO_HEADING}
-          showVenueOnConfirmation={config.showVenueOnConfirmation !== false}
-          confirmationHtml={config.confirmationHtml}
-          confirmationCss={config.confirmationCss}
-          confirmationHeightPx={config.confirmationHeightPx}
+          action={action}
           readOnly={deadlinePassed}
         />
       </div>
     </div>
   );
 }
+

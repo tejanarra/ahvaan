@@ -25,6 +25,12 @@ export type EventRecord = {
   page_schema: unknown;
   status: EventStatus;
   rsvp_deadline: string | null;
+  // Post-submit behavior for the RSVP form (src/lib/schemas/post-submit-
+  // actions.ts) — null = synthesize from the rsvp-form block's legacy
+  // confirmation fields if present, else the plain hardcoded defaults (see
+  // rsvp-form.tsx's synthesizeLegacyRsvpAction). Raw/unparsed here, same as
+  // form_schema/page_schema — callers parse via parsePostSubmitAction.
+  rsvp_actions: unknown;
   created_at: string;
 };
 
@@ -37,14 +43,14 @@ export type EventSummary = Pick<
 
 const SUMMARY_COLUMNS = "id, slug, title, event_type, event_date, theme_id, status, created_at";
 const FULL_COLUMNS =
-  "id, host_id, slug, event_type, theme_id, title, subtitle, event_date, event_time, venue_name, venue_address, description, cover_image_url, form_schema, page_schema, status, rsvp_deadline, created_at";
+  "id, host_id, slug, event_type, theme_id, title, subtitle, event_date, event_time, venue_name, venue_address, description, cover_image_url, form_schema, page_schema, status, rsvp_deadline, rsvp_actions, created_at";
 // The public page needs `status`/`host_id` only to decide draft visibility
 // (see requireVisiblePublicEvent in src/app/e/[slug]/page.tsx) — never
 // rendered to a guest. `cover_image_url` is included here (unlike most host-
 // only fields) because generateMetadata reads it straight off this same
 // public row to build the guest page's og:image.
 const PUBLIC_COLUMNS =
-  "id, host_id, slug, event_type, theme_id, title, subtitle, event_date, event_time, venue_name, venue_address, description, cover_image_url, form_schema, page_schema, status, rsvp_deadline";
+  "id, host_id, slug, event_type, theme_id, title, subtitle, event_date, event_time, venue_name, venue_address, description, cover_image_url, form_schema, page_schema, status, rsvp_deadline, rsvp_actions";
 
 function slugify(title: string) {
   return title
@@ -246,6 +252,22 @@ export async function updateRsvpDeadline(hostId: string, eventId: string, rsvpDe
   const { data, error } = await supabase
     .from("events")
     .update({ rsvp_deadline: rsvpDeadline })
+    .eq("id", eventId)
+    .eq("host_id", hostId)
+    .select("id, slug")
+    .maybeSingle();
+
+  if (error) throw new DataError(error.message);
+  if (!data) throw new NotFoundError("Event not found.");
+
+  revalidateEventCache(eventId, data.slug as string);
+}
+
+export async function updateRsvpActions(hostId: string, eventId: string, actions: unknown) {
+  const supabase = createServiceRoleClient();
+  const { data, error } = await supabase
+    .from("events")
+    .update({ rsvp_actions: actions })
     .eq("id", eventId)
     .eq("host_id", hostId)
     .select("id, slug")

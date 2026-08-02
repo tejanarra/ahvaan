@@ -34,7 +34,7 @@ export const PALETTE_DRAG_PREFIX = "palette:";
 const CATEGORIES: { label: string; types: BlockType[] }[] = [
   { label: "Content", types: ["hero", "text", "image", "carousel", "spacer"] },
   { label: "Event details", types: ["countdown", "schedule", "venue-map"] },
-  { label: "Guest interaction", types: ["rsvp-form"] },
+  { label: "Guest interaction", types: ["rsvp-form", "form"] },
   { label: "Advanced", types: ["custom-html"] },
 ];
 

@@ -9,6 +9,7 @@ import type { EventRecord } from "@/lib/data/events";
 import { resolveThemeColors } from "@/lib/themes";
 import { resolveThemeFonts } from "@/lib/theme-fonts";
 import { RsvpForm } from "@/app/e/[slug]/rsvp-form";
+import { DEFAULT_POST_SUBMIT_ACTION } from "@/lib/schemas/post-submit-actions";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -161,6 +162,7 @@ function FormPreview({ event, schema }: { event: EventRecord; schema: FormSchema
         guestName="Guest Name"
         venueName={event.venue_name}
         venueAddress={event.venue_address}
+        action={DEFAULT_POST_SUBMIT_ACTION}
       />
     </div>
   );

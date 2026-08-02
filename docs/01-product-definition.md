@@ -101,6 +101,16 @@ place in the UI. Where two mechanisms overlap today, they are consolidated
 - Guest dashboard (tabs/search/sort/stats/edit) + invite links
 - Email invites + manual bulk reminders with `email_sends` audit log
 - Sandboxed custom code (block-level and whole-page)
+- Generic multi-form system (added 2026-08-02, user-directed, outside this
+  matrix's original scope — see `SAAS_PLAN.md`'s dated entry): any number of
+  named, host-built forms per event with a typed/validated field vocabulary
+  (`src/lib/forms/`), each embeddable via a page-builder block, submissions
+  in a Forms → Data tab. Deliberately a separate system from the RSVP form
+  above (no guest-tracking/invite-link semantics) — the "Form builder"
+  line above still refers only to the RSVP form's own engine.
+- Host-configurable post-submit behavior (message/redirect/custom HTML) for
+  both RSVP (Guests → Actions) and every custom form (added alongside the
+  above, same date) — previously hardcoded to always show the venue map.
 
 ### Consolidate (same power, less surface — Phase 1–2 work)
 - **Styling surfaces**: block `customCss`, container `customStyle`, page

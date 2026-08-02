@@ -35,8 +35,9 @@ import { EditableCanvas, type BlockPath } from "./editable-canvas";
 import { OutlinePanel } from "./outline-panel";
 import { PreviewFrame } from "./preview-frame";
 import { PageRenderer } from "@/lib/blocks/page-renderer";
-import type { CustomComponentMap } from "@/lib/blocks/context";
+import type { CustomComponentMap, CustomFormMap } from "@/lib/blocks/context";
 import type { CustomComponentRecord } from "@/lib/data/custom-components";
+import type { FormRecord } from "@/lib/data/forms";
 import { EMPTY_LIST_PREFIX, START_LIST_PREFIX, type DropPlan } from "./dnd-ids";
 import { ArrowLeftIcon, CodeBracketsIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
@@ -395,6 +396,7 @@ export function PageBuilder({
   formSchema,
   initialSchema,
   customComponents,
+  availableForms,
 }: {
   event: EventRecord;
   formSchema: FormSchema;
@@ -404,6 +406,10 @@ export function PageBuilder({
   // adds to it (on the next page save); this is just read here, to resolve
   // <custom-component name="..."> tags at render/preview time.
   customComponents: CustomComponentRecord[];
+  // This event's generic custom forms (src/lib/data/forms.ts) — the "form"
+  // block's Edit needs the list to populate its "which form?" dropdown,
+  // and its Render needs the full records to preview the picked one.
+  availableForms: FormRecord[];
 }) {
   const initialCustomPage: CustomPageConfig =
     initialSchema.customPage ?? { enabled: false, html: "<p>Write your own page here.</p>", css: "", js: "" };
@@ -844,6 +850,10 @@ export function PageBuilder({
     customComponents.map((c) => [c.name, { html: c.html, css: c.css, js: c.js }])
   );
 
+  // Keyed by id (how the "form" block's config references one) — same
+  // once-per-render shape as customComponentsMap above.
+  const customFormsMap: CustomFormMap = Object.fromEntries(availableForms.map((f) => [f.id, f]));
+
   const canvasCtx = {
     event: liveEvent,
     inviteId: "preview",
@@ -851,6 +861,7 @@ export function PageBuilder({
     schema: formSchema,
     initialResponses: null,
     customComponents: customComponentsMap,
+    customForms: customFormsMap,
   };
 
   // Everything that swaps in the same theme-backed content well —
@@ -1086,6 +1097,7 @@ export function PageBuilder({
             onRemoveSelected={handleRemoveSelected}
             event={liveEvent}
             onEventFieldsChange={handleEventFieldsChange}
+            availableForms={availableForms}
             ctx={canvasCtx}
             themeColors={themeColors}
             fontFamily={fontFamily}

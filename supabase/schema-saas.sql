@@ -89,6 +89,11 @@ create index if not exists email_sends_event_id_idx on public.email_sends(event_
 
 alter table public.events add column if not exists status text not null default 'published';
 alter table public.events add column if not exists rsvp_deadline timestamptz;
+-- Post-submit behavior for the RSVP form — same shape/validation as
+-- forms.actions above (src/lib/schemas/post-submit-actions.ts). Null =
+-- synthesize the old hardcoded defaults (see rsvp-form.tsx), so existing
+-- events keep rendering identically with no backfill required.
+alter table public.events add column if not exists rsvp_actions jsonb;
 
 alter table public.events enable row level security;
 alter table public.invites enable row level security;
@@ -122,6 +127,46 @@ create table if not exists public.custom_components (
 
 create index if not exists custom_components_host_id_idx on public.custom_components(host_id);
 alter table public.custom_components enable row level security;
+
+-- Generic host-built forms (any name, any field set) — deliberately
+-- separate from the RSVP/guest-tracking tables above rather than unified
+-- with them: RSVP's `attending`/`plus_ones` role-tagged fields drive the
+-- Guests dashboard's stats and are tied one-to-one to `invites`, which a
+-- generic, anonymous-submission form has no equivalent of. See
+-- src/lib/forms/ for the field-type engine and src/lib/data/forms.ts.
+create table if not exists public.forms (
+  id uuid primary key default gen_random_uuid(),
+  host_id uuid not null references auth.users(id) on delete cascade,
+  event_id uuid not null references public.events(id) on delete cascade,
+  name text not null,
+  schema jsonb not null default '{"fields": []}'::jsonb,
+  -- Post-submit behavior (message / redirect / custom HTML) — see
+  -- src/lib/schemas/post-submit-actions.ts. Same shape reused by
+  -- events.rsvp_actions below.
+  actions jsonb not null default '{"kind":"message","heading":"Thanks!","message":"Your response has been recorded."}'::jsonb,
+  created_at timestamptz not null default now(),
+  unique (event_id, name)
+);
+
+create index if not exists forms_host_id_idx on public.forms(host_id);
+create index if not exists forms_event_id_idx on public.forms(event_id);
+alter table public.forms enable row level security;
+
+create table if not exists public.form_submissions (
+  id uuid primary key default gen_random_uuid(),
+  form_id uuid not null references public.forms(id) on delete cascade,
+  -- Denormalized (reachable via a join through forms) to match every other
+  -- host-scoped table in this file — every host-scoped query filters
+  -- host_id directly, never via a join (docs/02-architecture-review.md).
+  host_id uuid not null references auth.users(id) on delete cascade,
+  event_id uuid not null references public.events(id) on delete cascade,
+  responses jsonb not null default '{}'::jsonb,
+  submitted_at timestamptz not null default now()
+);
+
+create index if not exists form_submissions_form_id_idx on public.form_submissions(form_id);
+create index if not exists form_submissions_host_id_idx on public.form_submissions(host_id);
+alter table public.form_submissions enable row level security;
 
 -- Phase 4: host-uploaded images (hero cover, Image block). Public-read (a
 -- public bucket serves objects straight from its public URL, no auth
@@ -185,6 +230,20 @@ create policy "host owns their email_sends" on public.email_sends
 
 drop policy if exists "host owns their custom_components" on public.custom_components;
 create policy "host owns their custom_components" on public.custom_components
+  for all
+  to authenticated
+  using (host_id = (select auth.uid()))
+  with check (host_id = (select auth.uid()));
+
+drop policy if exists "host owns their forms" on public.forms;
+create policy "host owns their forms" on public.forms
+  for all
+  to authenticated
+  using (host_id = (select auth.uid()))
+  with check (host_id = (select auth.uid()));
+
+drop policy if exists "host owns their form_submissions" on public.form_submissions;
+create policy "host owns their form_submissions" on public.form_submissions
   for all
   to authenticated
   using (host_id = (select auth.uid()))

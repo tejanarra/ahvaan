@@ -14,6 +14,7 @@ import {
   MapPinIcon,
   CodeBracketsIcon,
   BoxIcon,
+  FormIcon,
 } from "@/components/icons";
 import { cn } from "@/lib/cn";
 
@@ -29,6 +30,7 @@ const BLOCK_TYPE_ICON: Record<BlockType, ComponentType<{ className?: string }>> 
   countdown: ClockIcon,
   schedule: CalendarIcon,
   "rsvp-form": ClipboardListIcon,
+  form: FormIcon,
   "venue-map": MapPinIcon,
   "custom-html": CodeBracketsIcon,
   container: BoxIcon,

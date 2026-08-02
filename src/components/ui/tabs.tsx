@@ -7,6 +7,12 @@ import { cn } from "@/lib/cn";
 export interface TabItem {
   href: string;
   label: string;
+  // Overrides the default exact-pathname match — for a tab whose section
+  // has its own sub-routes not directly under this href (e.g. "Guests"
+  // linking to the bare event route while also covering its sibling
+  // /fields and /actions routes), so the parent tab still reads as active
+  // while on one of those. Most callers leave this unset.
+  isActive?: boolean;
 }
 
 /**
@@ -20,7 +26,7 @@ export function Tabs({ items }: { items: TabItem[] }) {
   return (
     <div className="flex gap-1 border-b border-border">
       {items.map((item) => {
-        const active = pathname === item.href;
+        const active = item.isActive ?? pathname === item.href;
         return (
           <Link
             key={item.href}

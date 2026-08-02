@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { requireHost } from "@/lib/supabase/auth-server";
 import { getEventFull } from "@/lib/data/events";
 import { listComponents } from "@/lib/data/custom-components";
+import { listForms } from "@/lib/data/forms";
 import { resolveFormSchema } from "@/lib/schemas/form-schema";
 import { defaultPageSchema } from "@/lib/blocks/types";
 import { parsePageSchema } from "@/lib/schemas/page-schema";
@@ -29,6 +30,15 @@ export default async function DesignPage({
   const initialSchema = parsePageSchema(record.page_schema) ?? defaultPageSchema();
   const formSchema = resolveFormSchema(record.form_schema);
   const customComponents = await listComponents(host.id);
+  const availableForms = await listForms(host.id, eventId);
 
-  return <PageBuilder event={record} formSchema={formSchema} initialSchema={initialSchema} customComponents={customComponents} />;
+  return (
+    <PageBuilder
+      event={record}
+      formSchema={formSchema}
+      initialSchema={initialSchema}
+      customComponents={customComponents}
+      availableForms={availableForms}
+    />
+  );
 }

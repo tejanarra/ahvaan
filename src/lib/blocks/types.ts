@@ -188,6 +188,16 @@ export type ScheduleConfig = {
   gapPx?: number;
 };
 
+// Post-submit confirmation copy/behavior (heading(s), venue toggle, custom
+// HTML override) used to live here — moved to events.rsvp_actions
+// (src/lib/schemas/post-submit-actions.ts), editable from the Guests →
+// Actions tab instead of buried in this block's own settings, and shared
+// with the same editor every generic form's Actions tab uses. A page's
+// existing block config may still have those old keys sitting unused in
+// its stored JSON (harmless — page-schema.ts's block config validation is
+// deliberately loose); rsvp-form.tsx's synthesizeLegacyRsvpAction reads
+// them once, at first render after this migration, for any event that
+// hasn't saved a rsvp_actions row yet.
 export type RsvpFormBlockConfig = {
   heading?: string;
   helperText?: string;
@@ -195,19 +205,6 @@ export type RsvpFormBlockConfig = {
   // previously hardcoded with no way for a host to change the wording.
   noInviteHeading?: string;
   noInviteMessage?: string;
-  // Post-submit confirmation — also previously hardcoded.
-  confirmedYesHeading?: string;
-  confirmedNoHeading?: string;
-  showVenueOnConfirmation?: boolean;
-  // Full visual control over the post-submit screen: when set, this
-  // replaces the built-in heading/field-list/venue-map layout with the
-  // host's own markup, rendered in the same sandboxed iframe model as the
-  // custom-html block (allow-scripts, no allow-same-origin). Supports the
-  // same {{venue_map}} shortcode plus {{responses_summary}} (the guest's
-  // own submitted answers, pre-formatted as an HTML list).
-  confirmationHtml?: string;
-  confirmationCss?: string;
-  confirmationHeightPx?: number;
   // Shown instead of the form once the event's RSVP deadline (Settings)
   // has passed — same idea as noInviteHeading/Message, just gated on time
   // instead of on invite validity.
@@ -215,7 +212,32 @@ export type RsvpFormBlockConfig = {
   deadlineClosedMessage?: string;
 };
 
+// The pre-migration shape of RsvpFormBlockConfig's confirmation fields, for
+// reading a legacy block's still-present-but-now-untyped values out of an
+// already-saved page_schema row — only synthesizeLegacyRsvpAction
+// (rsvp-form.tsx) needs this.
+export type LegacyRsvpConfirmationFields = {
+  confirmedYesHeading?: string;
+  confirmedNoHeading?: string;
+  showVenueOnConfirmation?: boolean;
+  confirmationHtml?: string;
+  confirmationCss?: string;
+  confirmationHeightPx?: number;
+};
+
 export type VenueMapBlockConfig = Record<string, never>;
+
+// Embeds one of the event's generic custom forms (src/lib/data/forms.ts) —
+// deliberately separate from rsvp-form above: this is the same "pick a
+// named thing, embed it" shape as venue-map's sibling custom-html/
+// custom-component pattern, referencing by id rather than carrying its own
+// field schema, since the same named form can be embedded on multiple
+// blocks/pages and should stay in sync with the one saved definition.
+export type FormBlockConfig = {
+  formId: string | null;
+  heading?: string;
+  helperText?: string;
+};
 
 export type CustomHtmlConfig = {
   html: string;
@@ -276,6 +298,7 @@ export type BlockInstance =
   | (BlockBase & { type: "countdown"; config: CountdownConfig })
   | (BlockBase & { type: "schedule"; config: ScheduleConfig })
   | (BlockBase & { type: "rsvp-form"; config: RsvpFormBlockConfig })
+  | (BlockBase & { type: "form"; config: FormBlockConfig })
   | (BlockBase & { type: "venue-map"; config: VenueMapBlockConfig })
   | (BlockBase & { type: "custom-html"; config: CustomHtmlConfig })
   | (BlockBase & { type: "container"; config: ContainerConfig; children: BlockInstance[] });
