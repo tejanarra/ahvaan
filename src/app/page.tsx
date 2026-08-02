@@ -5,6 +5,7 @@ import { PublicFooter } from "@/components/public-footer";
 import { ThemeDemo } from "@/components/marketing/theme-demo";
 import { StudioTour } from "@/components/marketing/studio-tour";
 import { Reveal } from "@/components/marketing/reveal";
+import { ResubscribeInlineForm } from "@/components/marketing/resubscribe-inline-form";
 import { getSessionUser } from "@/lib/supabase/auth-server";
 import { UserIcon, ShareIcon, MailIcon, ClipboardListIcon } from "@/components/icons";
 
@@ -409,6 +410,15 @@ export default async function Home() {
             <p className="mt-4 text-xs font-semibold uppercase tracking-[0.08em] text-muted">
               Free · Unlimited guests
             </p>
+          </div>
+        </section>
+
+        {/* Resubscribe — a quiet footer-band utility, not a marketing CTA:
+            for a guest who stopped getting a host's event emails and lands
+            here instead of the standalone /resubscribe page. */}
+        <section className="border-t border-border">
+          <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
+            <ResubscribeInlineForm />
           </div>
         </section>
       </main>

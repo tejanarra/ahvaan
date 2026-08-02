@@ -473,3 +473,37 @@ create index if not exists rate_limit_hits_created_at_idx
 alter table public.rate_limit_hits enable row level security;
 -- No policy: service-role only (same pattern as email_verification_codes) —
 -- this table has no per-host owner and is never read by the dashboard.
+
+-- Unsubscribe suppression list — per (event, email), not global: a guest
+-- opting out of one host's wedding reminders shouldn't silently also drop
+-- them from a different host's baby-shower emails, so unsubscribing is
+-- scoped to the event whose email they clicked "unsubscribe" from, exactly
+-- like the host_id-scoping invariant already applies everywhere else
+-- (see docs/reference/host-id-invariant). host_id is denormalized here for
+-- the same reason as email_sends above: query without a join through
+-- events. email is stored lowercased (enforced in
+-- src/lib/data/email-unsubscribes.ts) so a case-different resend attempt
+-- still matches an existing suppression.
+create table if not exists public.email_unsubscribes (
+  id uuid primary key default gen_random_uuid(),
+  host_id uuid not null references auth.users(id) on delete cascade,
+  event_id uuid not null references public.events(id) on delete cascade,
+  email text not null,
+  unsubscribed_at timestamptz not null default now(),
+  unique (event_id, email)
+);
+
+-- No separate (event_id, email) index needed: the unique constraint above
+-- already creates one covering exactly that lookup (isUnsubscribed,
+-- addUnsubscribe, removeUnsubscribe all filter by both columns). This one
+-- is for removeAllUnsubscribesForEmail's bare `.eq("email", ...)` — the
+-- composite index's leading column is event_id, so it can't serve an
+-- email-only filter.
+create index if not exists email_unsubscribes_email_idx
+  on public.email_unsubscribes(email);
+
+alter table public.email_unsubscribes enable row level security;
+-- No policy: service-role only — checked/written from public (unauthenticated)
+-- routes (the emailed unsubscribe link, the resubscribe form), never
+-- directly from the dashboard's own session, same trust model as
+-- email_verification_codes and rate_limit_hits above.

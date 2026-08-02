@@ -2,6 +2,11 @@ import { createServiceRoleClient } from "@/lib/supabase/server";
 import { DataError } from "@/lib/data/errors";
 
 export type EmailKind = "invite" | "reminder";
+// "suppressed" = the recipient had unsubscribed (email_unsubscribes) so
+// deliverInviteEmail/deliverReminderEmail deliberately skipped sending —
+// distinct from "failed" (an actual send error) so the host's send-status
+// UI can tell "didn't send because they opted out" from "something broke."
+export type EmailStatus = "sent" | "failed" | "suppressed";
 
 // `error` truncated to fit the audit row without needing a text column
 // resize — the caught error's message, not a rendered stack trace.
@@ -10,7 +15,7 @@ export async function logEmailSend(input: {
   eventId: string;
   inviteId: string;
   kind: EmailKind;
-  status: "sent" | "failed";
+  status: EmailStatus;
   error?: string;
 }) {
   const supabase = createServiceRoleClient();
@@ -36,7 +41,7 @@ export async function logEmailSends(
     eventId: string;
     inviteId: string;
     kind: EmailKind;
-    status: "sent" | "failed";
+    status: EmailStatus;
     error?: string;
   }>
 ) {

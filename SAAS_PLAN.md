@@ -1463,3 +1463,70 @@ static pages including the full docs tree). Verified live in a real browser
 via Playwright throughout (not just build-checked) — screenshots, OG image
 output, JSON-LD script tags, and the three live example pages were all
 fetched and visually inspected during the session.
+
+## Status: Branded email templates + unsubscribe/resubscribe system (2026-08-02)
+
+**Branded email templates**: refactored `src/lib/email.ts`'s three Resend-sent
+emails (invite, reminder, verification) onto one shared `emailFrame` (paper/
+ink card, wordmark, accent button) instead of two near-duplicate hand-rolled
+copies. Added `supabase/email-templates/` — branded HTML for the four
+Supabase Auth emails this app actually triggers (confirm signup, reset
+password, password changed, new sign-in method linked — confirmed against
+`auth-actions.ts`; Magic Link/Invite/Reauthentication skipped since nothing
+sends them), generated from one shared script
+(`scripts/build-auth-email-templates.mjs`) so all four stay in sync. A
+README documents which Supabase Dashboard slot each goes in — these are
+Dashboard-configured, not deployed by code. Deliverability pass: `from`
+address now always carries a display name, `replyTo` set to the support
+inbox already linked from the Privacy Policy (previously unused anywhere),
+`List-Unsubscribe` header added.
+
+**Unsubscribe/resubscribe system**: new `email_unsubscribes` table
+(`event_id` + `email`, unique — scoped per-event, not global, matching the
+`host_id` invariant's spirit: opting out of one host's reminders shouldn't
+silently drop a different host's emails too). Every invite/reminder/
+verification email now carries a signed, no-login unsubscribe link
+(`src/lib/unsubscribe-token.ts`, HMAC via the existing `GUEST_SESSION_SECRET`)
+— clicking it unsubscribes immediately (`/unsubscribe` route handler),
+lands on a confirmation page with an inline "Undo" action.
+`deliverInviteEmail`/`deliverReminderEmail` now check the suppression list
+first and return `{ sent: boolean }`; the host-facing send actions and UI
+(single-invite button, bulk-reminder toast) distinguish "suppressed" from
+"failed" rather than treating an opted-out guest as an error.
+
+Resubscribing is self-service but double-opt-in: `/resubscribe` collects
+just an email, rate-limited at 2/day and 5/month **per email and
+independently per IP** (`src/lib/data/rate-limit.ts` gained a peek/record
+split so several independent window checks can be made before any of them
+record a hit — needed since the existing `checkRateLimit` combines count+
+insert in one call and can't be safely called twice for one logical
+request). Submitting always returns the same generic message regardless of
+outcome (anti-enumeration, matching `requestPasswordReset`) and emails a
+short-lived confirmation link; clicking it is what actually clears every
+event's suppression for that address. A compact version of the same form
+is embedded in the marketing home page's footer band.
+
+**Bugs found and fixed during live verification** (Playwright against the
+running dev server, real DB writes, not just build-checked): an uncaught
+exception when Resend rejects a `to` address (or any other send failure)
+inside `requestResubscribe` — was propagating through the server action to
+a raw error page instead of the intended generic message, now caught and
+logged; the "Undo" action on the unsubscribe-confirmation page was
+redirecting to the success page even when its token failed to verify,
+falsely claiming a resubscribe that never happened. Also fixed a redundant
+DB index (an explicit `(event_id, email)` index duplicating the unique
+constraint's own implicit one) and a same-instance TOCTOU race in the new
+rate-limit peek/record split (closed with an in-memory debounce floor,
+same pattern as `guest-verification.ts`'s `MIN_MS_BETWEEN_REQUESTS`).
+
+Manual step required (outside what this environment can do): the
+`email_unsubscribes` table addition to `supabase/schema-saas.sql` had to be
+run by the user directly in the Supabase SQL editor — no direct Postgres/
+management-API access is available here, only PostgREST via the
+service-role key.
+
+`npm run build`, `npm run lint`, and `npm test` all clean (27/27 tests,
+including 4 new for the token signer). End-to-end verified live: unsubscribe
+insert, idempotent re-click, undo/row-removal, invalid-token handling,
+cross-event resubscribe-confirm, and both the email-scoped and IP-scoped
+rate-limit caps — confirmed directly against the database, not just the UI.

@@ -105,7 +105,7 @@ export async function updateFormSchema(eventId: string, rawSchema: FormSchema) {
   await updateFormSchemaData(host.id, eventId, schema);
 }
 
-export async function sendInviteEmailAction(eventId: string, inviteId: string) {
+export async function sendInviteEmailAction(eventId: string, inviteId: string): Promise<{ sent: boolean }> {
   const host = await requireHost();
 
   const [event, invite] = await Promise.all([
@@ -114,8 +114,9 @@ export async function sendInviteEmailAction(eventId: string, inviteId: string) {
   ]);
   if (!event) throw new NotFoundError("Event not found.");
 
+  let result: { sent: boolean };
   try {
-    await deliverInviteEmail(event, invite);
+    result = await deliverInviteEmail(event, invite);
   } catch (err) {
     await logEmailSend({
       hostId: host.id,
@@ -128,7 +129,14 @@ export async function sendInviteEmailAction(eventId: string, inviteId: string) {
     throw err;
   }
 
-  await logEmailSend({ hostId: host.id, eventId, inviteId: invite.id, kind: "invite", status: "sent" });
+  await logEmailSend({
+    hostId: host.id,
+    eventId,
+    inviteId: invite.id,
+    kind: "invite",
+    status: result.sent ? "sent" : "suppressed",
+  });
+  return result;
 }
 
 export async function sendReminderEmails(eventId: string) {
@@ -144,19 +152,21 @@ export async function sendReminderEmails(eventId: string) {
   // limits), but the resulting audit-log rows are batched into one insert
   // at the end instead of one round trip per invite (docs-audit M11).
   let sent = 0;
+  let suppressed = 0;
   const logEntries: Array<{
     hostId: string;
     eventId: string;
     inviteId: string;
     kind: "reminder";
-    status: "sent" | "failed";
+    status: "sent" | "failed" | "suppressed";
     error?: string;
   }> = [];
   for (const invite of pending) {
     try {
-      await deliverReminderEmail(event, invite);
-      logEntries.push({ hostId: host.id, eventId, inviteId: invite.id, kind: "reminder", status: "sent" });
-      sent += 1;
+      const result = await deliverReminderEmail(event, invite);
+      logEntries.push({ hostId: host.id, eventId, inviteId: invite.id, kind: "reminder", status: result.sent ? "sent" : "suppressed" });
+      if (result.sent) sent += 1;
+      else suppressed += 1;
     } catch (err) {
       logEntries.push({
         hostId: host.id,
@@ -178,7 +188,7 @@ export async function sendReminderEmails(eventId: string) {
     console.error(`Failed to log ${logEntries.length} email_sends rows for event ${eventId}:`, err);
   }
 
-  return { sent, total: pending.length };
+  return { sent, suppressed, total: pending.length };
 }
 
 export async function uploadImage(eventId: string, formData: FormData) {

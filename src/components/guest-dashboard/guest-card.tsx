@@ -39,9 +39,9 @@ function SendInviteEmailButton({ eventId, invite }: { eventId: string; invite: P
     setError("");
     startTransition(async () => {
       try {
-        await sendInviteEmailAction(eventId, invite.id);
+        const { sent } = await sendInviteEmailAction(eventId, invite.id);
         markSent();
-        show(`Invite emailed to ${invite.name}.`);
+        show(sent ? `Invite emailed to ${invite.name}.` : `${invite.name} has unsubscribed — not sent.`);
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to send.";
         setError(message);

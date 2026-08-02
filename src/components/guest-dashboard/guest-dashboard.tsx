@@ -94,10 +94,12 @@ export function GuestDashboard({
   const handleSendReminders = () => {
     startReminderTransition(async () => {
       try {
-        const { sent, total } = await sendReminderEmails(eventId);
+        const { sent, suppressed, total } = await sendReminderEmails(eventId);
+        const failed = total - sent - suppressed;
+        const suffix = suppressed > 0 ? ` (${suppressed} unsubscribed, skipped)` : "";
         show(
-          sent < total ? `Sent ${sent} of ${total} — some failed.` : `Sent ${sent} of ${total}.`,
-          sent < total ? "error" : "default"
+          failed > 0 ? `Sent ${sent} of ${total} — some failed.${suffix}` : `Sent ${sent} of ${total}.${suffix}`,
+          failed > 0 ? "error" : "default"
         );
       } catch (err) {
         show(err instanceof Error ? err.message : "Failed to send.", "error");

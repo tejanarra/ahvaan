@@ -177,6 +177,22 @@ export async function getEventByIdPublic(eventId: string): Promise<EventRecord |
   return data as EventRecord | null;
 }
 
+// Deliberately not filtered to `status = 'published'` like the function
+// above — unlike a guest-facing write, unsubscribing must still work for
+// an event a host has temporarily unpublished (a guest who already has a
+// legitimate emailed unsubscribe link shouldn't lose the ability to use it
+// just because the host flipped the event back to draft). Never exposed
+// through a guessable id: the only caller (src/app/unsubscribed/page.tsx)
+// only ever reaches this with an eventId decoded from a signed unsubscribe
+// token, the same trust model as getInvitePublic's own scoped-by-
+// capability-token exception.
+export async function getEventTitleById(eventId: string): Promise<{ title: string } | null> {
+  const supabase = createServiceRoleClient();
+  const { data, error } = await supabase.from("events").select("title").eq("id", eventId).maybeSingle();
+  if (error) throw new DataError(error.message);
+  return data;
+}
+
 export function revalidateEventCache(eventId: string, slug: string) {
   eventBySlugPublicCache.invalidate(slug);
   revalidatePath(`/events/${slug}`);

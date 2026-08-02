@@ -67,7 +67,10 @@ export async function requestGuestVerification(eventId: string, rawEmail: string
   });
 
   try {
-    await deliverVerificationEmail(email, buildVerifyLink(event.slug, "rsvp", id, code), code, event.title);
+    await deliverVerificationEmail(email, buildVerifyLink(event.slug, "rsvp", id, code), code, event.title, {
+      id: event.id,
+      host_id: event.host_id,
+    });
   } catch (err) {
     console.error("Failed to send guest verification email", err);
     return { status: "error", message: "Couldn't send a verification code. Please try again." };
