@@ -15,7 +15,7 @@ export interface SideNavGroup {
 // src/components/brand.tsx). So each state below is one complete,
 // mutually-exclusive class string, never a "default" string plus an
 // "override" string layered on top.
-const ROW_BASE = "flex h-8 items-center rounded-[6px] px-3 text-body transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40";
+const ROW_BASE = "flex h-8 items-center rounded-[var(--radius-sm)] px-3 text-body transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40";
 const ROW_CURRENT = `${ROW_BASE} relative bg-accent-soft font-semibold text-accent before:absolute before:inset-y-0 before:-left-3 before:w-0.5 before:rounded-full before:bg-accent`;
 const ROW_DEFAULT = `${ROW_BASE} text-muted hover:bg-surface-hover hover:text-foreground`;
 

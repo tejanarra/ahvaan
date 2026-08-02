@@ -1292,3 +1292,111 @@ entities` errors from the prior pass fixed in `src/app/page.tsx` along
 the way). Still not verified in an actual browser — no Playwright/
 chromium-cli in this environment; verified via clean build/lint plus a
 curl of the rendered HTML.
+
+## Status: Full-repo production-readiness audit + fixes (2026-08-02)
+
+User-directed, same session as the previous entries. First produced a
+structured production-readiness audit (five parallel research passes
+covering app router/caching, data layer/tenancy/security,
+sandbox/blocks/forms security, React components/design system, and
+config/deps/schema/docs), then implemented every finding — critical
+through low priority, plus two issues the user reported live
+(iOS input-zoom, and a "delete form" icon floating disconnected from its
+title on mobile).
+
+**Critical fixes**:
+- `getEventBySlugPublicCached`/`getHostProfilePublicCached` used
+  `unstable_cache` with a static empty `tags: []` — `revalidateTag` at
+  every write site matched nothing, so a host's edits could silently fail
+  to reach the live guest page. Replaced with a manually-keyed cache
+  (`src/lib/cache/keyed-cache.ts`) whose `invalidate(key)` actually removes
+  the changed entry. Covered by a unit test.
+- Guest email-verification (OTP) sends had no rate limit independent of
+  the caller-supplied email — an attacker could email-bomb any address.
+  Added a cross-instance, DB-backed sliding-window limiter
+  (`src/lib/data/rate-limit.ts`, new `rate_limit_hits` table in
+  `schema-saas.sql`), also applied to RSVP/form submission as a proper
+  fix for the pre-existing in-memory-only limiter's multi-instance gap.
+
+**High-priority fixes**: parallelized the public event page's independent
+data lookups (host profile, custom components/forms) instead of awaiting
+them serially; added the missing `--radius-*`/`--shadow-*` design tokens
+to `globals.css` and wired them into Card/Modal/Toast/DropdownMenu/
+StatTile/EmptyState/StudioTour (the components docs-04 names explicitly);
+Modal gained a real focus trap + focus-restore-on-close; `Field`/
+`PublicField` now auto-wire `htmlFor`/`id` via `useId()` (labels were
+never actually associated with their inputs); fixed a Toast bug where
+adding one toast reset every other toast's auto-dismiss timer; added a
+pre-parse `Content-Length` cap to the two public API routes; added a
+minimal test suite (vitest, 23 tests over the schema validator, sandbox
+HTML escaping, safe-URL scheme check, rate limiter, and cache) plus a
+GitHub Actions CI workflow running lint/test/build; rewrote `README.md`
+from unedited `create-next-app` boilerplate into real setup instructions.
+
+**Medium fixes**: added scoped `error.tsx` under the event workspace and
+the guest page (previously only a root one existed); moved
+`Content-Security-Policy` from a static `next.config.ts` header
+(`script-src 'self' 'unsafe-inline'`) to a real per-request nonce +
+`'strict-dynamic'` generated in `src/proxy.ts`, which now runs on
+effectively every route instead of just four auth-related paths — the
+sandboxed custom-code iframe's inline `<script>` is nonce'd to match,
+since a `srcdoc` iframe inherits its creator document's CSP; fixed
+`listRespondedInviteIds` to take/filter `hostId` like every sibling in
+`rsvps.ts`; fixed the one remaining `select("*")` in the data layer
+(`host-profile.ts`); added roving-tabindex/arrow-key navigation to
+`ToggleGroup`; added `aria-live`/`role="alert"` to form/action error text
+across the app; fixed several stale `/e/[slug]` route-name references
+(actual route is `/events/[slug]`) in code comments and `docs/`; batched
+`sendReminderEmails`'s per-invite audit-log inserts into one multi-row
+insert and parallelized the submission-mode email-field backfill.
+
+**Low-priority fixes**: `ConfirmIconButton` rebuilt on the shared
+`IconButton` primitive (was a hand-rolled `<button>` missing the standard
+focus ring); extracted `useClipboardCopy`/`useNativeShare`/
+`useTransientFlag` hooks to de-duplicate three previously-independent
+copies of the same "copy/share/transient-success-icon" logic
+(`src/hooks/`); added `Tooltip` to every remaining icon-only button
+missing one; removed the dead `CardFooter` export; removed an unnecessary
+`"use client"` from `bottom-nav.tsx`; fixed `manifest.ts`'s `start_url`
+(was the auth-gated `/dashboard`); documented `public/sw.js` in doc 08
+(previously shipped with zero doc coverage); fixed a silently-swallowed
+error in `email-verification.ts`'s cleanup delete; hardened
+`buildSandboxSrcDoc` to escape a literal `</script>`/`</style>` inside
+host-authored js/css; added scheme validation (`safeImageSrc`) to
+image/carousel block URLs.
+
+**User-reported bugs fixed live, mid-session**: inputs zoomed the whole
+page on focus on mobile (iOS Safari auto-zooms any input under 16px font
+— every field control now uses `text-base sm:text-sm`, real size
+unchanged at `sm`+); the "delete form" icon button on
+`dashboard/events/[eventId]/forms/[formId]` sat disconnected from the
+"Songs" title, floating in empty space on mobile — root cause was
+`PageHeader`'s `actions` slot stretching a lone action to full width via
+`*:flex-1` (correct for the Guests page's two-button CTA pair, wrong for
+a single icon-only action, which just centers inside the stretched
+space). Added a `PageHeader` `inlineActions` prop that keeps `actions` on
+the same row as the title at every width instead of stacking below it,
+used by `form-header.tsx`.
+
+Also found and fixed one real bug while writing the schema-validator
+test: `parsePageSchema`'s `MAX_CONTAINER_DEPTH` schema forced `children`
+to `z.undefined()` (not `.optional()`) past the cap — this rejected any
+ordinary leaf block (a block with no `children` key at all, which is
+every non-container block type) the moment its nesting depth reached the
+cap, not just genuinely over-deep containers. Fixed to
+`z.undefined().optional()`.
+
+Explicitly out of scope this session (documented, not silently skipped):
+the broader raw-Tailwind-text-size/spacing sweep across ~90 call sites in
+`components/{ui,builder,guest-dashboard,marketing}` (doc-04's 6-step type
+scale exists and is now used by the specific components audited, but a
+blind mass find/replace across dozens of files risks visual regressions
+with no way to verify them live in this environment); live email/
+Lighthouse/axe/production-environment verification (all require live
+account/browser access this environment doesn't have — see doc 08's
+updated checklist for exactly what's still unchecked and why).
+
+`npm run build`, `npm run lint`, and `npm test` all clean throughout.
+Layout fix for the mobile header verified structurally (build + careful
+CSS reasoning) but not in an actual browser — no test credentials
+available to log in and screenshot the live page in this environment.

@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ToggleGroup } from "@/components/ui/toggle-group";
 import { ImageUploadField } from "@/components/image-upload-field";
 import { ConfirmIconButton } from "@/components/confirm-icon-button";
+import { safeImageSrc } from "../safe-url";
 import { ArrowLeftIcon } from "@/components/icons";
 
 export const carouselDefaultConfig: CarouselConfig = {
@@ -184,6 +185,9 @@ export function CarouselEdit({
 }
 
 function Slide({ image }: { image: CarouselImage }) {
+  const src = safeImageSrc(image.url);
+  if (!src) return null;
+
   const maxHeight =
     image.maxHeightPx !== undefined && Number.isFinite(image.maxHeightPx)
       ? Math.min(2000, Math.max(20, image.maxHeightPx))
@@ -195,14 +199,14 @@ function Slide({ image }: { image: CarouselImage }) {
     // the default so a carousel of differently-shaped photos never forces
     // them into one artificial frame.
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={image.url} alt={image.alt ?? ""} className="h-auto w-full rounded-lg" />;
+    return <img src={src} alt={image.alt ?? ""} className="h-auto w-full rounded-lg" />;
   }
 
   if (fit === "contain") {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={image.url}
+        src={src}
         alt={image.alt ?? ""}
         className="mx-auto block max-w-full rounded-lg object-contain"
         style={{ maxHeight: `${maxHeight}px`, width: "auto", height: "auto" }}
@@ -213,7 +217,7 @@ function Slide({ image }: { image: CarouselImage }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={image.url}
+      src={src}
       alt={image.alt ?? ""}
       className="w-full rounded-lg object-cover"
       style={{ height: `${maxHeight}px` }}

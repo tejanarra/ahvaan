@@ -46,7 +46,6 @@ export function useScrollStrip<T extends HTMLElement>(activeKey: string) {
       block: "nearest",
       behavior: reduceMotion ? "auto" : "smooth",
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeKey]);
 
   return { trackRef, activeRef, overflowing };

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { BrandLockup } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 
-// Top-level fallback for any route outside /dashboard and /e/[slug] (which
+// Top-level fallback for any route outside /dashboard and /events/[slug] (which
 // have their own voiced not-found.tsx — docs/05 "System pages"). Marketing
 // voice: plain, points home.
 export default function NotFound() {

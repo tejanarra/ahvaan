@@ -295,6 +295,10 @@ export function RsvpForm({
 
   useEffect(() => {
     if (state.status === "success" && state.data) {
+      // Reacts to `state` (useActionState's own result — a fresh
+      // submission, not a render-time value this component owns), same
+      // reasoning as the matching effect in custom-form.tsx.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSaved(state.data.responses);
       setValues(state.data.responses);
       setViewMode("view");
@@ -438,7 +442,11 @@ export function RsvpForm({
                 />
               ))}
 
-            {state.status === "error" && <p className="text-sm font-medium text-red-600">{state.message}</p>}
+            {state.status === "error" && (
+              <p role="alert" className="text-sm font-medium text-red-600">
+                {state.message}
+              </p>
+            )}
 
             <div className="flex flex-col gap-2 sm:flex-row">
               <button

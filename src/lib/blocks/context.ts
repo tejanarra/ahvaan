@@ -44,4 +44,11 @@ export type PageRenderContext = {
   // (invite always wins) or when the guest hasn't verified yet — in which
   // case the block renders its form locked (see rsvp-form.tsx/form.tsx).
   verifiedEmail: string | null;
+  // The current request's CSP nonce (src/lib/csp-nonce.ts), needed only by
+  // the custom-html block to nonce its sandboxed iframe's inline <script>
+  // (see sandbox.ts). Undefined in the dashboard builder's live preview
+  // (a client component — next/headers isn't available there, and the
+  // preview iframe isn't subject to the guest page's CSP anyway); real
+  // pages set it from src/app/events/[slug]/page.tsx.
+  nonce?: string;
 };

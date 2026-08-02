@@ -16,7 +16,7 @@ import * as invitesData from "@/lib/data/invites";
 import * as rsvpsData from "@/lib/data/rsvps";
 import * as formsData from "@/lib/data/forms";
 import { ensureCustomFormEmailField } from "@/lib/forms/registry";
-import { logEmailSend } from "@/lib/data/email-log";
+import { logEmailSend, logEmailSends } from "@/lib/data/email-log";
 import { NotFoundError } from "@/lib/data/errors";
 import { resolveFormSchema, deriveLegacyScalars, enforceRoleLock, ensureEmailField } from "@/lib/schemas/form-schema";
 import type { FormSchema, Responses } from "@/lib/schemas/form-schema";
@@ -137,17 +137,28 @@ export async function sendReminderEmails(eventId: string) {
   const event = await getEventFull(host.id, eventId);
   if (!event) throw new NotFoundError("Event not found.");
 
-  const respondedInviteIds = await rsvpsData.listRespondedInviteIds(eventId);
+  const respondedInviteIds = await rsvpsData.listRespondedInviteIds(host.id, eventId);
   const pending = await invitesData.listPendingInvitesWithEmail(host.id, eventId, respondedInviteIds);
 
+  // Sends stay sequential (respecting the email provider's own rate
+  // limits), but the resulting audit-log rows are batched into one insert
+  // at the end instead of one round trip per invite (docs-audit M11).
   let sent = 0;
+  const logEntries: Array<{
+    hostId: string;
+    eventId: string;
+    inviteId: string;
+    kind: "reminder";
+    status: "sent" | "failed";
+    error?: string;
+  }> = [];
   for (const invite of pending) {
     try {
       await deliverReminderEmail(event, invite);
-      await logEmailSend({ hostId: host.id, eventId, inviteId: invite.id, kind: "reminder", status: "sent" });
+      logEntries.push({ hostId: host.id, eventId, inviteId: invite.id, kind: "reminder", status: "sent" });
       sent += 1;
     } catch (err) {
-      await logEmailSend({
+      logEntries.push({
         hostId: host.id,
         eventId,
         inviteId: invite.id,
@@ -156,6 +167,15 @@ export async function sendReminderEmails(eventId: string) {
         error: err instanceof Error ? err.message : undefined,
       });
     }
+  }
+  // Best-effort: the reminders themselves are already sent by this point
+  // (or recorded as failed above) — a problem writing the audit log alone
+  // (e.g. one bad row in the batch) shouldn't make this action throw and
+  // read to the host as "reminders failed to send" when they didn't.
+  try {
+    await logEmailSends(logEntries);
+  } catch (err) {
+    console.error(`Failed to log ${logEntries.length} email_sends rows for event ${eventId}:`, err);
   }
 
   return { sent, total: pending.length };
@@ -185,7 +205,7 @@ export async function updatePageSchema(eventId: string, schema: PageSchema) {
   // rather than trusting the client-typed shape; this one didn't, which is
   // exactly the "never as-cast" JSONB invariant this data is supposed to
   // honor. parsePageSchema is the same validator the read path already
-  // trusts (page.tsx, the public /e/[slug] page) — reused here so corrupt
+  // trusts (page.tsx, the public /events/[slug] page) — reused here so corrupt
   // blocks are dropped (or the whole write rejected, if nothing valid
   // remains) before ever reaching the database, not just after reading it
   // back.
@@ -243,12 +263,14 @@ export async function updateSubmissionModeAction(eventId: string, rawMode: unkno
     }
 
     const forms = await formsData.listForms(host.id, eventId);
-    for (const form of forms) {
-      const updated = ensureCustomFormEmailField(form.schema);
-      if (updated !== form.schema) {
-        await formsData.updateFormSchema(host.id, eventId, form.id, updated);
-      }
-    }
+    // Each form's update is independent of every other's — run concurrently
+    // instead of one at a time (docs-audit M11).
+    await Promise.all(
+      forms.map((form) => {
+        const updated = ensureCustomFormEmailField(form.schema);
+        return updated !== form.schema ? formsData.updateFormSchema(host.id, eventId, form.id, updated) : null;
+      })
+    );
   }
 }
 

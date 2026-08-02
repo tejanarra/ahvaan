@@ -1,36 +1,91 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Ahvaan
 
-## Getting Started
+Multi-tenant event-invitation SaaS — hosts build a customizable event page
+(drag-and-drop block editor, an editable RSVP form, per-block styling, a
+sandboxed custom-code escape hatch), share personal invite links, and
+track every RSVP. Next.js 16 (App Router, Server Components + Server
+Actions), React 19, Tailwind CSS 4, Supabase (Auth + Postgres via a
+service-role client), Resend.
 
-First, run the development server:
+**Before building anything, read `docs/README.md`** — the `docs/` folder
+is the canonical plan for architecture, design system, page blueprints,
+and the phase-by-phase build schedule. `SAAS_PLAN.md` is the historical
+build log.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Setup
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+1. **Install dependencies**
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+   ```bash
+   npm install
+   ```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+2. **Create a Supabase project** (a fresh one, not a project already used
+   by something else) and run the schema against it: open the SQL editor
+   for your project and run the full contents of
+   [`supabase/schema-saas.sql`](supabase/schema-saas.sql). The file is
+   idempotent — safe to re-run after pulling schema changes.
 
-## Learn More
+3. **Configure environment variables** — copy `.env.example` to `.env.local`
+   and fill in every value:
 
-To learn more about Next.js, take a look at the following resources:
+   | Variable | Where to get it |
+   |---|---|
+   | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project → Settings → API |
+   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase project → Settings → API |
+   | `SUPABASE_SERVICE_ROLE_KEY` | Supabase project → Settings → API (server-only secret — never exposed to the client, see `src/lib/supabase/server.ts`) |
+   | `RESEND_API_KEY` | [resend.com](https://resend.com) — needed for invite/reminder emails; not required for auth, the dashboard, or RSVPs to work |
+   | `RESEND_FROM_EMAIL` | A Resend-verified sending address |
+   | `NEXT_PUBLIC_SITE_URL` | The site's public origin, e.g. `http://localhost:3000` for local dev — used server-side to build links inside emails |
+   | `GUEST_SESSION_SECRET` | Any long random string — generate with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+4. **Run the dev server**
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+   ```bash
+   npm run dev
+   ```
 
-## Deploy on Vercel
+   Open [http://localhost:3000](http://localhost:3000). Sign up for a
+   host account, create an event, and open its public link in an
+   incognito window to see the guest-facing page.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Scripts
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Command | What it does |
+|---|---|
+| `npm run dev` | Start the dev server (Turbopack) |
+| `npm run build` | Production build — also the correctness gate; run this before considering any change done |
+| `npm run start` | Run a built app |
+| `npm run lint` | ESLint (`next/core-web-vitals` + `next/typescript`) |
+
+There is currently no automated test suite (`npm test` doesn't exist) —
+correctness is verified via `npm run build` plus a live click-through of
+the affected flow.
+
+## Project structure
+
+See `docs/02-architecture-review.md` and `docs/03-codebase-restructure.md`
+for the full architecture writeup. The short version:
+
+- `src/app/` — routes. Every mutation is a Server Action starting with
+  `requireHost()`; there are no client-side Supabase calls.
+- `src/lib/data/` — the only module that touches Supabase. Every
+  host-scoped function takes `hostId` and filters on it internally.
+- `src/lib/schemas/` — zod validators for every JSONB column
+  (`page_schema`, `form_schema`, guest `responses`) — never trust a
+  JSONB read with an `as` cast.
+- `src/lib/blocks/` — the page-builder's block registry and public
+  renderer (pure — no editor UI).
+- `src/components/builder/` — editor-only UI, dashboard-side only.
+- Host-authored code (the custom-HTML/custom-page blocks) only ever runs
+  inside a `sandbox="allow-scripts"` iframe with no `allow-same-origin` —
+  never weaken this. See `src/lib/blocks/sandbox.ts`.
+
+## Deploying
+
+The app is a standard Next.js deployment (e.g. Vercel) — set the same
+environment variables as `.env.local` in your hosting provider, and make
+sure `supabase/schema-saas.sql` has been run against your production
+Supabase project. See `docs/08-production-readiness.md` for the full
+pre-launch checklist (security headers, RLS, SEO, accessibility,
+performance budgets).

@@ -100,10 +100,11 @@ export function CustomHtmlRender({ config, ctx }: { config: CustomHtmlConfig; ct
     venueAddress: ctx.event.venue_address,
     schema: ctx.schema,
     customComponents: ctx.customComponents,
+    nonce: ctx.nonce,
   });
   return (
     <iframe
-      srcDoc={buildSandboxSrcDoc({ ...config, html })}
+      srcDoc={buildSandboxSrcDoc({ ...config, html }, ctx.nonce)}
       // allow-scripts without allow-same-origin: scripts can run, but the
       // frame gets a unique opaque origin with no access to this site's
       // cookies/storage/DOM or the parent window — the actual isolation

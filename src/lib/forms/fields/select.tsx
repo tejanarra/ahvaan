@@ -1,7 +1,5 @@
 "use client";
 
-import { Field } from "@/components/ui/field";
-import { Select } from "@/components/ui/select";
 import { PublicField, PublicSelect } from "@/app/events/[slug]/public-field-ui";
 import { BaseConfigFields, OptionsListEditor } from "../field-config-fields";
 import type { SelectFieldConfig } from "../types";

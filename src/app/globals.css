@@ -19,6 +19,17 @@
   --destructive-hover: #983a27;
   --success: #2f6b4f;
   --warning: #8f631a;
+
+  /* docs/04 "Space, shape, elevation" — specified but never actually
+     defined as CSS variables before this, so every consumer (Card, Modal,
+     Toast, DropdownMenu) hand-copied its own radius/shadow values instead
+     of sharing one source, and had already started drifting from each
+     other (docs-audit H2). */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --shadow-pop: 0 4px 16px rgb(33 30 25 / 0.1);
+  --shadow-modal: 0 12px 40px rgb(33 30 25 / 0.16);
 }
 
 @theme inline {

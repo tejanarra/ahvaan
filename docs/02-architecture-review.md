@@ -60,7 +60,7 @@ be tens of KB per event) to render title+date cards. The public page fetches
 defined once in the data layer. Phase 0.
 
 ### W4 — Zero caching on the public page (efficiency/scale)
-`/e/[slug]` is `force-dynamic` and does 1–3 sequential queries per guest view.
+`/events/[slug]` is `force-dynamic` and does 1–3 sequential queries per guest view.
 The event row changes only when a host saves. **Fix:** cache the event-by-slug
 read with `unstable_cache`/cache tags keyed `event:{slug}`, revalidated by
 save actions; keep the invite/rsvp lookups dynamic. Also run independent
@@ -109,7 +109,7 @@ Browser (host)                Browser (guest)
 Next.js App Router ──────────────────────────────
   src/app/(marketing)/            public: /, login, signup, reset
   src/app/(host)/dashboard/       host: all host UI (requireHost in layout)
-  src/app/e/[slug]/               guest: themed page renderer
+  src/app/events/[slug]/               guest: themed page renderer
         │  thin pages/actions: parse input → call data layer → revalidate
         ▼
   src/lib/data/                   ONLY module that touches Supabase

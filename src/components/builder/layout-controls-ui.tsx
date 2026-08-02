@@ -310,7 +310,7 @@ export function LayoutControls({
           <p className="text-xs text-muted-foreground">
             Hide, resize, or realign this block on mobile/tablet without changing how it looks on desktop — or
             hide it on desktop only, for something you only want mobile/tablet visitors to see. Tablet fields left
-            unset use your Mobile settings instead of Desktop's — a tablet held upright (portrait) is meant to look
+            unset use your Mobile settings instead of Desktop&apos;s — a tablet held upright (portrait) is meant to look
             like mobile by default, the same way one held sideways (landscape) already looks like desktop with no
             setup. Use the Desktop/Tablet/Mobile toggle in the canvas toolbar to preview it.
           </p>

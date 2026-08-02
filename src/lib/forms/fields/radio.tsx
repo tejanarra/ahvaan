@@ -1,6 +1,5 @@
 "use client";
 
-import { Field } from "@/components/ui/field";
 import { PublicField, PublicChoiceOption } from "@/app/events/[slug]/public-field-ui";
 import { BaseConfigFields, OptionsListEditor } from "../field-config-fields";
 import type { RadioFieldConfig } from "../types";

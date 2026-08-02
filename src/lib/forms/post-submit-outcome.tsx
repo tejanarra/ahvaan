@@ -30,8 +30,8 @@ function renderResponsesSummaryHtml(schema: CustomFormSchema, responses: FormRes
 }
 
 // Renders whichever post-submit action fired — shared by the RSVP form
-// (src/app/e/[slug]/rsvp-form.tsx) and every generic form
-// (src/app/e/[slug]/custom-form.tsx), see src/lib/schemas/post-submit-
+// (src/app/events/[slug]/rsvp-form.tsx) and every generic form
+// (src/app/events/[slug]/custom-form.tsx), see src/lib/schemas/post-submit-
 // actions.ts. `schema`/`responses` are only used by the custom_html kind's
 // `{{responses_summary}}` shortcode; `venueName`/`venueAddress` only ever
 // render for the RSVP context (message kind's `showVenue`) since generic

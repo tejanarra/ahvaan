@@ -22,6 +22,10 @@ const VIGNETTE_THEME_IDS = ["classic-gold", "midnight-elegant", "ink-and-blush"]
 function StageVignette() {
   const [themeId, setThemeId] = useState<(typeof VIGNETTE_THEME_IDS)[number]>(VIGNETTE_THEME_IDS[0]);
   useEffect(() => {
+    // Intentional post-mount-only randomization — see the comment above
+    // VIGNETTE_THEME_IDS for why this can't just be a lazy useState
+    // initializer (that would run during SSR too and mismatch on hydrate).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setThemeId(VIGNETTE_THEME_IDS[Math.floor(Math.random() * VIGNETTE_THEME_IDS.length)]);
   }, []);
   const c = getTheme(themeId).colors;

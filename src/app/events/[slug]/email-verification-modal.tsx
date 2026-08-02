@@ -5,8 +5,10 @@ import { useRouter } from "next/navigation";
 import { requestGuestVerificationAction, verifyGuestVerificationAction } from "./actions";
 import { OtpCodeEntry } from "./otp-code-entry";
 
+// text-base below `sm` avoids iOS Safari's auto-zoom-on-focus for inputs
+// under 16px — see public-field-ui.tsx's matching comment.
 const inputClass =
-  "mt-1.5 w-full rounded-md border border-[var(--t-accent)]/30 bg-transparent px-3 py-2 text-sm text-[var(--t-fg)] placeholder:text-[var(--t-fg)]/45 focus:border-[var(--t-accent-dark)] focus:outline-none focus:ring-2 focus:ring-[var(--t-accent)]/20";
+  "mt-1.5 w-full rounded-md border border-[var(--t-accent)]/30 bg-transparent px-3 py-2 text-base sm:text-sm text-[var(--t-fg)] placeholder:text-[var(--t-fg)]/45 focus:border-[var(--t-accent-dark)] focus:outline-none focus:ring-2 focus:ring-[var(--t-accent)]/20";
 
 // The page-level "verify your email once for this event" modal — opened by
 // clicking anywhere on a locked RSVP/Forms form (rsvp-form.tsx/
@@ -127,7 +129,11 @@ export function EmailVerificationModal({
                   {status === "requesting" ? "Sending…" : "Verify"}
                 </button>
               </div>
-              {status === "error" && <p className="mt-2 text-xs text-red-600">{message}</p>}
+              {status === "error" && (
+                <p role="alert" className="mt-2 text-xs text-red-600">
+                  {message}
+                </p>
+              )}
             </>
           )}
         </div>

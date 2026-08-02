@@ -25,7 +25,7 @@ export async function listComponents(hostId: string): Promise<CustomComponentRec
   return (data ?? []) as CustomComponentRecord[];
 }
 
-// The public guest page (app/e/[slug]/page.tsx) intentionally never selects
+// The public guest page (app/events/[slug]/page.tsx) intentionally never selects
 // host_id on the event record it renders from (see events.ts's
 // PUBLIC_COLUMNS comment: "the public page never needs host_id") — host_id
 // never reaches the client either way here, it's just used server-side, in

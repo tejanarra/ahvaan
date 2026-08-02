@@ -15,13 +15,15 @@ export function StatTile({ label, value, active, onClick, className }: StatTileP
       type={onClick ? "button" : undefined}
       onClick={onClick}
       className={cn(
-        "rounded-lg border px-4 py-3 text-left transition-colors",
+        "rounded-[var(--radius-md)] border px-4 py-3 text-left transition-colors",
         onClick && "cursor-pointer hover:bg-surface",
         active ? "border-foreground bg-surface" : "border-border bg-background",
         className
       )}
     >
-      <p className="font-display text-xl tabular-nums text-foreground">{value}</p>
+      {/* docs/04 type scale: stat numerals are text-title, not a raw
+          Tailwind size (docs-audit H2). */}
+      <p className="text-title tabular-nums text-foreground">{value}</p>
       <p className="text-xs font-medium uppercase tracking-[0.08em] text-muted">{label}</p>
     </Component>
   );

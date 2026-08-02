@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 
+// text-base below `sm` avoids iOS Safari's auto-zoom-on-focus for inputs
+// under 16px — see public-field-ui.tsx's matching comment.
 const inputClass =
-  "mt-0 w-full rounded-md border border-[var(--t-accent)]/30 bg-transparent px-3 py-2 text-sm text-[var(--t-fg)] placeholder:text-[var(--t-fg)]/45 focus:border-[var(--t-accent-dark)] focus:outline-none focus:ring-2 focus:ring-[var(--t-accent)]/20";
+  "mt-0 w-full rounded-md border border-[var(--t-accent)]/30 bg-transparent px-3 py-2 text-base sm:text-sm text-[var(--t-fg)] placeholder:text-[var(--t-fg)]/45 focus:border-[var(--t-accent-dark)] focus:outline-none focus:ring-2 focus:ring-[var(--t-accent)]/20";
 
 // A bare 6-digit-code input — shared by the page-level verification gate
 // (email-verification-modal.tsx). Leads with "click the
@@ -50,7 +52,11 @@ export function OtpCodeEntry({
           {pending ? "Verifying…" : "Verify"}
         </button>
       </div>
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && (
+        <p role="alert" className="text-xs text-red-600">
+          {error}
+        </p>
+      )}
       <button type="button" onClick={onCancel} className="text-xs text-[var(--t-fg)]/60 underline underline-offset-2">
         Use a different email
       </button>

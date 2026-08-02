@@ -135,7 +135,7 @@ function parseTagAttrs(attrText: string): Record<string, string> {
 // html is not re-scanned for further <custom-component> tags, so this can
 // never infinite-loop on a component that (accidentally or not) references
 // itself.
-function substituteCustomComponentTags(html: string, components: CustomComponentMap): string {
+function substituteCustomComponentTags(html: string, components: CustomComponentMap, nonce?: string): string {
   return html.replace(/<custom-component\s+([^>]*?)\/>/g, (_match, attrText: string) => {
     const { name, ...values } = parseTagAttrs(attrText);
     const component = name ? components[name] : undefined;
@@ -153,7 +153,15 @@ function substituteCustomComponentTags(html: string, components: CustomComponent
     // Wrapped in an IIFE so a referenced component's own top-level
     // `const`/`let` declarations can't collide with the parent block's
     // script (both ultimately land in the same sandboxed document).
-    const scriptTag = component.js ? `<script>(function(){${component.js}})();</script>` : "";
+    // Nonced the same as buildSandboxSrcDoc's own <script> tag (sandbox.ts)
+    // — this tag is substituted into the block's `html` *before*
+    // buildSandboxSrcDoc runs, so buildSandboxSrcDoc never sees it to nonce
+    // it itself; without this, a referenced component's own `js` would be
+    // silently blocked by the sandboxed iframe's inherited (nonce-only,
+    // docs-audit M3) CSP the moment it went live.
+    const scriptTag = component.js
+      ? `<script${nonce ? ` nonce="${nonce}"` : ""}>(function(){${component.js}})();</script>`
+      : "";
     return `${styleTag}${substitute(component.html)}${scriptTag}`;
   });
 }
@@ -169,12 +177,15 @@ export type ShortcodeContext = {
   responses?: Responses;
   // The current host's saved component library — enables <custom-component>.
   customComponents?: CustomComponentMap;
+  // See substituteCustomComponentTags's own comment on why this has to be
+  // threaded all the way through from the request (src/lib/csp-nonce.ts).
+  nonce?: string;
 };
 
 export function applyComponentShortcodes(html: string, ctx: ShortcodeContext): string {
   let result = html;
   if (result.includes("<custom-component") && ctx.customComponents) {
-    result = substituteCustomComponentTags(result, ctx.customComponents);
+    result = substituteCustomComponentTags(result, ctx.customComponents, ctx.nonce);
   }
   if (result.includes("{{rsvp_form}}")) {
     result = result.replaceAll("{{rsvp_form}}", renderRsvpFormHtml(ctx.schema, ctx.eventId, ctx.inviteId));

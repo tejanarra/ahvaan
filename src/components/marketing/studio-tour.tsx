@@ -239,7 +239,11 @@ export function StudioTour() {
   const Pane = PANES[tab];
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border-strong bg-surface shadow-[0_12px_40px_rgb(33_30_25/0.12)]">
+    // Uses the shared --shadow-modal token (was a hand-copied 0.12-opacity
+    // shadow that had already drifted from theme-demo.tsx's identical
+    // 0.16-opacity "floating device frame" shadow — docs-audit H2, exactly
+    // the drift a shared token exists to prevent).
+    <div className="overflow-hidden rounded-2xl border border-border-strong bg-surface shadow-[var(--shadow-modal)]">
       {/* Zone A replica — event-layout-shell.tsx's breadcrumb/title/badge row */}
       <div className="border-b border-border px-4 pb-3 pt-4 sm:px-5">
         <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted">← Events</p>
@@ -259,7 +263,7 @@ export function StudioTour() {
         {/* Zone B replica — SideNav's exact row treatment, sliding active indicator */}
         <nav aria-label="Preview dashboard section" className="relative flex flex-col gap-1 border-r border-border p-3">
           <div
-            className="absolute inset-x-3 top-3 h-9 rounded-[6px] bg-accent-soft shadow-[inset_2px_0_0_0_var(--color-accent)] transition-transform duration-200"
+            className="absolute inset-x-3 top-3 h-9 rounded-[var(--radius-sm)] bg-accent-soft shadow-[inset_2px_0_0_0_var(--color-accent)] transition-transform duration-200"
             style={{
               transform: `translateY(${activeIndex * ROW_HEIGHT}px)`,
               transitionTimingFunction: "cubic-bezier(.2,.8,.2,1)",
@@ -275,7 +279,7 @@ export function StudioTour() {
                 onClick={() => setTab(t.id)}
                 aria-pressed={active}
                 className={cn(
-                  "relative z-10 flex h-9 items-center rounded-[6px] px-3 text-left text-[13px] transition-colors duration-150",
+                  "relative z-10 flex h-9 items-center rounded-[var(--radius-sm)] px-3 text-left text-[13px] transition-colors duration-150",
                   active ? "font-semibold text-accent" : "text-muted hover:text-foreground"
                 )}
               >

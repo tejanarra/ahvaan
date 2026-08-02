@@ -31,9 +31,13 @@ export async function listRsvps(hostId: string, eventId: string): Promise<RsvpRe
   return (data ?? []) as RsvpRecord[];
 }
 
-export async function listRespondedInviteIds(eventId: string): Promise<Set<string>> {
+export async function listRespondedInviteIds(hostId: string, eventId: string): Promise<Set<string>> {
   const supabase = createServiceRoleClient();
-  const { data, error } = await supabase.from("rsvps").select("invite_id").eq("event_id", eventId);
+  const { data, error } = await supabase
+    .from("rsvps")
+    .select("invite_id")
+    .eq("event_id", eventId)
+    .eq("host_id", hostId);
   if (error) throw new DataError(error.message);
   return new Set((data ?? []).map((r) => r.invite_id).filter(Boolean) as string[]);
 }

@@ -73,6 +73,10 @@ export function FormHeader({ eventId, formId, name }: { eventId: string; formId:
             </button>
           )
         }
+        // A single icon-only action reads correctly next to the title at
+        // every width — see PageHeader's own comment on why the default
+        // (stack-below-on-mobile) behavior is wrong for this shape.
+        inlineActions
         actions={
           <ConfirmIconButton
             label="Delete form"

@@ -7,6 +7,8 @@ import { Modal } from "@/components/ui/modal";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useClipboardCopy } from "@/hooks/use-clipboard-copy";
+import { useNativeShare } from "@/hooks/use-native-share";
 
 export function ShareInviteButton({
   eventId,
@@ -21,17 +23,19 @@ export function ShareInviteButton({
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
   const [link, setLink] = useState("");
-  const [copied, setCopied] = useState(false);
-  const [copyFailed, setCopyFailed] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+  // Shared with CopyIconButton/ShareIconButton (copy-share-icons.tsx) —
+  // previously each of these three places hand-rolled its own identical
+  // clipboard/share try-catch-timeout logic (docs-audit "Low: misc").
+  const { copied, copyFailed, copy } = useClipboardCopy();
+  const { canShare, share } = useNativeShare();
 
   const reset = () => {
     setOpen(false);
     setGuestName("");
     setGuestEmail("");
     setLink("");
-    setCopied(false);
     setError("");
   };
 
@@ -54,31 +58,14 @@ export function ShareInviteButton({
     }
   };
 
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(buildInviteMessage(eventTitle, link));
-      setCopyFailed(false);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Clipboard access denied/unsupported — the link is already visible and
-      // selectable in the field above, so just point that out instead of
-      // failing silently.
-      setCopyFailed(true);
-    }
-  };
+  const handleCopy = () => copy(buildInviteMessage(eventTitle, link));
 
-  const handleNativeShare = async () => {
-    try {
-      await navigator.share({
-        title: eventTitle,
-        text: "You're invited! Please RSVP here:",
-        url: link,
-      });
-    } catch {
-      // Cancelled — no-op.
-    }
-  };
+  const handleNativeShare = () =>
+    share({
+      title: eventTitle,
+      text: "You're invited! Please RSVP here:",
+      url: link,
+    });
 
   return (
     <>
@@ -110,7 +97,11 @@ export function ShareInviteButton({
           </Field>
         </div>
 
-        {error && <p className="mt-2 text-sm font-medium text-destructive">{error}</p>}
+        {error && (
+          <p role="alert" className="mt-2 text-sm font-medium text-destructive">
+            {error}
+          </p>
+        )}
 
         {!link ? (
           <Button onClick={handleGenerate} loading={pending} className="mt-4 w-full">
@@ -135,7 +126,7 @@ export function ShareInviteButton({
               <p className="text-xs text-muted">Couldn&rsquo;t copy automatically — tap the link above to select it manually.</p>
             )}
 
-            {typeof navigator !== "undefined" && typeof navigator.share === "function" && (
+            {canShare && (
               <Button variant="secondary" onClick={handleNativeShare} className="w-full">
                 Share via...
               </Button>

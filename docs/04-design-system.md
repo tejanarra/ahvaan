@@ -35,7 +35,7 @@ itself is briefly the product on stage.
    hierarchy, and micro-motion — not gradients, glass, or decoration in the
    Studio.
 4. **Guest pages are sacred ground.** Studio tokens never leak into
-   `/e/[slug]`; the Stage renders only from theme tokens (`--t-*`).
+   `/events/[slug]`; the Stage renders only from theme tokens (`--t-*`).
 5. **Accessible by default.** Every token pair ships with a checked contrast
    ratio (≥ 4.5:1 body text, ≥ 3:1 large text/UI); focus states are designed,
    not default.

@@ -87,7 +87,7 @@ re-run safe.
 ## Phase 5 — Production hardening *(doc 08 is the spec)*
 RLS policies as defense-in-depth, public-write abuse limits, error/
 loading/not-found surfaces, Resend domain verification + delivered-email
-test, SEO/OG for `/` and `/e/[slug]`, accessibility sweep, performance
+test, SEO/OG for `/` and `/events/[slug]`, accessibility sweep, performance
 budgets, deploy config.
 
 **Gate:** doc 08 checklist 100% checked, each item with evidence noted in

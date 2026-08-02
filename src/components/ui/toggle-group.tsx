@@ -1,4 +1,7 @@
-import type { ReactNode } from "react";
+"use client";
+
+import { useRef } from "react";
+import type { KeyboardEvent, ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
 export interface ToggleGroupOption {
@@ -48,6 +51,38 @@ const CONTAINER_CLASSES: Record<"none" | "always" | "mobile", string> = {
 export function ToggleGroup({ options, value, onChange, size = "sm", fullWidth, className, ...rest }: ToggleGroupProps) {
   const isSelected = (optionValue: string) => (Array.isArray(value) ? value.includes(optionValue) : value === optionValue);
   const widthMode = fullWidth === true ? "always" : fullWidth === "mobile" ? "mobile" : "none";
+  const buttonRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  // Roving tabindex (docs/04's a11y bar: "arrow keys in ToggleGroup/Tabs")
+  // — only one segment is ever a Tab stop, matching a native radio group's
+  // keyboard model instead of making every segment its own stop. The
+  // selected option is that stop when there is one (single-select); the
+  // first option otherwise (unselected single-select, or any multi-select
+  // state, where "selected" isn't a single index).
+  const selectedIndex = Array.isArray(value) ? -1 : options.findIndex((o) => o.value === value);
+  const activeIndex = selectedIndex >= 0 ? selectedIndex : 0;
+
+  function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
+    const count = options.length;
+    // An empty `options` array is a real case (e.g. edit-rsvp-dialog.tsx
+    // maps a field's own `options ?? []`) — `% 0` is NaN, and indexing
+    // `options[NaN]` would throw on `.value` below. Nothing to navigate to
+    // either way.
+    if (count === 0) return;
+    let nextIndex: number | null = null;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") nextIndex = (activeIndex + 1) % count;
+    else if (e.key === "ArrowLeft" || e.key === "ArrowUp") nextIndex = (activeIndex - 1 + count) % count;
+    else if (e.key === "Home") nextIndex = 0;
+    else if (e.key === "End") nextIndex = count - 1;
+    if (nextIndex === null) return;
+
+    e.preventDefault();
+    buttonRefs.current[nextIndex]?.focus();
+    // Single-select mirrors native radio-group behavior (selection follows
+    // arrow-key focus); multi-select leaves selection to an explicit
+    // click/Enter/Space so arrow keys can browse without toggling anything.
+    if (!Array.isArray(value)) onChange(options[nextIndex].value);
+  }
 
   return (
     <div
@@ -57,12 +92,17 @@ export function ToggleGroup({ options, value, onChange, size = "sm", fullWidth, 
         className
       )}
       role="group"
+      onKeyDown={onKeyDown}
       {...rest}
     >
       {options.map((option, i) => (
         <button
           key={option.value}
+          ref={(el) => {
+            buttonRefs.current[i] = el;
+          }}
           type="button"
+          tabIndex={i === activeIndex ? 0 : -1}
           onClick={() => onChange(option.value)}
           aria-pressed={isSelected(option.value)}
           className={cn(

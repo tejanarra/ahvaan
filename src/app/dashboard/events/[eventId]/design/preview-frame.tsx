@@ -34,6 +34,13 @@ export function PreviewFrame({ width, children }: { width: number; children: Rea
       clone.setAttribute("data-copied-style", "");
       doc.head.appendChild(clone);
     });
+    // `doc` is the iframe's own foreign Document (an external system, not
+    // React-managed state) — the compiler's immutability check flags
+    // mutating it because it's *derived* from the `iframe` state value,
+    // but the actual mutation target is DOM the iframe owns, not the state
+    // value itself. This is exactly the kind of imperative external-system
+    // sync an effect is for.
+    /* eslint-disable react-hooks/immutability */
     doc.documentElement.style.margin = "0";
     doc.body.style.margin = "0";
     // The iframe's own document must never scroll on its own — the
@@ -46,6 +53,7 @@ export function PreviewFrame({ width, children }: { width: number; children: Rea
     // most visible on Mobile where the page is tallest relative to width.
     doc.documentElement.style.overflow = "hidden";
     doc.body.style.overflow = "hidden";
+    /* eslint-enable react-hooks/immutability */
   }, [doc]);
 
   useEffect(() => {

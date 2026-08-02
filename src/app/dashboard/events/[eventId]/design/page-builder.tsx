@@ -137,6 +137,7 @@ function collectContainerIds(block: BlockInstance): string[] {
 // make two blocks share a human-picked label, which is exactly the
 // ambiguity a name is meant to resolve (see collectContainerOptions).
 function cloneBlockWithNewIds(block: BlockInstance): BlockInstance {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- destructured only to omit `name` from `rest`
   const { name: _name, ...rest } = block;
   const cloned = { ...rest, id: crypto.randomUUID() } as BlockInstance;
   return "children" in cloned ? ({ ...cloned, children: cloned.children.map(cloneBlockWithNewIds) } as BlockInstance) : cloned;
@@ -343,7 +344,7 @@ const DEVICE_OPTIONS: { value: DeviceWidth; label: string }[] = [
 // plain document flow (see outline-panel.tsx) — the reliable way to
 // identify/rename/reorder/move blocks once tight spacing makes the visual
 // canvas's floating chrome hard to target. Preview: the exact guest-facing
-// render (PageRenderer, the same component /e/[slug] uses) with zero
+// render (PageRenderer, the same component /events/[slug] uses) with zero
 // editor chrome, to answer "does my 0-padding layout actually look right."
 export type CanvasMode = "edit" | "outline" | "preview";
 
@@ -510,6 +511,10 @@ export function PageBuilder({
   // below, so the two stay consistent.
   const [isRealDesktopViewport, setIsRealDesktopViewport] = useState(true);
   useEffect(() => {
+    // Same hydration-safety pattern as auth-layout.tsx's theme pick —
+    // `mounted`/`window`-derived state below can only be computed
+    // post-mount without a server/client render mismatch.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
     // Per-block mobile/tablet layout overrides (hidden/align/width) are
     // resolved from this `device` toggle in JS, not from the canvas's
@@ -555,7 +560,6 @@ export function PageBuilder({
     } else if (window.innerWidth < 1024) {
       setDevice("tablet");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [dropPlan, setDropPlan] = useState<DropPlan>(null);
@@ -636,7 +640,6 @@ export function PageBuilder({
     // refresh (or a shared/bookmarked link) would silently restore the
     // *previous* zoom instead of the one the tab switch just computed.
     setBuilderUrlParams({ zoom: String(clampedFit) });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canvasMode, device, customPage.enabled, isRealDesktopViewport]);
 
   // Guards the debounced save's state updates below, not the save itself —
@@ -940,6 +943,7 @@ export function PageBuilder({
     setDropPlan(computeDropPlan(blocks, String(active.id), String(over.id)));
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- signature must match dnd-kit's onDragCancel
   const handleDragCancel = (_e: DragCancelEvent) => {
     setActiveDragId(null);
     setDropPlan(null);
@@ -1106,7 +1110,7 @@ export function PageBuilder({
     />
   ) : canvasMode === "preview" ? (
     // Renders through the exact component the guest sees (PageRenderer, the
-    // same one /e/[slug]/page.tsx uses) with zero editor chrome — the
+    // same one /events/[slug]/page.tsx uses) with zero editor chrome — the
     // definitive answer to "does my 0-padding layout actually look right,"
     // since there's no second implementation to drift from the real page.
     //
@@ -1117,7 +1121,7 @@ export function PageBuilder({
     // own (usually much wider) window never triggered those rules
     // correctly. An iframe is a genuinely separate viewport sized to
     // PREVIEW_FRAME_WIDTH[device], so they do. Theme CSS vars are set on
-    // the wrapper *inside* the portal (mirroring /e/[slug]/page.tsx's own
+    // the wrapper *inside* the portal (mirroring /events/[slug]/page.tsx's own
     // root div) since the iframe is a separate document — inheriting them
     // from an ancestor outside it isn't possible.
     <PreviewFrame width={PREVIEW_FRAME_WIDTH[device]}>

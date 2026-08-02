@@ -158,7 +158,7 @@ was in either; **Social sharing image**: cover image for link previews;
 **Danger zone**: delete event (destructive card at bottom, confirm modal).
 Sections as Cards with header rows, 32px rhythm, single column `max-w-2xl`.
 
-### `/e/[slug]` — Guest page (Stage, Phase 2 polish)
+### `/events/[slug]` — Guest page (Stage, Phase 2 polish)
 Rendering model unchanged (theme vars + PageRenderer). Phase 2 adds:
 - Theme fonts (`--t-font-display/body`) + optional texture overlay.
 - Block polish pass to the Stage's standard: hero uses display font with

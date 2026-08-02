@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { submitRsvpFromFormData, verifyRsvpEmailCode } from "@/lib/rsvp-submit";
+import { isRequestTooLarge } from "@/lib/max-request-size";
 
 // Public, unauthenticated write endpoint — same trust model as the
 // submitRsvp server action (the invite id is the real access control, not
@@ -26,8 +27,13 @@ function htmlPage(title: string, body: string, status: number) {
 }
 
 export async function POST(request: Request) {
-  const formData = await request.formData();
   const wantsJson = request.headers.get("accept")?.includes("application/json");
+  if (isRequestTooLarge(request)) {
+    if (wantsJson) return NextResponse.json({ ok: false, error: "Request too large." }, { status: 413 });
+    return htmlPage("RSVP not saved", "That submission was too large.", 413);
+  }
+
+  const formData = await request.formData();
 
   // A hand-embedded HTML form has no client JS to hold a "code sent, please
   // enter it" state between requests — this second field, present only on

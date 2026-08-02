@@ -1,7 +1,5 @@
 "use client";
 
-import { Field } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { PublicField, PublicInput } from "@/app/events/[slug]/public-field-ui";
 import { BaseConfigFields } from "../field-config-fields";
 import type { EmailFieldConfig } from "../types";

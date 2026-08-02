@@ -1,6 +1,7 @@
 "use client";
 
-import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
+import { Fragment, useId, isValidElement, cloneElement } from "react";
+import type { InputHTMLAttributes, ReactElement, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
 
 // The one place every guest-facing field control (RSVP's own DynamicField
 // in rsvp-form.tsx, and every kind in src/lib/forms/fields/*.tsx's
@@ -17,8 +18,13 @@ import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTML
 // dashboard-green button on a dark event theme).
 export const publicLabelClass = "block text-xs font-semibold uppercase tracking-wide text-[var(--t-accent-dark)]";
 
+// text-base (16px) below `sm`, text-sm (14px) at/above it — iOS Safari
+// auto-zooms the whole page on focusing any input under 16px, which on a
+// guest's phone (the primary way this form is ever used) reads as "the
+// page zooms in when I tap a field." Matches the same fix in
+// src/components/ui/input.tsx for the dashboard's own field primitive.
 export const publicInputClass =
-  "mt-1.5 w-full rounded-md border border-[var(--t-accent)]/30 bg-transparent px-3 py-2 text-sm text-[var(--t-fg)] placeholder:text-[var(--t-fg)]/45 focus:border-[var(--t-accent-dark)] focus:outline-none focus:ring-2 focus:ring-[var(--t-accent)]/20 disabled:cursor-not-allowed disabled:opacity-50";
+  "mt-1.5 w-full rounded-md border border-[var(--t-accent)]/30 bg-transparent px-3 py-2 text-base sm:text-sm text-[var(--t-fg)] placeholder:text-[var(--t-fg)]/45 focus:border-[var(--t-accent-dark)] focus:outline-none focus:ring-2 focus:ring-[var(--t-accent)]/20 disabled:cursor-not-allowed disabled:opacity-50";
 
 export const publicInvalidInputClass = "border-red-600/50 focus:border-red-600 focus:ring-red-600/20";
 
@@ -51,17 +57,28 @@ export function PublicField({
   hint?: string;
   children: ReactNode;
 }) {
+  // Same auto-id-wiring as @/components/ui/field.tsx (docs-audit H4) — the
+  // <label> below previously had no `htmlFor`, so it was never
+  // programmatically associated with its input.
+  const generatedId = useId();
+  // Excludes Fragment — see field.tsx's matching comment.
+  const child = isValidElement<{ id?: string }>(children) && children.type !== Fragment ? children : null;
+  const resolvedId = child?.props.id ?? generatedId;
+  const content = child && !child.props.id ? cloneElement(child as ReactElement<{ id?: string }>, { id: resolvedId }) : children;
+
   return (
     <div>
       {label && (
-        <label className={publicLabelClass}>
+        <label htmlFor={resolvedId} className={publicLabelClass}>
           {label}
           {required && <span className="ml-0.5 text-[var(--t-accent-dark)]">*</span>}
         </label>
       )}
-      {children}
+      {content}
       {error ? (
-        <p className="mt-1 text-xs text-red-600">{error}</p>
+        <p role="alert" className="mt-1 text-xs text-red-600">
+          {error}
+        </p>
       ) : hint ? (
         <p className="mt-1 text-xs text-[var(--t-fg)]/60">{hint}</p>
       ) : null}

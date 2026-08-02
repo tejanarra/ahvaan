@@ -1,0 +1,43 @@
+name: CI
+
+# Docs-audit H7: no CI existed before this — every change was only verified
+# by a local `npm run build` + manual click-through, which doesn't catch a
+# regression before it merges and doesn't scale past one contributor. This
+# runs the same gates doc-07's phase-review policy already asks for by hand
+# (build passes, lint clean, tests pass) on every push/PR.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run lint
+
+      - run: npm test
+
+      # Placeholder values, not real credentials — nothing in the build
+      # step actually calls Supabase (every data-fetching route is
+      # force-dynamic, so nothing runs at build time), but a handful of
+      # modules read these env vars eagerly enough that a totally missing
+      # value would fail the build before it gets that far.
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: placeholder-service-role-key
+          RESEND_API_KEY: placeholder-resend-key
+          RESEND_FROM_EMAIL: noreply@example.com
+          NEXT_PUBLIC_SITE_URL: http://localhost:3000
+          GUEST_SESSION_SECRET: placeholder-guest-session-secret-placeholder

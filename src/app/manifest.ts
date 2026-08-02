@@ -11,7 +11,11 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "ahvaan — RSVP made easy",
     short_name: "ahvaan",
     description: "Design a beautiful invitation page for any event, share one link with your guests, and track every RSVP in one place.",
-    start_url: "/dashboard",
+    // Was "/dashboard" — that route is auth-gated (src/proxy.ts), so a
+    // logged-out install launched straight into a redirect to /login
+    // instead of anything useful (docs-audit Low). "/" works regardless of
+    // auth state and gets a logged-in host to their dashboard in one tap.
+    start_url: "/",
     display: "standalone",
     background_color: "#FBFAF8",
     theme_color: "#2F5D46",

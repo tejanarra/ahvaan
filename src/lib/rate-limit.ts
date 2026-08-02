@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import { checkRateLimit } from "@/lib/data/rate-limit";
 
 // Best-effort client identity for throttle keys that have no guest identity
 // to key off of (no invite, no verified email — an 'anonymous'-mode
@@ -45,4 +46,20 @@ export function isThrottled(key: string, minIntervalMs: number): boolean {
   lastSeenAt.set(key, now);
 
   return last !== undefined && now - last < minIntervalMs;
+}
+
+// Combines the cheap in-memory floor above (rejects a hammering client
+// without a DB round trip) with the cross-instance DB-backed window from
+// src/lib/data/rate-limit.ts (holds even across multiple server
+// instances). Use this instead of `isThrottled` alone anywhere the limit
+// needs to actually hold under real abuse, not just smooth out a broken
+// client's retry loop — e.g. anything keyed by an attacker-controlled
+// identity (an email address, an IP) rather than a resource the caller
+// already owns (an invite id).
+export async function isRateLimited(
+  key: string,
+  opts: { minIntervalMs: number; maxHits: number; windowMs: number }
+): Promise<boolean> {
+  if (isThrottled(key, opts.minIntervalMs)) return true;
+  return checkRateLimit(key, opts.maxHits, opts.windowMs);
 }

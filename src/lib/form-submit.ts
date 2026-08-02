@@ -5,7 +5,7 @@ import { getEventByIdPublic } from "@/lib/data/events";
 import { parseSubmissionMode } from "@/lib/schemas/submission-mode";
 import { buildCustomFormResponsesFromFormData, validateCustomFormResponses, firstValidationError } from "@/lib/forms/validate-submission";
 import { assertWithinSizeBudget } from "@/lib/schemas/size-budget";
-import { isThrottled, getClientIp } from "@/lib/rate-limit";
+import { isRateLimited, getClientIp } from "@/lib/rate-limit";
 import { createVerificationCode, verifyCode, peekVerification } from "@/lib/data/email-verification";
 import { deliverVerificationEmail } from "@/lib/email";
 import { buildVerifyLink } from "@/lib/verify-link";
@@ -13,6 +13,10 @@ import { getVerifiedGuestEmail } from "@/lib/guest-session";
 import type { FormResponses, CustomFormSchema } from "@/lib/forms/types";
 
 const MIN_MS_BETWEEN_SUBMISSIONS = 2000;
+// Cross-instance backstop behind the per-instance floor above (docs/02
+// W9), matching rsvp-submit.ts's cap.
+const MAX_SUBMISSIONS_PER_WINDOW = 20;
+const SUBMISSION_WINDOW_MS = 10 * 60 * 1000;
 
 export type FormSubmitResult =
   | { status: "success"; responses: FormResponses; formId: string }
@@ -88,7 +92,13 @@ export async function submitCustomFormFromFormData(formData: FormData): Promise<
     : cookieEmail
       ? `form-email:${form.id}:${cookieEmail}`
       : `form-ip:${form.id}:${await getClientIp()}`;
-  if (isThrottled(throttleKey, MIN_MS_BETWEEN_SUBMISSIONS)) {
+  if (
+    await isRateLimited(throttleKey, {
+      minIntervalMs: MIN_MS_BETWEEN_SUBMISSIONS,
+      maxHits: MAX_SUBMISSIONS_PER_WINDOW,
+      windowMs: SUBMISSION_WINDOW_MS,
+    })
+  ) {
     return { status: "error", message: "Please wait a moment before submitting again." };
   }
 

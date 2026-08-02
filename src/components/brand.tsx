@@ -66,6 +66,10 @@ export function BrandLockup({
   return (
     <span className={className ?? "inline-flex items-center gap-2 text-foreground"}>
       {markSrc ? (
+        // Same reasoning as image-upload-field.tsx: `markSrc` is an
+        // arbitrary caller-supplied URL (unknown remote domain), which
+        // next/image's domain allow-listing can't accommodate.
+        // eslint-disable-next-line @next/next/no-img-element
         <img src={markSrc} alt="" className={markClassName ?? "h-5 w-5"} />
       ) : (
         <BrandMark className={markClassName} />

@@ -54,6 +54,17 @@ export type FieldTypeDefinition<TConfig extends BaseFieldConfig = BaseFieldConfi
 
 const base = { label: "", required: false };
 
+// `any, any` here is a deliberate type-erasure point, not laziness: each
+// entry below has its own concrete TConfig/TValue (e.g. `TextFieldConfig`/
+// `string`), and TypeScript's contravariant checking of the Edit/Input
+// `onChange` callback types means no single shared bound (not even
+// `FieldTypeDefinition<BaseFieldConfig, FieldValue>`) both type-checks
+// every entry AND stays sound at the lookup call sites (fields-builder.tsx/
+// custom-form.tsx's own registry-dispatch pattern — see their matching
+// comments). This is the same escape hatch a heterogeneous component
+// registry needs in any strictly-typed language; consumers only ever
+// index by a specific `FieldKind`, never iterate generically.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const FIELD_TYPE_REGISTRY: Record<FieldKind, FieldTypeDefinition<any, any>> = {
   text: {
     kind: "text",

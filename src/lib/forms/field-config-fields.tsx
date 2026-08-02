@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
+import { Tooltip } from "@/components/ui/tooltip";
 import { TrashIcon, PlusIcon } from "@/components/icons";
 import type { BaseFieldConfig } from "./types";
 
@@ -58,14 +59,16 @@ export function OptionsListEditor({ options, onChange }: { options: string[]; on
               onChange={(e) => onChange(options.map((o, j) => (j === i ? e.target.value : o)))}
               placeholder={`Option ${i + 1}`}
             />
-            <IconButton
-              type="button"
-              variant="ghost"
-              aria-label="Remove option"
-              onClick={() => onChange(options.filter((_, j) => j !== i))}
-            >
-              <TrashIcon className="h-4 w-4" />
-            </IconButton>
+            <Tooltip content="Remove option">
+              <IconButton
+                type="button"
+                variant="ghost"
+                aria-label="Remove option"
+                onClick={() => onChange(options.filter((_, j) => j !== i))}
+              >
+                <TrashIcon className="h-4 w-4" />
+              </IconButton>
+            </Tooltip>
           </div>
         ))}
         <Button type="button" variant="secondary" size="sm" onClick={() => onChange([...options, ""])}>

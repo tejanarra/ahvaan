@@ -82,7 +82,12 @@ export function CustomForm({
     if (state.status === "success" && state.data && mode !== "anonymous" && action.kind === "message") {
       // 'private'/'email_verified' + a plain message action: same rich
       // edit-in-place affordance RSVP has always had, so "submit once,
-      // linked to me" behaves the same way in both systems.
+      // linked to me" behaves the same way in both systems. This reacts to
+      // `state` (useActionState's own result, an external system this
+      // component doesn't own — a fresh submission, not a prop/render-time
+      // value), so it's a one-time transition per submit rather than
+      // per-render derived state.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSaved(state.data.responses);
       setValues(state.data.responses);
       setViewMode("view");
@@ -148,7 +153,11 @@ export function CustomForm({
                 />
               ))}
 
-            {state.status === "error" && !state.fieldErrors && <p className="text-sm font-medium text-red-600">{state.message}</p>}
+            {state.status === "error" && !state.fieldErrors && (
+              <p role="alert" className="text-sm font-medium text-red-600">
+                {state.message}
+              </p>
+            )}
 
             <div className="flex flex-col gap-2 sm:flex-row">
               <button

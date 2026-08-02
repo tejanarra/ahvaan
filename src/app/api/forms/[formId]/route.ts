@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { submitCustomFormFromFormData, verifyFormSubmissionCode } from "@/lib/form-submit";
+import { isRequestTooLarge } from "@/lib/max-request-size";
 
 // Public, unauthenticated write endpoint — mirrors src/app/api/rsvp/route.ts
 // exactly (same rationale: Server Actions can't be posted to from inside a
@@ -24,10 +25,15 @@ function htmlPage(title: string, body: string, status: number) {
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ formId: string }> }) {
+  const wantsJson = request.headers.get("accept")?.includes("application/json");
+  if (isRequestTooLarge(request)) {
+    if (wantsJson) return NextResponse.json({ ok: false, error: "Request too large." }, { status: 413 });
+    return htmlPage("Response not saved", "That submission was too large.", 413);
+  }
+
   const { formId } = await params;
   const formData = await request.formData();
   formData.set("formId", formId);
-  const wantsJson = request.headers.get("accept")?.includes("application/json");
 
   // See the matching comment in src/app/api/rsvp/route.ts — a hand-embedded
   // HTML form has no client JS to hold state between requests, so the

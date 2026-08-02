@@ -12,6 +12,7 @@ import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup } from "@/components/ui/toggle-group";
 import { IconButton } from "@/components/ui/icon-button";
+import { Tooltip } from "@/components/ui/tooltip";
 import { CloseIcon } from "@/components/icons";
 
 type GuestField = { key: number; value: string };
@@ -70,9 +71,11 @@ function PlusOnesEditField({
               onChange={(e) => commit(items.map((f) => (f.key === item.key ? { ...f, value: e.target.value } : f)))}
               placeholder={`Guest ${index + 1} name`}
             />
-            <IconButton onClick={() => commit(items.filter((f) => f.key !== item.key))} aria-label="Remove guest">
-              <CloseIcon className="h-3.5 w-3.5" />
-            </IconButton>
+            <Tooltip content="Remove guest">
+              <IconButton onClick={() => commit(items.filter((f) => f.key !== item.key))} aria-label="Remove guest">
+                <CloseIcon className="h-3.5 w-3.5" />
+              </IconButton>
+            </Tooltip>
           </div>
         ))}
         {items.length === 0 && <p className="pt-1 text-sm italic text-muted">No plus-ones on this RSVP.</p>}
@@ -186,7 +189,11 @@ export function EditRsvpDialog({
           />
         ))}
 
-        {error && <p className="text-sm font-medium text-destructive">{error}</p>}
+        {error && (
+          <p role="alert" className="text-sm font-medium text-destructive">
+            {error}
+          </p>
+        )}
 
         <div className="flex gap-2 pt-2">
           <Button onClick={handleSave} loading={isPending} className="flex-1">

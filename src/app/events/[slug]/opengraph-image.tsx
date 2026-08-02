@@ -17,7 +17,7 @@ function formatEventLine(eventDate: string | null, eventTime: string | null): st
 }
 
 // The fallback og:image for any event that hasn't set its own cover image
-// (src/app/e/[slug]/page.tsx's generateMetadata points here whenever
+// (src/app/events/[slug]/page.tsx's generateMetadata points here whenever
 // event.cover_image_url is unset) — a themed card built from the event's
 // own title/date/venue and theme colors, in the same "Stage vignette" style
 // as the site-wide static .../opengraph-image.tsx, rather than one generic

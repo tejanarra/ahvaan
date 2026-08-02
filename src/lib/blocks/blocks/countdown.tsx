@@ -48,6 +48,11 @@ function useCountdown(targetIso: string | null) {
   const [now, setNow] = useState<number | null>(null);
 
   useEffect(() => {
+    // Server always renders `now === null` (see below) — Date.now() would
+    // differ between the SSR pass and hydration, so the real timestamp is
+    // only ever set post-mount, same hydration-safety reasoning as
+    // auth-layout.tsx's theme pick.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setNow(Date.now());
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);

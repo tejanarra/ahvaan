@@ -442,3 +442,34 @@ on conflict (id) do update set
   public = excluded.public,
   file_size_limit = excluded.file_size_limit,
   allowed_mime_types = excluded.allowed_mime_types;
+
+-- Cross-instance rate limiting (docs/02 W9, docs/08 "Public write-path
+-- limits") — src/lib/rate-limit.ts's in-memory `Map` only throttles within
+-- one server instance, which silently under-enforces the moment this app
+-- runs on more than one instance (e.g. multiple Vercel lambdas). This table
+-- is the shared counter every instance reads/writes through
+-- src/lib/data/rate-limit.ts, so a limit holds regardless of which instance
+-- handles a given request. One row per hit (not a running counter column)
+-- so a sliding window is just "count rows newer than now() - window" —
+-- simplest correct implementation at this scale.
+create table if not exists public.rate_limit_hits (
+  id bigint generated always as identity primary key,
+  key text not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists rate_limit_hits_key_created_at_idx
+  on public.rate_limit_hits(key, created_at);
+-- Served by nothing above: src/lib/data/rate-limit.ts's global (not
+-- key-scoped) prune sweep deletes by `created_at` alone, on every call —
+-- without this the key-scoped index above wouldn't serve that query
+-- efficiently. A key-scoped delete alone would leave a permanent row
+-- behind for any key that's only ever hit once (the common case — most
+-- invites/emails/IPs never generate a second hit), so this second sweep
+-- is what actually bounds total table growth, not the per-key one.
+create index if not exists rate_limit_hits_created_at_idx
+  on public.rate_limit_hits(created_at);
+
+alter table public.rate_limit_hits enable row level security;
+-- No policy: service-role only (same pattern as email_verification_codes) —
+-- this table has no per-host owner and is never read by the dashboard.

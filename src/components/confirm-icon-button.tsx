@@ -3,6 +3,8 @@
 import { useState, useTransition } from "react";
 import type { ReactNode } from "react";
 import { TrashIcon } from "./icons";
+import { IconButton } from "./ui/icon-button";
+import { Tooltip } from "./ui/tooltip";
 
 export function ConfirmIconButton({
   icon,
@@ -59,14 +61,24 @@ export function ConfirmIconButton({
   }
 
   return (
-    <button
-      type="button"
-      onClick={() => setConfirming(true)}
-      aria-label={label}
-      title={label}
-      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-destructive/80 transition hover:bg-destructive/10 hover:text-destructive sm:h-8 sm:w-8"
-    >
-      {icon ?? <TrashIcon />}
-    </button>
+    // The outer div, not the button itself, absorbs PageHeader's
+    // `actions` slot stretching a lone action to full width on mobile
+    // (`*:flex-1`, page-header.tsx) — without it, a fixed-size icon button
+    // centers its icon inside that full-width space instead of sitting at
+    // the edge, reading as a stray icon floating in empty space rather
+    // than a normal top-right action (this exact bug, on the "delete
+    // form" action — form-header.tsx's sole PageHeader action).
+    <div className="flex justify-end">
+      {/* Built on the shared IconButton primitive (docs-audit "Low: misc")
+          rather than a hand-rolled <button> — the previous version
+          duplicated IconButton's sizing but silently dropped its
+          focus-visible ring, regressing keyboard-focus visibility
+          relative to every other icon button in the app. */}
+      <Tooltip content={label}>
+        <IconButton variant="destructive" onClick={() => setConfirming(true)} aria-label={label}>
+          {icon ?? <TrashIcon />}
+        </IconButton>
+      </Tooltip>
+    </div>
   );
 }

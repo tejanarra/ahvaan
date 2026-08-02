@@ -30,7 +30,7 @@ export function Tooltip({
         role="tooltip"
         id={id}
         className={cn(
-          "pointer-events-none absolute -top-1.5 left-1/2 z-50 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-md bg-foreground px-2 py-1 text-xs font-medium text-background opacity-0 shadow-[0_4px_16px_rgb(33_30_25/0.10)] transition-opacity duration-150",
+          "pointer-events-none absolute -top-1.5 left-1/2 z-50 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-md bg-foreground px-2 py-1 text-xs font-medium text-background opacity-0 shadow-[var(--shadow-pop)] transition-opacity duration-150",
           open && "opacity-100",
           className
         )}

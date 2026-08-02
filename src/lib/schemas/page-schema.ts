@@ -64,7 +64,15 @@ function blockInstanceSchema(depth: number): z.ZodType<BlockInstance> {
     type: z.enum(BLOCK_TYPES as [BlockType, ...BlockType[]]),
     config: blockConfigSchema,
     layout: blockLayoutSchema.optional(),
-    children: depth < MAX_CONTAINER_DEPTH ? z.array(z.lazy(() => blockInstanceSchema(depth + 1))).optional() : z.undefined(),
+    // Past the cap, `children` must be absent/undefined rather than a real
+    // array — `.optional()` on the `z.undefined()` branch is load-bearing:
+    // without it, zod requires the key to be *present* with value
+    // `undefined`, which a plain leaf block (any non-container type, which
+    // never sets `children` at all) doesn't satisfy — that was rejecting
+    // ordinary leaf blocks the moment their computed depth reached the cap,
+    // not just genuinely over-deep containers.
+    children:
+      depth < MAX_CONTAINER_DEPTH ? z.array(z.lazy(() => blockInstanceSchema(depth + 1))).optional() : z.undefined().optional(),
   });
   return base as unknown as z.ZodType<BlockInstance>;
 }

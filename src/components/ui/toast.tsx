@@ -29,24 +29,35 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <div className="pointer-events-none fixed inset-x-0 bottom-4 z-[100] flex flex-col items-center gap-2 px-4">
         {toasts.map((toast) => (
-          <ToastItem key={toast.id} toast={toast} onDismiss={() => dismiss(toast.id)} />
+          <ToastItem key={toast.id} toast={toast} dismiss={dismiss} />
         ))}
       </div>
     </ToastContext.Provider>
   );
 }
 
-function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }) {
+// Takes `dismiss` + the raw `id` rather than a pre-bound `() => dismiss(id)`
+// closure — that inline arrow was a new function identity on every
+// ToastProvider render (i.e. every time any toast was added or removed),
+// which as an effect dependency below restarted every *other* already-
+// mounted toast's 4s auto-dismiss timer each time. Both `dismiss` (stable,
+// see its useCallback above) and `toast.id` (unchanged for an existing
+// toast across re-renders) are stable, so the effect now only re-runs when
+// this specific toast's own timer should start.
+function ToastItem({ toast, dismiss }: { toast: Toast; dismiss: (id: number) => void }) {
   useEffect(() => {
-    const timer = setTimeout(onDismiss, 4000);
+    const timer = setTimeout(() => dismiss(toast.id), 4000);
     return () => clearTimeout(timer);
-  }, [onDismiss]);
+  }, [dismiss, toast.id]);
 
   return (
     <div
-      role="status"
+      // Errors get an assertive live region — the default "status"/polite
+      // queue used for success confirmations can be missed entirely if the
+      // user is already reading/typing something else when it appears.
+      role={toast.variant === "error" ? "alert" : "status"}
       className={cn(
-        "pointer-events-auto flex max-w-sm items-center gap-2 rounded-md border border-border bg-surface px-3.5 py-2.5 text-sm font-medium text-foreground shadow-[0_12px_40px_rgb(33_30_25/0.16)] transition-[opacity,transform] duration-200",
+        "pointer-events-auto flex max-w-sm items-center gap-2 rounded-md border border-border bg-surface px-3.5 py-2.5 text-sm font-medium text-foreground shadow-[var(--shadow-pop)] transition-[opacity,transform] duration-200",
         toast.variant === "error" && "border-destructive/30 text-destructive"
       )}
     >

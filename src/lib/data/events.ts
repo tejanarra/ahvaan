@@ -1,10 +1,10 @@
-import { unstable_cache } from "next/cache";
-import { revalidatePath, revalidateTag } from "next/cache";
+import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import type { EventType } from "@/lib/event-types";
 import type { ThemeId } from "@/lib/themes";
 import { NotFoundError, DataError } from "@/lib/data/errors";
 import { deleteEventImages } from "@/lib/data/storage";
+import { createKeyedCache } from "@/lib/cache/keyed-cache";
 
 export type EventStatus = "draft" | "published";
 
@@ -134,29 +134,22 @@ export async function getEventNav(hostId: string, eventId: string) {
   return data as { id: string; title: string; slug: string; status: EventStatus } | null;
 }
 
-type GetEventBySlugPublicFn = (slug: string) => Promise<EventRecord | null>;
-
-// Cached because /e/[slug] is read on every guest visit but only changes
-// when a host saves — tagged per-slug so a save can precisely revalidate
-// just that event (see revalidateEventCache below).
-const getEventBySlugPublicCached: GetEventBySlugPublicFn = unstable_cache(
+// Cached because /events/[slug] is read on every guest visit but only
+// changes when a host saves — keyed per-slug so a save can precisely
+// invalidate just that event (see revalidateEventCache below). See
+// src/lib/cache/keyed-cache.ts for why this isn't `unstable_cache`.
+const eventBySlugPublicCache = createKeyedCache(
   async (slug: string) => {
     const supabase = createServiceRoleClient();
     const { data, error } = await supabase.from("events").select(PUBLIC_COLUMNS).eq("slug", slug).maybeSingle();
     if (error) throw new DataError(error.message);
     return data as EventRecord | null;
   },
-  ["event-by-slug-public"],
-  { tags: [] }
+  (slug) => slug
 );
 
-// unstable_cache's static `tags` option can't be templated per-call, so the
-// per-slug tag is applied via revalidateTag at the call site of writes
-// instead (see revalidateEventCache) — reads go through this wrapper so the
-// cache key still varies by slug while every write for that slug is
-// addressable via `event:{slug}`.
 export async function getEventBySlugPublic(slug: string): Promise<EventRecord | null> {
-  return getEventBySlugPublicCached(slug);
+  return eventBySlugPublicCache.get(slug);
 }
 
 // For the 'anonymous'/'email_verified' RSVP submission paths (src/lib/rsvp-
@@ -185,7 +178,7 @@ export async function getEventByIdPublic(eventId: string): Promise<EventRecord |
 }
 
 export function revalidateEventCache(eventId: string, slug: string) {
-  revalidateTag(`event:${slug}`, "max");
+  eventBySlugPublicCache.invalidate(slug);
   revalidatePath(`/events/${slug}`);
   revalidatePath(`/dashboard/events/${eventId}`);
 }

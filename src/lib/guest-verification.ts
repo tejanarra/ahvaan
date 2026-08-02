@@ -3,9 +3,22 @@ import { createVerificationCode, verifyCode } from "@/lib/data/email-verificatio
 import { deliverVerificationEmail } from "@/lib/email";
 import { buildVerifyLink } from "@/lib/verify-link";
 import { setVerifiedGuestCookie } from "@/lib/guest-session";
-import { isThrottled } from "@/lib/rate-limit";
+import { isThrottled, isRateLimited, getClientIp } from "@/lib/rate-limit";
 
 const MIN_MS_BETWEEN_REQUESTS = 2000;
+
+// Independent of the `email` field the caller controls (an attacker can
+// supply any address, not just their own) — without an IP-scoped ceiling,
+// the 2s per-identity floor above does nothing to stop someone from
+// slow-drip-emailing an arbitrary victim's inbox by simply waiting 2s
+// between requests forever. One hour / 8 codes is generous for a real
+// guest who fat-fingered their email and needs a couple of retries, while
+// still bounding the blast radius of abuse.
+const MAX_VERIFICATIONS_PER_IP_PER_HOUR = 8;
+const IP_WINDOW_MS = 60 * 60 * 1000;
+// A second, tighter ceiling keyed by the target email itself — bounds how
+// many codes any single inbox can be sent even from many different IPs.
+const MAX_VERIFICATIONS_PER_EMAIL_PER_HOUR = 5;
 
 export type GuestVerificationResult =
   | { status: "verification_sent"; verificationId: string; email: string }
@@ -24,6 +37,23 @@ export async function requestGuestVerification(eventId: string, rawEmail: string
 
   if (isThrottled(`guest-verify:${eventId}:${email}`, MIN_MS_BETWEEN_REQUESTS)) {
     return { status: "error", message: "Please wait a moment before trying again." };
+  }
+
+  const ip = await getClientIp();
+  const [ipLimited, emailLimited] = await Promise.all([
+    isRateLimited(`guest-verify-ip:${ip}`, {
+      minIntervalMs: 0,
+      maxHits: MAX_VERIFICATIONS_PER_IP_PER_HOUR,
+      windowMs: IP_WINDOW_MS,
+    }),
+    isRateLimited(`guest-verify-email:${email}`, {
+      minIntervalMs: 0,
+      maxHits: MAX_VERIFICATIONS_PER_EMAIL_PER_HOUR,
+      windowMs: IP_WINDOW_MS,
+    }),
+  ]);
+  if (ipLimited || emailLimited) {
+    return { status: "error", message: "Too many verification requests. Please try again later." };
   }
 
   const event = await getEventByIdPublic(eventId).catch(() => null);

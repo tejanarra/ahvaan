@@ -26,6 +26,7 @@ import { getVerifiedRsvpResponses, getResponsesForEmail } from "@/lib/rsvp-submi
 import { getVerifiedFormResponses } from "@/lib/form-submit";
 import { getVerifiedGuestEmail } from "@/lib/guest-session";
 import { parseSubmissionMode } from "@/lib/schemas/submission-mode";
+import { getCspNonce } from "@/lib/csp-nonce";
 import { VerificationBroadcaster } from "./verification-broadcaster";
 import { GuestIdentityFooter } from "./guest-identity-footer";
 import type { CustomComponentMap, CustomFormMap, CustomFormResponsesMap } from "@/lib/blocks/context";
@@ -51,7 +52,7 @@ export const dynamic = "force-dynamic";
 
 // docs/08 SEO: title/subtitle only — never invite/guest data (this only
 // ever reads the event row) — and always `noindex` (guest pages are
-// semi-private; robots.ts also disallows crawling /e/ entirely, this is
+// semi-private; robots.ts also disallows crawling /events/ entirely, this is
 // the per-page belt-and-suspenders). A draft's real title is withheld too,
 // on the same "nothing about a draft leaks before the host publishes it"
 // principle as the page body's own draft/preview check below — so a draft
@@ -127,28 +128,46 @@ export default async function PublicEventPage({
 
   const schema = resolveFormSchema(event.form_schema);
 
+  // Older events created before the page builder existed (or a schema that
+  // fails validation) have no usable page_schema — fall back to the same
+  // default layout (hero + RSVP form + venue map) a brand-new event is
+  // seeded with, so every event renders through the one page-block system
+  // rather than a second hardcoded layout or a crash.
+  const pageSchema = parsePageSchema(event.page_schema) ?? defaultPageSchema();
+  const themeColors = resolveThemeColors(event.theme_id, pageSchema.themeOverrides);
+  const themeFonts = resolveThemeFonts(event.theme_id);
+
+  // Only queried when the page might actually reference one — most won't.
+  const mayNeedComponents =
+    hasCustomComponentTag(pageSchema.blocks) || Boolean(pageSchema.customPage?.enabled && pageSchema.customPage.html.includes("<custom-component"));
+  const needsForms = hasFormBlock(pageSchema.blocks);
+  const submissionMode = parseSubmissionMode(event.submission_mode);
+
+  // Every lookup below depends only on `event`/`pageSchema` (already
+  // resolved above) — none of them depend on each other, so they run
+  // concurrently instead of as a serial chain. This was previously the
+  // page's biggest avoidable source of added latency (docs/02 W4/doc-audit
+  // H1): each extra sequential round trip directly adds to TTFB on a route
+  // with no response caching (see revalidateEventCache/getEventBySlugPublic
+  // for the caching side of that fix).
+  const [inviteRow, customComponentsList, customFormsList, hostProfile] = await Promise.all([
+    invite ? getInvitePublic(event.id, invite) : Promise.resolve(null),
+    mayNeedComponents ? listComponentsForEventPublic(event.id) : Promise.resolve([]),
+    needsForms ? listFormsForEventPublic(event.id) : Promise.resolve([]),
+    getHostProfilePublic(event.host_id),
+  ]);
+
+  const customComponents: CustomComponentMap = Object.fromEntries(
+    customComponentsList.map((c) => [c.name, { html: c.html, css: c.css, js: c.js }])
+  );
+  const customForms: CustomFormMap = Object.fromEntries(customFormsList.map((f) => [f.id, f]));
+
   let inviteId: string | null = null;
   let guestName: string | null = null;
   let initialResponses: Responses | null = null;
-
-  if (invite) {
-    // A malformed invite param (not a valid uuid) errors rather than
-    // returning no rows — either way, fall back to the view-only experience.
-    const inviteRow = await getInvitePublic(event.id, invite);
-
-    if (inviteRow) {
-      inviteId = inviteRow.id;
-      guestName = inviteRow.name;
-
-      const rsvp = await getRsvpForInvitePublic(inviteId);
-      if (rsvp) {
-        initialResponses = {};
-        for (const field of schema.fields) {
-          const value = getFieldValue(rsvp, field);
-          if (value !== undefined) initialResponses[field.id] = value;
-        }
-      }
-    }
+  if (inviteRow) {
+    inviteId = inviteRow.id;
+    guestName = inviteRow.name;
   }
 
   // A no-invite guest who's already passed the page-level "verify your
@@ -163,8 +182,29 @@ export default async function PublicEventPage({
   // stale verified email here would show one guest's old answers as if
   // they were about to edit them in place, while the actual submit path
   // silently inserts a brand-new row instead of updating it.
-  const submissionMode = parseSubmissionMode(event.submission_mode);
   const verifiedEmail = inviteId || submissionMode !== "email_verified" ? null : await getVerifiedGuestEmail(event.id);
+
+  // Second concurrent batch — everything here depends on inviteId/
+  // verifiedEmail, which only became known above, but the three lookups
+  // are independent of each other.
+  const [rsvp, formResponsesForInvite, formResponsesForEmail] = await Promise.all([
+    inviteId ? getRsvpForInvitePublic(inviteId) : Promise.resolve(null),
+    // 'private'-mode prefill-on-return, batched across every form on the page.
+    needsForms && inviteId ? listSubmissionsForInvitePublic(event.id, inviteId) : Promise.resolve({}),
+    // Same page-level verified-email prefill, batched across every form.
+    needsForms && verifiedEmail ? listSubmissionsForEmailPublic(event.id, verifiedEmail) : Promise.resolve({}),
+  ]);
+
+  if (rsvp) {
+    initialResponses = {};
+    for (const field of schema.fields) {
+      const value = getFieldValue(rsvp, field);
+      if (value !== undefined) initialResponses[field.id] = value;
+    }
+  }
+
+  const customFormResponses: CustomFormResponsesMap = { ...formResponsesForInvite, ...formResponsesForEmail };
+
   if (!initialResponses && verifiedEmail) {
     initialResponses = await getResponsesForEmail(schema, event.id, verifiedEmail);
   }
@@ -183,37 +223,6 @@ export default async function PublicEventPage({
     }
   }
 
-  // Older events created before the page builder existed (or a schema that
-  // fails validation) have no usable page_schema — fall back to the same
-  // default layout (hero + RSVP form + venue map) a brand-new event is
-  // seeded with, so every event renders through the one page-block system
-  // rather than a second hardcoded layout or a crash.
-  const pageSchema = parsePageSchema(event.page_schema) ?? defaultPageSchema();
-  const themeColors = resolveThemeColors(event.theme_id, pageSchema.themeOverrides);
-  const themeFonts = resolveThemeFonts(event.theme_id);
-
-  // Only queried when the page might actually reference one — most won't.
-  const mayNeedComponents =
-    hasCustomComponentTag(pageSchema.blocks) || Boolean(pageSchema.customPage?.enabled && pageSchema.customPage.html.includes("<custom-component"));
-  const customComponents: CustomComponentMap = mayNeedComponents
-    ? Object.fromEntries((await listComponentsForEventPublic(event.id)).map((c) => [c.name, { html: c.html, css: c.css, js: c.js }]))
-    : {};
-
-  const needsForms = hasFormBlock(pageSchema.blocks);
-  const customForms: CustomFormMap = needsForms
-    ? Object.fromEntries((await listFormsForEventPublic(event.id)).map((f) => [f.id, f]))
-    : {};
-  // 'private'-mode prefill-on-return, batched across every form on the
-  // page in one query — only meaningful once we know who the guest is.
-  const customFormResponses: CustomFormResponsesMap =
-    needsForms && inviteId ? await listSubmissionsForInvitePublic(event.id, inviteId) : {};
-
-  // Same page-level verified-email prefill as RSVP above, batched across
-  // every form on the page in one query.
-  if (needsForms && verifiedEmail) {
-    Object.assign(customFormResponses, await listSubmissionsForEmailPublic(event.id, verifiedEmail));
-  }
-
   // Fallback path (rare) mirroring the RSVP one above, for whichever one
   // specific form the guest verified against via the older per-form
   // submit-with-payload flow (vform) — a page can embed several forms,
@@ -225,13 +234,13 @@ export default async function PublicEventPage({
     }
   }
 
-  const hostProfile = await getHostProfilePublic(event.host_id);
-
   const draftBanner = isDraftPreview && (
     <p className="bg-[color-mix(in_oklab,var(--warning)_15%,transparent)] py-1.5 text-center text-xs font-medium text-[var(--warning)]">
       Draft preview — only you can see this page. Publish it from Settings to share the real link.
     </p>
   );
+
+  const nonce = await getCspNonce();
 
   if (pageSchema.customPage?.enabled) {
     return (
@@ -239,6 +248,7 @@ export default async function PublicEventPage({
         {draftBanner}
         <CustomPageFrame
           {...pageSchema.customPage}
+          nonce={nonce}
           shortcodes={{
             eventId: event.id,
             inviteId,
@@ -308,6 +318,7 @@ export default async function PublicEventPage({
           customForms,
           customFormResponses,
           verifiedEmail,
+          nonce,
         }}
       />
       {verifiedEmail && <GuestIdentityFooter eventId={event.id} email={verifiedEmail} />}

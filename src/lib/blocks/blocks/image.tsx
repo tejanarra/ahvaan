@@ -4,6 +4,7 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { ToggleGroup } from "@/components/ui/toggle-group";
 import { ImageUploadField } from "@/components/image-upload-field";
+import { safeImageSrc } from "../safe-url";
 
 export const imageDefaultConfig: ImageConfig = { url: "", alt: "" };
 
@@ -98,7 +99,8 @@ export function ImageEdit({
 }
 
 export function ImageRender({ config }: { config: ImageConfig }) {
-  if (!config.url) return null;
+  const src = safeImageSrc(config.url);
+  if (!src) return null;
 
   // The Edit control clamps to 20–2000, but a hand-edited JSON schema can
   // set anything — clamp here too so a bad value can't collapse the image
@@ -113,7 +115,7 @@ export function ImageRender({ config }: { config: ImageConfig }) {
     // No cap set: natural aspect ratio, full block width — the original,
     // simplest behavior.
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={config.url} alt={config.alt ?? ""} className="h-auto w-full rounded-lg object-cover" />;
+    return <img src={src} alt={config.alt ?? ""} className="h-auto w-full rounded-lg object-cover" />;
   }
 
   if (fit === "contain") {
@@ -128,7 +130,7 @@ export function ImageRender({ config }: { config: ImageConfig }) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={config.url}
+        src={src}
         alt={config.alt ?? ""}
         className="mx-auto block max-w-full rounded-lg object-contain"
         style={{ maxHeight: `${maxHeight}px`, width: "auto", height: "auto", flexShrink: 0 }}
@@ -141,7 +143,7 @@ export function ImageRender({ config }: { config: ImageConfig }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={config.url}
+      src={src}
       alt={config.alt ?? ""}
       className="w-full rounded-lg object-cover"
       style={{ height: `${maxHeight}px` }}

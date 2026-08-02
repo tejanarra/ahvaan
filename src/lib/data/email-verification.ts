@@ -58,7 +58,7 @@ export async function createVerificationCode(input: {
   // Drop any still-pending codes for this exact (subject, email, purpose) —
   // only one code should ever be redeemable at a time, so a guest who
   // requests a fresh one can't have an older leaked/guessed code still work.
-  await supabase
+  const { error: dropPendingError } = await supabase
     .from("email_verification_codes")
     .delete()
     .eq("subject_type", input.subjectType)
@@ -66,6 +66,10 @@ export async function createVerificationCode(input: {
     .eq("email", input.email)
     .eq("purpose", input.purpose)
     .is("consumed_at", null);
+  // Same best-effort reasoning as the prune sweep above — worst case on
+  // failure is an old code staying redeemable alongside the new one for up
+  // to its own TTL, not a broken send.
+  if (dropPendingError) console.error("Failed to drop pending verification codes", dropPendingError);
 
   const code = generateOtpCode();
   const { data, error } = await supabase

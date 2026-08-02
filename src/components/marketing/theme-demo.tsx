@@ -17,7 +17,7 @@ export function ThemeDemo() {
   return (
     <div className="mx-auto w-full max-w-[340px]">
       <div
-        className="pointer-events-none select-none overflow-hidden rounded-[2rem] border border-border-strong shadow-[0_12px_40px_rgb(33_30_25/0.16)] transition-colors duration-300"
+        className="pointer-events-none select-none overflow-hidden rounded-[2rem] border border-border-strong shadow-[var(--shadow-modal)] transition-colors duration-300"
         style={{ background: c.background, color: c.foreground } as CSSProperties}
         aria-hidden="true"
       >

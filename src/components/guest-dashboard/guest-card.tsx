@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { IconButton } from "@/components/ui/icon-button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useToast } from "@/components/ui/toast";
+import { useTransientFlag } from "@/hooks/use-transient-flag";
 
 export type PendingInvite = {
   id: string;
@@ -26,7 +27,9 @@ export type PendingInvite = {
 
 function SendInviteEmailButton({ eventId, invite }: { eventId: string; invite: PendingInvite }) {
   const { show } = useToast();
-  const [sent, setSent] = useState(false);
+  // Shared "swap icon, then revert after N ms" primitive (docs-audit "Low:
+  // misc") — the same shape CopyIconButton owns via useClipboardCopy.
+  const [sent, markSent] = useTransientFlag();
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
 
@@ -37,9 +40,8 @@ function SendInviteEmailButton({ eventId, invite }: { eventId: string; invite: P
     startTransition(async () => {
       try {
         await sendInviteEmailAction(eventId, invite.id);
-        setSent(true);
+        markSent();
         show(`Invite emailed to ${invite.name}.`);
-        setTimeout(() => setSent(false), 2000);
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to send.";
         setError(message);
@@ -183,9 +185,11 @@ export function RespondedGuestCard({
             />
           </>
         )}
-        <IconButton aria-label="Edit RSVP" title="Edit RSVP" onClick={() => setEditing(true)}>
-          <EditIcon />
-        </IconButton>
+        <Tooltip content="Edit RSVP">
+          <IconButton aria-label="Edit RSVP" onClick={() => setEditing(true)}>
+            <EditIcon />
+          </IconButton>
+        </Tooltip>
         <ConfirmIconButton
           label="Delete response"
           confirmText={`Delete ${guest.name}'s response?`}

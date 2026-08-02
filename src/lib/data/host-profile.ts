@@ -1,6 +1,6 @@
-import { unstable_cache, revalidateTag } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import type { HostProfileFormInput } from "@/lib/schemas/host-profile";
+import { createKeyedCache } from "@/lib/cache/keyed-cache";
 
 export type HostProfileRecord = {
   host_id: string;
@@ -17,13 +17,14 @@ export type HostProfilePublic = {
   avatar_url: string | null;
 };
 
+const COLUMNS = "host_id, display_name, bio, avatar_url, updated_at";
 const PUBLIC_COLUMNS = "display_name, bio, avatar_url";
 
 export async function getHostProfile(hostId: string): Promise<HostProfileRecord | null> {
   const supabase = createServiceRoleClient();
   const { data, error } = await supabase
     .from("host_profiles")
-    .select("*")
+    .select(COLUMNS)
     .eq("host_id", hostId)
     .maybeSingle();
 
@@ -33,11 +34,10 @@ export async function getHostProfile(hostId: string): Promise<HostProfileRecord 
 
 // Cached the same way as getEventBySlugPublic in events.ts — a guest page
 // render shouldn't pay for a fresh query on every request just to show a
-// name/bio/avatar. unstable_cache's static `tags` option can't be
-// templated per-call, so invalidation goes through revalidateTag at each
-// write's call site instead (see below); the cache key still varies per
-// host via the `hostId` keyPart.
-const getHostProfilePublicCached = unstable_cache(
+// name/bio/avatar. See src/lib/cache/keyed-cache.ts for why this isn't
+// `unstable_cache` (its static `tags` option can't be templated per call,
+// so a per-host revalidateTag never actually matched anything).
+const hostProfilePublicCache = createKeyedCache(
   async (hostId: string): Promise<HostProfilePublic | null> => {
     const supabase = createServiceRoleClient();
     const { data, error } = await supabase
@@ -52,12 +52,11 @@ const getHostProfilePublicCached = unstable_cache(
     if (!data || (!data.display_name && !data.bio && !data.avatar_url)) return null;
     return data;
   },
-  ["host-profile-public"],
-  { tags: [] }
+  (hostId) => hostId
 );
 
 export async function getHostProfilePublic(hostId: string): Promise<HostProfilePublic | null> {
-  return getHostProfilePublicCached(hostId);
+  return hostProfilePublicCache.get(hostId);
 }
 
 // Two independent partial-update paths (name/bio vs. avatar) rather than
@@ -80,7 +79,7 @@ export async function updateHostProfileFields(
   );
   if (error) throw error;
 
-  revalidateTag(`host-profile:${hostId}`, "max");
+  hostProfilePublicCache.invalidate(hostId);
 }
 
 export async function setHostAvatarUrl(hostId: string, avatarUrl: string | null): Promise<void> {
@@ -91,5 +90,5 @@ export async function setHostAvatarUrl(hostId: string, avatarUrl: string | null)
   );
   if (error) throw error;
 
-  revalidateTag(`host-profile:${hostId}`, "max");
+  hostProfilePublicCache.invalidate(hostId);
 }
