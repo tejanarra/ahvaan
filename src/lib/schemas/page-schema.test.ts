@@ -34,6 +34,15 @@ describe("parsePageSchema", () => {
     expect(result).toBeNull();
   });
 
+  it("accepts an intentionally empty blocks array", () => {
+    // A host deleting every block on the page is a valid, saveable state —
+    // distinct from "every block present failed validation" above, which
+    // should still fall back to null.
+    const result = parsePageSchema({ version: 1, blocks: [] });
+    expect(result).not.toBeNull();
+    expect(result?.blocks).toEqual([]);
+  });
+
   it("rejects nesting past the depth cap without throwing", () => {
     // 9 levels deep — one past MAX_CONTAINER_DEPTH (8). The schema forces
     // `children` to `undefined` past the cap, so a container this deep

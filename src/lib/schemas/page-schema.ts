@@ -114,7 +114,10 @@ export function parsePageSchema(raw: unknown): PageSchema | null {
   if (!Array.isArray(candidate.blocks)) return null;
 
   const blocks = candidate.blocks.map(safeParseBlock).filter((b): b is BlockInstance => b !== null);
-  if (blocks.length === 0) return null;
+  // An input that started empty (host deleted every block) is a valid,
+  // intentional page state — only treat "zero survivors" as a parse failure
+  // when there was actually something that failed to survive validation.
+  if (blocks.length === 0 && candidate.blocks.length > 0) return null;
 
   const rest = pageSchemaShape.omit({ blocks: true, version: true }).partial().safeParse(raw);
 
