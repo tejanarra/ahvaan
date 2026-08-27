@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Hanken_Grotesk, Geist_Mono, Fraunces } from "next/font/google";
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
+import { getCspNonce } from "@/lib/csp-nonce";
 import "./globals.css";
 
 // UI face — warm humanist grotesk (see docs/04-design-system.md "Typography").
@@ -62,11 +63,21 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Reading the nonce (even unused beyond this) opts the whole app into
+  // per-request dynamic rendering. Without it, Next statically prerenders
+  // this layout once at build time and bakes that build-time nonce into
+  // every script tag it emits, while src/proxy.ts's middleware stamps a
+  // *fresh* random nonce onto the CSP response header on every request —
+  // the two never match, so the browser blocks every script as a CSP
+  // violation (including the app's own hydration bootstrap, breaking every
+  // page, not just login/signup).
+  await getCspNonce();
+
   return (
     <html
       lang="en"
