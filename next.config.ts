@@ -7,6 +7,13 @@ import type { NextConfig } from "next";
 // every response instead. Everything below is genuinely static (same value
 // on every response), so it stays here.
 const nextConfig: NextConfig = {
+  experimental: {
+    serverActions: {
+      // Server Actions default to a 1 MB body limit; several actions accept
+      // base64-encoded images (logos, photos) that exceed that default.
+      bodySizeLimit: "5mb",
+    },
+  },
   async headers() {
     return [
       {
